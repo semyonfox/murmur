@@ -9,6 +9,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import android.net.Uri
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -21,6 +23,7 @@ import android.media.audiofx.NoiseSuppressor
 import android.os.Bundle
 import android.os.Build
 import android.provider.Settings
+import android.provider.OpenableColumns
 import android.speech.SpeechRecognizer
 import android.text.Editable
 import android.text.InputType
@@ -44,6 +47,7 @@ import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
 import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
 import android.util.JsonWriter
 import java.io.OutputStreamWriter
 import java.io.File
@@ -88,6 +92,9 @@ class MainActivity : Activity() {
     private lateinit var selectedRow: SetupRow
     private lateinit var latestView: TextView
     private lateinit var historyList: LinearLayout
+    private lateinit var lectureList: LinearLayout
+    private lateinit var lectureStatus: TextView
+    private lateinit var lectureRecordButton: Button
     private lateinit var retentionButton: Button
     private lateinit var historyFeedback: TextView
     private lateinit var statsPaceView: TextView
@@ -123,6 +130,12 @@ class MainActivity : Activity() {
     private lateinit var dictionaryList: LinearLayout
     private var heroAction: () -> Unit = {}
     private var pendingReadyStart = false
+    private var pendingLectureStart = false
+    private val lectureReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            refreshLectures()
+        }
+    }
 
     private data class SpeechPreset(val label: String, val url: String, val model: String)
     private enum class Page(val label: String, val description: String, val icon: Int) {
@@ -538,9 +551,25 @@ class MainActivity : Activity() {
             override fun afterTextChanged(s: Editable?) = refreshPresets()
         })
 
-        transcript.addView(text("Raw and cleaned text stay on this phone. Audio is deleted after each request.", 13f, R.color.murmur_muted).apply {
+        transcript.addView(text("Dictation audio is temporary. Lecture audio and raw and cleaned text stay on this phone until their retention period ends or you delete them.", 13f, R.color.murmur_muted).apply {
             setPadding(dp(4), 0, dp(4), dp(8))
         })
+        val lectureCard = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        lectureCard.addView(text("Lectures and audio files", 17f, R.color.murmur_text, bold = true))
+        lectureCard.addView(text("Record a lecture or choose an audio file. Murmur saves the audio here and transcribes it in two-minute parts using your selected endpoint. Your endpoint may charge for every part. On-device recognition cannot process saved audio.", 12f, R.color.murmur_muted).apply {
+            setPadding(0, dp(6), 0, dp(8))
+        })
+        lectureStatus = text("", 13f, R.color.murmur_muted)
+        lectureCard.addView(lectureStatus)
+        val lectureActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        lectureRecordButton = button("Record lecture", primary = true) { onLectureRecord() }
+        lectureActions.addView(lectureRecordButton)
+        lectureActions.addView(button("Choose audio", primary = false) { chooseLectureAudio() })
+        lectureCard.addView(lectureActions)
+        transcript.addView(lectureCard)
+        transcript.addView(groupTitle("Saved lectures"))
+        lectureList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        transcript.addView(lectureList)
         val latest = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
         latestView = text("No transcript yet.", 15f, R.color.murmur_text).apply { setTextIsSelectable(true) }
         latest.addView(latestView)
@@ -754,7 +783,19 @@ class MainActivity : Activity() {
         if (::statusTitle.isInitialized) {
             refreshStatus()
             refreshHistory()
+            refreshLectures()
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        ContextCompat.registerReceiver(this, lectureReceiver, IntentFilter(LectureService.ACTION_STATE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    override fun onStop() {
+        unregisterReceiver(lectureReceiver)
+        super.onStop()
     }
 
     private fun onUpdateButton() {
@@ -824,8 +865,8 @@ class MainActivity : Activity() {
     }
 
     private fun installUpdate(apk: File) {
-        if (MurmurReadyService.isActive) {
-            updateStatus.text = "Turn off the voice bubble before installing."
+        if (MurmurReadyService.isActive || LectureService.isActive) {
+            updateStatus.text = "Finish the voice bubble or lecture before installing."
             return
         }
         if (!packageManager.canRequestPackageInstalls()) {
@@ -859,13 +900,31 @@ class MainActivity : Activity() {
             pendingReadyStart = false
             beginVoiceReady()
         }
+        if (requestCode == MICROPHONE_REQUEST && pendingLectureStart) {
+            pendingLectureStart = false
+            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) beginLectureRecording()
+            else lectureStatus.text = "Microphone permission is needed to record a lecture."
+        }
         refreshStatus()
     }
 
     @Deprecated("Uses the platform document picker without an added activity-result dependency")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != HISTORY_EXPORT_REQUEST || resultCode != RESULT_OK) return
+        if (resultCode != RESULT_OK) return
+        if (requestCode == LECTURE_IMPORT_REQUEST) {
+            val uri = data?.data ?: return
+            if (!lectureEndpointReady()) return
+            runCatching {
+                val title = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                    ?.substringBeforeLast('.')?.takeIf(String::isNotBlank) ?: "Imported audio"
+                LectureService.import(this, uri, title)
+            }.onFailure { lectureStatus.text = it.message ?: "Could not open audio file." }
+            refreshLectures()
+            return
+        }
+        if (requestCode != HISTORY_EXPORT_REQUEST) return
         val uri = data?.data ?: return
         historyFeedback.text = "Exporting history…"
         Thread {
@@ -1113,6 +1172,134 @@ class MainActivity : Activity() {
             historyList.addView(entry, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 bottomMargin = dp(10)
             })
+        }
+    }
+
+    private fun lectureEndpointReady(): Boolean {
+        val ready = runCatching { !settings.useOnDeviceRecognition && settings.endpointOrNull() != null }.getOrDefault(false)
+        if (!ready) {
+            AlertDialog.Builder(this).setTitle("Choose a transcription endpoint")
+                .setMessage("Lectures and audio files need an endpoint in Speech → Recognition. The on-device recognizer cannot process saved audio. Your selected endpoint may charge for transcription.")
+                .setNegativeButton("Close", null)
+                .setPositiveButton("Open Recognition") { _, _ -> showPage(Page.RECOGNITION) }
+                .show()
+        }
+        return ready
+    }
+
+    private fun onLectureRecord() {
+        if (LectureService.isActive) {
+            LectureService.finish(this)
+            lectureStatus.text = "Finishing recording…"
+            return
+        }
+        if (!lectureEndpointReady()) return
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            pendingLectureStart = true
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), MICROPHONE_REQUEST)
+            return
+        }
+        beginLectureRecording()
+    }
+
+    private fun beginLectureRecording() {
+        MurmurReadyService.stop(this)
+        runCatching { LectureService.record(this) }
+            .onFailure { lectureStatus.text = it.message ?: "Could not start recording." }
+        lectureStatus.text = "Starting lecture recording…"
+    }
+
+    private fun chooseLectureAudio() {
+        if (LectureService.isActive) {
+            lectureStatus.text = "Finish the current lecture first."
+            return
+        }
+        if (!lectureEndpointReady()) return
+        startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "audio/*"
+        }, LECTURE_IMPORT_REQUEST)
+    }
+
+    private fun refreshLectures() {
+        if (!::lectureList.isInitialized) return
+        lectureStatus.text = LectureService.status
+        lectureRecordButton.text = if (LectureService.isActive && LectureService.status.startsWith("Recording"))
+            "Finish recording" else "Record lecture"
+        lectureRecordButton.isEnabled = !LectureService.isActive || LectureService.status.startsWith("Recording")
+        lectureList.removeAllViews()
+        val records = runCatching { history.lectures() }.getOrElse {
+            lectureList.addView(text("Saved lectures could not be loaded.", 13f, R.color.murmur_muted))
+            return
+        }
+        if (records.isEmpty()) {
+            lectureList.addView(text("No lectures yet.", 13f, R.color.murmur_muted))
+            return
+        }
+        records.forEach { record ->
+            val entry = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+            entry.addView(text(record.title, 15f, R.color.murmur_text, bold = true))
+            val state = if (!LectureService.isActive && record.status in listOf("recording", "processing"))
+                "Interrupted · retry" else record.status.replaceFirstChar(Char::uppercase)
+            val minutes = record.durationMs / 60_000
+            entry.addView(text("$state · ${minutes} min · ${DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(record.timestamp))}",
+                12f, R.color.murmur_muted))
+            if (record.finalText.isNotBlank()) entry.addView(text(record.finalText, 14f, R.color.murmur_text).apply {
+                setPadding(0, dp(8), 0, dp(8))
+                maxLines = 3
+                ellipsize = TextUtils.TruncateAt.END
+            })
+            val textActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            textActions.addView(button("View text", primary = false) {
+                val body = if (record.raw == record.finalText) record.finalText
+                    else "${record.finalText}\n\nRaw transcript\n${record.raw}"
+                AlertDialog.Builder(this).setTitle(record.title).setMessage(body.ifBlank { "No transcript yet." })
+                    .setPositiveButton("Close", null).show()
+            })
+            textActions.addView(button("Copy", primary = false) {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Murmur lecture", record.finalText.ifBlank { record.raw }))
+            })
+            entry.addView(textActions)
+            val audioActions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            audioActions.addView(button("Share audio", primary = false) {
+                val file = history.lectureFile(record.fileName)
+                if (!file.exists()) {
+                    lectureStatus.text = "Saved audio is missing."
+                } else {
+                    val uri = FileProvider.getUriForFile(this, "$packageName.updates", file)
+                    startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                        type = "audio/wav"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }, "Share lecture audio"))
+                }
+            })
+            val manageActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            manageActions.addView(button("Retry", primary = false) {
+                if (LectureService.isActive) lectureStatus.text = "Finish the current lecture first."
+                else if (lectureEndpointReady()) AlertDialog.Builder(this)
+                    .setTitle("Retry transcription?")
+                    .setMessage("Murmur will send this audio to your selected endpoint again. Your endpoint may charge for the new requests. The current transcript stays available until new text arrives.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Retry") { _, _ ->
+                        runCatching { LectureService.retry(this, record.id) }
+                            .onFailure { lectureStatus.text = it.message ?: "Could not retry." }
+                    }.show()
+            })
+            manageActions.addView(button("Delete", primary = false) {
+                if (LectureService.isActive) {
+                    lectureStatus.text = "Finish the current lecture first."
+                } else AlertDialog.Builder(this).setTitle("Delete lecture?")
+                    .setMessage("This removes the saved audio, raw transcript and cleaned transcript from this phone.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Delete") { _, _ -> history.deleteLecture(record.id); refreshLectures() }
+                    .show()
+            })
+            audioActions.addView(manageActions)
+            entry.addView(audioActions)
+            lectureList.addView(entry, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(10) })
         }
     }
 
@@ -1497,5 +1684,6 @@ class MainActivity : Activity() {
         private const val MICROPHONE_REQUEST = 1
         private const val NOTIFICATION_REQUEST = 2
         private const val HISTORY_EXPORT_REQUEST = 3
+        private const val LECTURE_IMPORT_REQUEST = 4
     }
 }

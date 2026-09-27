@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.JsonWriter
 import android.util.JsonReader
+import java.io.File
 import java.util.Calendar
 import java.util.TimeZone
 import kotlin.math.roundToInt
@@ -16,6 +17,17 @@ internal data class DictationRecord(
     val raw: String,
     val finalText: String,
     val durationMs: Long,
+)
+
+internal data class LectureRecord(
+    val id: Long,
+    val timestamp: Long,
+    val title: String,
+    val fileName: String,
+    val raw: String,
+    val finalText: String,
+    val durationMs: Long,
+    val status: String,
 )
 
 internal data class DictationStats(
@@ -36,7 +48,7 @@ internal data class WeekStats(
     val recordedWpm: Int?,
 )
 
-internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(context, "history.db", null, 2) {
+internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(context, "history.db", null, 3) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE dictations (
@@ -50,6 +62,7 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
         """.trimIndent())
         db.execSQL("CREATE INDEX dictations_timestamp ON dictations(timestamp DESC)")
         db.execSQL("CREATE UNIQUE INDEX dictations_legacy_id ON dictations(legacy_id)")
+        createLecturesTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -57,6 +70,74 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
             db.execSQL("ALTER TABLE dictations ADD COLUMN legacy_id INTEGER")
             db.execSQL("CREATE UNIQUE INDEX dictations_legacy_id ON dictations(legacy_id)")
         }
+        if (oldVersion < 3) createLecturesTable(db)
+    }
+
+    private fun createLecturesTable(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE lectures (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                file_name TEXT NOT NULL UNIQUE,
+                raw_text TEXT NOT NULL DEFAULT '',
+                final_text TEXT NOT NULL DEFAULT '',
+                duration_ms INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'recording'
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX lectures_timestamp ON lectures(timestamp DESC)")
+    }
+
+    private val lectureDirectory: File get() = File(context.filesDir, "lectures").apply { mkdirs() }
+
+    fun lectureFile(fileName: String): File {
+        require(fileName.matches(Regex("lecture-[A-Za-z0-9-]+\\.wav"))) { "Invalid lecture file" }
+        return File(lectureDirectory, fileName)
+    }
+
+    fun addLecture(file: File, title: String, status: String = "recording"): Long {
+        require(file.canonicalFile.parentFile == lectureDirectory.canonicalFile) { "Invalid lecture location" }
+        val id = writableDatabase.insertOrThrow("lectures", null, ContentValues().apply {
+            put("timestamp", System.currentTimeMillis())
+            put("title", title.take(100))
+            put("file_name", file.name)
+            put("status", status)
+        })
+        pruneOlderThan(AppSettings(context).historyRetentionDays)
+        return id
+    }
+
+    fun updateLecture(id: Long, raw: String, finalText: String, durationMs: Long, status: String) {
+        require(status in setOf("recording", "processing", "done", "failed"))
+        val updated = writableDatabase.update("lectures", ContentValues().apply {
+            put("raw_text", raw)
+            put("final_text", finalText)
+            put("duration_ms", durationMs.coerceAtLeast(0))
+            put("status", status)
+        }, "id = ?", arrayOf(id.toString()))
+        check(updated == 1) { "Lecture was deleted." }
+    }
+
+    fun lecture(id: Long): LectureRecord? = readableDatabase.query(
+        "lectures", arrayOf("id", "timestamp", "title", "file_name", "raw_text", "final_text", "duration_ms", "status"),
+        "id = ?", arrayOf(id.toString()), null, null, null, "1",
+    ).use { cursor -> if (cursor.moveToFirst()) lectureFromCursor(cursor) else null }
+
+    fun lectures(limit: Int = 50): List<LectureRecord> = readableDatabase.query(
+        "lectures", arrayOf("id", "timestamp", "title", "file_name", "raw_text", "final_text", "duration_ms", "status"),
+        null, null, null, null, "timestamp DESC, id DESC", limit.coerceIn(1, 100).toString(),
+    ).use { cursor -> buildList { while (cursor.moveToNext()) add(lectureFromCursor(cursor)) } }
+
+    private fun lectureFromCursor(cursor: android.database.Cursor) = LectureRecord(
+        cursor.getLong(0), cursor.getLong(1), cursor.getString(2), cursor.getString(3),
+        cursor.getString(4), cursor.getString(5), cursor.getLong(6), cursor.getString(7),
+    )
+
+    fun deleteLecture(id: Long) {
+        val record = lecture(id) ?: return
+        writableDatabase.delete("lectures", "id = ?", arrayOf(id.toString()))
+        lectureFile(record.fileName).delete()
     }
 
     fun add(raw: String, finalText: String, durationMs: Long): Long {
@@ -74,6 +155,11 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
         if (days == 0) return
         val cutoff = System.currentTimeMillis() - days * 86_400_000L
         writableDatabase.delete("dictations", "timestamp < ?", arrayOf(cutoff.toString()))
+        val expired = readableDatabase.query("lectures", arrayOf("id"), "timestamp < ?",
+            arrayOf(cutoff.toString()), null, null, null).use { cursor ->
+            buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) }
+        }
+        expired.forEach(::deleteLecture)
     }
 
     fun recent(limit: Int = 50): List<DictationRecord> = readableDatabase.query(
@@ -155,7 +241,7 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
 
     fun writeExport(writer: JsonWriter) {
         writer.beginObject()
-        writer.name("version").value(1)
+        writer.name("version").value(2)
         writer.name("exported_at").value(System.currentTimeMillis())
         writer.name("dictations").beginArray()
         readableDatabase.query("dictations", arrayOf("timestamp", "raw_text", "final_text", "duration_ms"),
@@ -166,6 +252,21 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
                 writer.name("raw_text").value(cursor.getString(1))
                 writer.name("final_text").value(cursor.getString(2))
                 writer.name("duration_ms").value(cursor.getLong(3))
+                writer.endObject()
+            }
+        }
+        writer.endArray()
+        writer.name("lectures").beginArray()
+        readableDatabase.query("lectures", arrayOf("timestamp", "title", "raw_text", "final_text", "duration_ms", "status"),
+            null, null, null, null, "timestamp DESC, id DESC").use { cursor ->
+            while (cursor.moveToNext()) {
+                writer.beginObject()
+                writer.name("timestamp").value(cursor.getLong(0))
+                writer.name("title").value(cursor.getString(1))
+                writer.name("raw_text").value(cursor.getString(2))
+                writer.name("final_text").value(cursor.getString(3))
+                writer.name("duration_ms").value(cursor.getLong(4))
+                writer.name("status").value(cursor.getString(5))
                 writer.endObject()
             }
         }

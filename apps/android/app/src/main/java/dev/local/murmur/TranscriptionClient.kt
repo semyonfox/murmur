@@ -18,7 +18,7 @@ internal class TranscriptionClient {
         connection?.disconnect()
     }
 
-    fun transcribe(endpoint: TranscriptionEndpoint, audioFile: File): String {
+    fun transcribe(endpoint: TranscriptionEndpoint, audioFile: File, allowEmpty: Boolean = false): String {
         check(!cancelled.get()) { "Transcription cancelled." }
         val boundary = "murmur-${UUID.randomUUID()}"
         val prefix = (
@@ -74,7 +74,7 @@ internal class TranscriptionClient {
             }
             check(!cancelled.get()) { "Transcription cancelled." }
             val text = JSONObject(response).optString("text").trim()
-            if (text.isEmpty()) throw IOException("No speech returned.")
+            if (text.isEmpty() && !allowEmpty) throw IOException("No speech returned.")
             return text
         } finally {
             connection = null

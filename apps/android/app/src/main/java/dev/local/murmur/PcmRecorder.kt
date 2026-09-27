@@ -17,9 +17,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 
 internal class PcmRecorder private constructor(
-    private val file: File,
+    val file: File,
     private val recorder: AudioRecord,
     private val noiseSuppressor: NoiseSuppressor?,
+    private val maxPcmBytes: Int,
+    private val preserveOnFailure: Boolean,
     private val onComplete: (Result<File>) -> Unit,
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -48,21 +50,34 @@ internal class PcmRecorder private constructor(
                 output.setLength(0)
                 output.write(ByteArray(WAV_HEADER_BYTES))
                 val buffer = ByteArray(bufferSize)
-                while (running.get() && pcmBytes < MAX_PCM_BYTES) {
-                    val count = recorder.read(
-                        buffer,
-                        0,
-                        minOf(buffer.size, MAX_PCM_BYTES - pcmBytes),
-                        AudioRecord.READ_BLOCKING,
-                    )
-                    if (count < 0 && running.get()) error("Microphone capture failed.")
-                    if (count <= 0) continue
-                    output.write(buffer, 0, count)
-                    pcmBytes += count
+                var checkpointAt = System.currentTimeMillis() + 5_000L
+                try {
+                    while (running.get() && pcmBytes < maxPcmBytes) {
+                        val count = recorder.read(
+                            buffer,
+                            0,
+                            minOf(buffer.size, maxPcmBytes - pcmBytes),
+                            AudioRecord.READ_BLOCKING,
+                        )
+                        if (count < 0 && running.get()) error("Microphone capture failed.")
+                        if (count <= 0) continue
+                        output.write(buffer, 0, count)
+                        pcmBytes += count
+                        if (preserveOnFailure && System.currentTimeMillis() >= checkpointAt) {
+                            val position = output.filePointer
+                            output.seek(0)
+                            output.write(wavHeader(pcmBytes))
+                            output.seek(position)
+                            checkpointAt = System.currentTimeMillis() + 5_000L
+                        }
+                    }
+                } finally {
+                    if (pcmBytes > 0) {
+                        output.seek(0)
+                        output.write(wavHeader(pcmBytes))
+                    }
                 }
                 if (pcmBytes < MIN_PCM_BYTES) error("Record at least half a second of speech.")
-                output.seek(0)
-                output.write(wavHeader(pcmBytes))
             }
             file
         }
@@ -77,7 +92,7 @@ internal class PcmRecorder private constructor(
         mainHandler.post {
             if (discard.get()) file.delete()
             else {
-                if (result.isFailure) file.delete()
+                if (result.isFailure && !preserveOnFailure) file.delete()
                 onComplete(result)
             }
         }
@@ -88,11 +103,19 @@ internal class PcmRecorder private constructor(
         private const val BYTES_PER_SAMPLE = 2
         private const val CHANNELS = 1
         private const val WAV_HEADER_BYTES = 44
-        private const val MAX_SECONDS = 120
-        private const val MAX_PCM_BYTES = SAMPLE_RATE * BYTES_PER_SAMPLE * MAX_SECONDS
+        private const val DEFAULT_MAX_SECONDS = 120
         private const val MIN_PCM_BYTES = SAMPLE_RATE * BYTES_PER_SAMPLE / 2
 
-        fun start(context: Context, cacheDir: File, suppressNoise: Boolean, onComplete: (Result<File>) -> Unit): PcmRecorder {
+        fun start(
+            context: Context,
+            cacheDir: File,
+            suppressNoise: Boolean,
+            maxSeconds: Int = DEFAULT_MAX_SECONDS,
+            preserveOnFailure: Boolean = false,
+            onComplete: (Result<File>) -> Unit,
+        ): PcmRecorder {
+            require(maxSeconds in 1..28_800)
+            val maxPcmBytes = SAMPLE_RATE * BYTES_PER_SAMPLE * maxSeconds
             if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 throw SecurityException("Microphone permission is not granted.")
             }
@@ -103,7 +126,8 @@ internal class PcmRecorder private constructor(
             )
             require(minimum > 0) { "This device cannot record 16 kHz mono audio." }
             val bufferSize = max(minimum * 2, 4096)
-            val file = File.createTempFile("murmur-capture-", ".wav", cacheDir)
+            cacheDir.mkdirs()
+            val file = File.createTempFile(if (preserveOnFailure) "lecture-" else "murmur-capture-", ".wav", cacheDir)
             val recorder = try {
                 AudioRecord.Builder()
                     .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
@@ -148,7 +172,7 @@ internal class PcmRecorder private constructor(
                 file.delete()
                 error("Microphone did not start recording.")
             }
-            return PcmRecorder(file, recorder, noiseSuppressor, onComplete).also { capture ->
+            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, onComplete).also { capture ->
                 Thread({ capture.runCapture(bufferSize) }, "murmur-audio").start()
             }
         }

@@ -19,11 +19,17 @@ The default endpoint is OpenRouter's OpenAI-compatible `/audio/transcriptions` A
 
 Transcript cleanup is off by default. Speech → Cleanup has a separate `/chat/completions` URL, required model ID, formality setting and encrypted key; its default URL is OpenRouter. The status immediately below the switch explains what is missing. Entering a valid model and key, then turning on the switch saves the fields and enables cleanup. Choosing a service preserves any model ID already typed. A custom endpoint on `127.0.0.1` means a server running on the phone; a server on another machine needs HTTPS. When enabled, cleanup receives raw transcript text and Words entries, not audio. A failed or over-aggressive response falls back to raw text, and the latest failure appears in Cleanup. Raw and final text remain separate in History. The Input page offers Android's device noise suppressor when available; it is off by default and can alter quiet speech.
 
-Private app preferences hold encrypted speech and cleanup keys, settings and the latest result. Changing either endpoint URL removes its saved key. A local SQLite database stores raw and final transcripts, recording duration and timestamps. History defaults to keeping text until deletion; choosing 7, 30 or 90 days asks before removing older entries. History can export raw and final text as an unencrypted JSON file to a location you select. Home's stats use retained text; WPM uses raw words divided by recording time, including pauses. Temporary WAV files are deleted after processing, including failures and cancellation. No audio playback, audio export or retranscription from history exists yet. The Android app also lacks desktop model downloads, an embedded text-cleanup model and provider cost controls.
+Private app preferences hold encrypted speech and cleanup keys, settings and the latest result. Changing either endpoint URL removes its saved key. A local SQLite database stores raw and final transcripts, recording duration and timestamps. History defaults to keeping data until deletion; choosing 7, 30 or 90 days asks before removing older entries. History can export raw and final text as an unencrypted JSON file to a location you select. Home's stats count dictations; WPM uses raw words divided by recording time, including pauses. Short dictation WAV files are temporary. Lecture WAV files stay in private app storage until their retention period ends or you delete them. The Android app still lacks desktop model downloads, an embedded text-cleanup model and provider cost controls.
+
+## Record or import a lecture
+
+Open **History → Lectures and audio files**. Tap **Record lecture**, then **Finish recording** in Murmur or its persistent notification. You can leave Murmur or turn off the screen while recording. Tap **Choose audio** to select an audio file from Android's document picker instead. Android decodes the file to 16 kHz mono WAV; decoder support depends on the phone. Recordings and imports are limited to eight hours. Murmur sends the audio to the selected transcription endpoint in two-minute parts, so the endpoint can charge for each part. It then sends each raw text part to the selected cleanup provider if cleanup is enabled. The raw transcript remains available if cleanup fails. Silence can yield an empty part.
+
+Both actions require endpoint recognition in **Speech → Recognition**. Android's on-device speech service cannot transcribe saved files, and Murmur never switches to an endpoint automatically. The lecture card explains this before you select a file or start recording. Saved lectures in History offer text viewing and copying, audio sharing, retrying transcription, and deletion. Retry starts a fresh series of endpoint requests and may incur another charge. A failed or interrupted job keeps its audio and partial transcript for recovery. History's JSON export includes lecture text but no audio; share audio separately. Lecture text does not affect dictation pace statistics. This flow still needs a physical phone check for long recordings, imported codecs, notification behavior and endpoint responses.
 
 ## Move data to the new Android app
 
-Android treats `dev.local.murmur` and `ie.semyon.murmur` as separate apps. Install the `0.1.5-bridge` APK over the old app first. Then install the `0.1.5` APK with the new ID and tap **Move data from old app** on Home. The new app copies endpoint and cleanup settings, decrypts and re-encrypts both saved keys in its own Android Keystore, and merges all retained raw and final text history. Repeating the transfer does not duplicate old dictations. The bridge only serves the snapshot to `ie.semyon.murmur` when both apps have the same signing certificate. It streams directly between the apps and does not save a plaintext export file.
+Android treats `dev.local.murmur` and `ie.semyon.murmur` as separate apps. Install the `0.1.5-bridge` APK over the old app first. Then install the `0.1.6` APK with the new ID and tap **Move data from old app** on Home. The new app copies endpoint and cleanup settings, decrypts and re-encrypts both saved keys in its own Android Keystore, and merges all retained raw and final text history. Repeating the transfer does not duplicate old dictations. The bridge only serves the snapshot to `ie.semyon.murmur` when both apps have the same signing certificate. It streams directly between the apps and does not save a plaintext export file.
 
 The old app keeps its data. Check the new app's History, Words and Speech settings before removing the old app. If Android Keystore can no longer decrypt an old key, history still moves and the app tells you to re-enter that key. Android grants microphone, accessibility and keyboard access separately to the new package, so enable those again. A phone with an old debug build needs the bridge APK signed by the same debug certificate. The two APKs can be built with `./gradlew :app:assembleDebug -PmurmurLegacyBridge=true` and `./gradlew :app:assembleDebug` respectively; copy the bridge APK before the second build overwrites the output path. The bridge property is only for migrating older installs. New installs use `ie.semyon.murmur`.
 
@@ -46,9 +52,9 @@ The release must contain `android-update.json` and the signed APK named in it. F
 
 ```json
 {
-  "versionCode": 6,
-  "versionName": "0.1.5",
-  "apkUrl": "https://github.com/semyonfox/murmur/releases/download/v0.1.5/murmur-0.1.5.apk",
+  "versionCode": 8,
+  "versionName": "0.1.7",
+  "apkUrl": "https://github.com/semyonfox/murmur/releases/download/v0.1.7/murmur-0.1.7.apk",
   "sha256": "64 lowercase hexadecimal characters from the exact signed APK",
   "sizeBytes": 12345678
 }
@@ -57,8 +63,8 @@ The release must contain `android-update.json` and the signed APK named in it. F
 Generate the manifest from the exact signed APK, then upload both files as assets of the same public GitHub Release:
 
 ```sh
-python3 scripts/create_update_manifest.py path/to/murmur-0.1.5.apk \
-  --repository semyonfox/murmur --tag v0.1.5 --version-code 6 --version-name 0.1.5
+python3 scripts/create_update_manifest.py path/to/murmur-0.1.7.apk \
+  --repository semyonfox/murmur --tag v0.1.7 --version-code 8 --version-name 0.1.7
 ```
 
 Increase `versionCode` for each release. Use the same application ID and signing certificate as the installed version; changing either prevents an in-place update. New installs use `ie.semyon.murmur`; the bridge above handles retained data from `dev.local.murmur`. The current APK is still debug signed; protect a durable release signing key before distributing the first release APK. An existing debug installation cannot be upgraded to a differently signed release. Neither the key nor its passwords belong in this repository. Do not publish the manifest until the APK is uploaded and its SHA-256 and byte size match. The updater checks those values and the APK's package, version and signer before asking Android to install it. It requires a public HTTPS release; private GitHub Releases cannot be read by the app without credentials.
