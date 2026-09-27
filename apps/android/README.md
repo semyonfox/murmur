@@ -27,11 +27,9 @@ Open **History → Lectures and audio files**. Tap **Record lecture**, then **Fi
 
 Both actions require endpoint recognition in **Speech → Recognition**. Android's on-device speech service cannot transcribe saved files, and Murmur never switches to an endpoint automatically. The lecture card explains this before you select a file or start recording. Saved lectures in History offer text viewing and copying, audio sharing, retrying transcription, and deletion. Retry starts a fresh series of endpoint requests and may incur another charge. A failed or interrupted job keeps its audio and partial transcript for recovery. History's JSON export includes lecture text but no audio; share audio separately. Lecture text does not affect dictation pace statistics. This flow still needs a physical phone check for long recordings, imported codecs, notification behavior and endpoint responses.
 
-## Move data to the new Android app
+## Existing installs
 
-Android treats `dev.local.murmur` and `ie.semyon.murmur` as separate apps. Install the `0.1.5-bridge` APK over the old app first. Then install the `0.1.6` APK with the new ID and tap **Move data from old app** on Home. The new app copies endpoint and cleanup settings, decrypts and re-encrypts both saved keys in its own Android Keystore, and merges all retained raw and final text history. Repeating the transfer does not duplicate old dictations. The bridge only serves the snapshot to `ie.semyon.murmur` when both apps have the same signing certificate. It streams directly between the apps and does not save a plaintext export file.
-
-The old app keeps its data. Check the new app's History, Words and Speech settings before removing the old app. If Android Keystore can no longer decrypt an old key, history still moves and the app tells you to re-enter that key. Android grants microphone, accessibility and keyboard access separately to the new package, so enable those again. A phone with an old debug build needs the bridge APK signed by the same debug certificate. The two APKs can be built with `./gradlew :app:assembleDebug -PmurmurLegacyBridge=true` and `./gradlew :app:assembleDebug` respectively; copy the bridge APK before the second build overwrites the output path. The bridge property is only for migrating older installs. New installs use `ie.semyon.murmur`.
+Android treats `dev.local.murmur` and `ie.semyon.murmur` as separate apps. Version 0.1.7 removes the Home screen data-copy action. Installing it over 0.1.6 keeps the new app's existing settings and history. Data in the old `dev.local.murmur` app stays there; check what you need before removing that app.
 
 ## Build and verify
 
@@ -52,9 +50,9 @@ The release must contain `android-update.json` and the signed APK named in it. F
 
 ```json
 {
-  "versionCode": 8,
-  "versionName": "0.1.7",
-  "apkUrl": "https://github.com/semyonfox/murmur/releases/download/v0.1.7/murmur-0.1.7.apk",
+  "versionCode": 9,
+  "versionName": "0.1.8",
+  "apkUrl": "https://github.com/semyonfox/murmur/releases/download/v0.1.8/murmur-0.1.8.apk",
   "sha256": "64 lowercase hexadecimal characters from the exact signed APK",
   "sizeBytes": 12345678
 }
@@ -63,11 +61,11 @@ The release must contain `android-update.json` and the signed APK named in it. F
 Generate the manifest from the exact signed APK, then upload both files as assets of the same public GitHub Release:
 
 ```sh
-python3 scripts/create_update_manifest.py path/to/murmur-0.1.7.apk \
-  --repository semyonfox/murmur --tag v0.1.7 --version-code 8 --version-name 0.1.7
+python3 scripts/create_update_manifest.py path/to/murmur-0.1.8.apk \
+  --repository semyonfox/murmur --tag v0.1.8 --version-code 9 --version-name 0.1.8
 ```
 
-Increase `versionCode` for each release. Use the same application ID and signing certificate as the installed version; changing either prevents an in-place update. New installs use `ie.semyon.murmur`; the bridge above handles retained data from `dev.local.murmur`. The current APK is still debug signed; protect a durable release signing key before distributing the first release APK. An existing debug installation cannot be upgraded to a differently signed release. Neither the key nor its passwords belong in this repository. Do not publish the manifest until the APK is uploaded and its SHA-256 and byte size match. The updater checks those values and the APK's package, version and signer before asking Android to install it. It requires a public HTTPS release; private GitHub Releases cannot be read by the app without credentials.
+Increase `versionCode` for each release. Use the same application ID and signing certificate as the installed version; changing either prevents an in-place update. New installs use `ie.semyon.murmur`. The current APK is still debug signed; protect a durable release signing key before distributing the first release APK. An existing debug installation cannot be upgraded to a differently signed release. Neither the key nor its passwords belong in this repository. Do not publish the manifest until the APK is uploaded and its SHA-256 and byte size match. The updater checks those values and the APK's package, version and signer before asking Android to install it. It requires a public HTTPS release; private GitHub Releases cannot be read by the app without credentials.
 
 The current updater is for sideloaded builds. A future Google Play build should use Play's in-app update API and omit `REQUEST_INSTALL_PACKAGES` from its manifest.
 

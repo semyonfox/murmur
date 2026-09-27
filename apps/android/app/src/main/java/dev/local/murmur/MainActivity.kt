@@ -274,56 +274,6 @@ class MainActivity : Activity() {
         statsCard.addView(chartSection)
         home.addView(statsCard)
 
-        if (packageName == "ie.semyon.murmur") {
-            home.addView(groupTitle("Move your data"))
-            val migrationCard = card().apply { setPadding(dp(16), dp(15), dp(16), dp(16)) }
-            val migrationStatus = text(
-                if (settings.migrationComplete) "Your old settings and history were copied. The old app still has its data."
-                else "Update the old Murmur app to the bridge build, then move its settings, saved keys and text history here.",
-                13f, R.color.murmur_muted,
-            ).apply { setPadding(0, 0, 0, dp(12)) }
-            migrationCard.addView(migrationStatus)
-            val migrationButton = button(if (settings.migrationComplete) "Copy again" else "Move data from old app", primary = false) { }
-            migrationButton.setOnClickListener {
-                AlertDialog.Builder(this)
-                    .setTitle("Move data from old Murmur?")
-                    .setMessage(if (settings.migrationComplete)
-                        "This replaces your current settings with the old app's settings and restores any old dictations you deleted here. The old app keeps its data."
-                    else
-                        "This copies your settings, saved keys and complete text history. The old app keeps its data. Android will ask you to grant microphone and accessibility access again for this new app.")
-                    .setNegativeButton("Cancel", null)
-                    .setPositiveButton("Move data") { _, _ ->
-                        migrationButton.isEnabled = false
-                        migrationStatus.text = "Copying data from old Murmur…"
-                        Thread {
-                            val result = runCatching { MigrationTransfer.importFromOldApp(this) }
-                            runOnUiThread {
-                                if (isFinishing || isDestroyed) return@runOnUiThread
-                                migrationButton.isEnabled = true
-                                result.onSuccess { transfer ->
-                                    val keyStatus = if (transfer.keysUnavailable) "At least one saved key could not be read; re-enter it in Speech."
-                                    else "Saved keys were copied."
-                                    AlertDialog.Builder(this)
-                                        .setTitle("Data moved")
-                                        .setMessage("Settings and ${transfer.added} dictations were copied. $keyStatus Check your history before removing the old app.")
-                                        .setPositiveButton("Done") { _, _ -> recreate() }
-                                        .show()
-                                }.onFailure { error ->
-                                    migrationStatus.text = when (error) {
-                                        is java.io.FileNotFoundException -> "Update the old Murmur app to the bridge build, then try again. Its data is still there."
-                                        is SecurityException -> "The two apps must be signed with the same key. Your old data is unchanged."
-                                        else -> "Could not move data. Your old app still has it; try again."
-                                    }
-                                }
-                            }
-                        }.start()
-                    }
-                    .show()
-            }
-            migrationCard.addView(migrationButton)
-            home.addView(migrationCard)
-        }
-
         home.addView(groupTitle("Recent dictation"))
         val recent = card().apply { setPadding(dp(18), dp(16), dp(18), dp(16)) }
         homeRecentCard = recent
