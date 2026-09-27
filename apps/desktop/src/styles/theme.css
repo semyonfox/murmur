@@ -1,0 +1,106 @@
+/* Murmur palette */
+
+:root {
+    /* Use the native UI font without routing ordinary spaces through an emoji font. */
+    font-family: system-ui, sans-serif;
+
+    /* Palette source of truth. The active tokens below and the `data-theme`
+     overrides select between these light and dark values. */
+    /* near-neutral greys with a faint green cast; the accent carries the colour */
+    --light-color-text: #1b1f1d;
+    --light-color-background: #f3f4f3;
+    --light-color-surface: #ffffff;
+    --light-color-logo-primary: #2d7560;
+    --light-color-logo-stroke: #1b1f1d;
+    --light-color-on-logo-primary: #ffffff;
+    --light-color-mid-gray: #5a625e;
+
+    --dark-color-text: #e5e8e6;
+    --dark-color-background: #161918;
+    --dark-color-surface: #1e2220;
+    --dark-color-logo-primary: #7cc2a6;
+    --dark-color-logo-stroke: #dde4e0;
+    --dark-color-on-logo-primary: #0f1b16;
+    --dark-color-mid-gray: #9ba39f;
+
+    /* Semantic status colors. First used by SecureInputWarning; intended to
+     replace the ad-hoc yellow-500/red-500 usages (e.g. ui/Alert.tsx) over
+     time so status styling is themeable from one place. */
+    --light-color-warning: #d97706;
+    --light-color-error: #dc2626;
+    --dark-color-warning: #fbbf24;
+    --dark-color-error: #f87171;
+
+    /* Tokens that do not change between light and dark */
+    --color-text-stroke: #f3f4f3;
+
+    /* Active palette — defaults to light, follows the OS via the media query
+     below, or is forced by `data-theme` (see the overrides below). */
+    --color-text: var(--light-color-text);
+    --color-background: var(--light-color-background);
+    --color-surface: var(--light-color-surface);
+    --color-logo-primary: var(--light-color-logo-primary);
+    --color-logo-stroke: var(--light-color-logo-stroke);
+    --color-on-logo-primary: var(--light-color-on-logo-primary);
+    --color-mid-gray: var(--light-color-mid-gray);
+    --color-warning: var(--light-color-warning);
+    --color-error: var(--light-color-error);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --color-text: var(--dark-color-text);
+        --color-background: var(--dark-color-background);
+        --color-surface: var(--dark-color-surface);
+        --color-logo-primary: var(--dark-color-logo-primary);
+        --color-logo-stroke: var(--dark-color-logo-stroke);
+        --color-on-logo-primary: var(--dark-color-on-logo-primary);
+        --color-mid-gray: var(--dark-color-mid-gray);
+        --color-warning: var(--dark-color-warning);
+        --color-error: var(--dark-color-error);
+    }
+}
+
+/*
+ * Explicit theme override, driven by the `theme` setting via
+ * `document.documentElement.dataset.theme`. When set, the higher-specificity
+ * attribute selectors win over the `prefers-color-scheme` media query above,
+ * so a user can keep Murmur light or dark regardless of the OS setting.
+ * `system` (or no attribute) leaves the OS in charge.
+ *
+ * Lives here (not in App.css) so every window that imports the shared palette —
+ * the settings window and the recording overlay alike — honours the override.
+ */
+:root[data-theme="light"] {
+    --color-text: var(--light-color-text);
+    --color-background: var(--light-color-background);
+    --color-surface: var(--light-color-surface);
+    --color-logo-primary: var(--light-color-logo-primary);
+    --color-logo-stroke: var(--light-color-logo-stroke);
+    --color-on-logo-primary: var(--light-color-on-logo-primary);
+    --color-mid-gray: var(--light-color-mid-gray);
+    --color-warning: var(--light-color-warning);
+    --color-error: var(--light-color-error);
+}
+
+:root[data-theme="dark"] {
+    --color-text: var(--dark-color-text);
+    --color-background: var(--dark-color-background);
+    --color-surface: var(--dark-color-surface);
+    --color-logo-primary: var(--dark-color-logo-primary);
+    --color-logo-stroke: var(--dark-color-logo-stroke);
+    --color-on-logo-primary: var(--dark-color-on-logo-primary);
+    --color-mid-gray: var(--dark-color-mid-gray);
+    --color-warning: var(--dark-color-warning);
+    --color-error: var(--dark-color-error);
+}
+
+/* solid accent fill for sliders and toggles, follows the active accent */
+:root {
+    --color-background-ui: var(--color-logo-primary);
+}
+
+/* Solid accent fills need a foreground that follows the accent shade. */
+:root .bg-logo-primary {
+    color: var(--color-on-logo-primary);
+}

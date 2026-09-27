@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- same near-neutral greys and accent as the desktop theme.css -->
+<resources>
+    <color name="murmur_background">#F3F4F3</color>
+    <color name="murmur_surface">#FFFFFF</color>
+    <color name="murmur_text">#1B1F1D</color>
+    <color name="murmur_muted">#626A66</color>
+    <color name="murmur_border">#26626A66</color>
+    <color name="murmur_accent">#2D7560</color>
+    <color name="murmur_error">#B32635</color>
+    <color name="murmur_on_accent">#FFFFFF</color>
+    <color name="murmur_recording">#D64545</color>
+    <color name="murmur_busy">#C77A1E</color>
+    <color name="murmur_keyboard">#E4E6E5</color>
+    <color name="murmur_key">#FFFFFF</color>
+</resources>

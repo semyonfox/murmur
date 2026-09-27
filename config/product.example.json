@@ -1,0 +1,19 @@
+{
+  "status": "design example; no application consumes this file yet",
+  "schema_version": 1,
+  "processing": {
+    "stt": {"mode": "local", "runtime_candidate": "handy-native", "model_candidate": "whisper-small.en", "language": "en"},
+    "cleanup": {"enabled": true, "mode": "local", "provider_candidate": "ollama", "endpoint": "http://127.0.0.1:11434", "model_candidate": "qwen3:4b", "thinking": false, "cloud_routing_allowed": false, "policy": "conservative-v1"},
+    "cloud_fallback_allowed": false,
+    "denoising": "off-until-evaluated",
+    "vad": {"enabled": true, "preroll_ms": 250, "trailing_padding_ms": 350},
+    "cleanup_failure": "offer-raw-transcript"
+  },
+  "context": {"enabled": false, "per_app_opt_in": true, "max_characters": 2000, "secure_fields": "exclude"},
+  "retention": {"audio": "memory-only", "text_history_days": 0, "usage_metadata": "local", "cloud_sync": false},
+  "credentials": {"storage": "native-secure-store", "plaintext_fallback": false},
+  "delivery": {"revalidate_target": true, "changed_target": "hold-for-explicit-insertion", "auto_submit": false, "clipboard_restore": "only-while-owned"},
+  "linux": {"overlay": "native-layer-shell-if-supported", "reserve_screen_space": false, "keyboard_focus": false, "fallback": "native-notification", "privileged_input_install": false},
+  "stats": {"timezone": "Europe/Dublin", "week_start": "monday", "wpm_basis": "raw-words-over-recording-time", "minimum_sample_seconds": 60},
+  "costs": {"byok_monthly_warning_usd": "2.00", "managed_monthly_hard_cap_usd": "5.00", "limits_are_examples": true, "price_snapshot": "pricing.snapshot.json"}
+}

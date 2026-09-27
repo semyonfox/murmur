@@ -1,0 +1,152 @@
+{
+  "research_date": "2026-09-26",
+  "fetched_at_utc": "2026-09-26T13:22:29.371660+00:00",
+  "checkout_mode": "shallow checkouts including tracked assets; no submodules, LFS objects, builds, separate model downloads, or installers",
+  "repositories": [
+    {
+      "id": "handy",
+      "url": "https://github.com/cjpais/Handy.git",
+      "role": "requested; desktop fork candidate",
+      "revision": "8f9cf53cd1410cda26beea39ff802ac306e39585",
+      "commit_date": "2026-09-19T15:30:07+08:00",
+      "tracked_files": 385,
+      "license_files": [
+        "LICENSE"
+      ]
+    },
+    {
+      "id": "openwhispr",
+      "url": "https://github.com/OpenWhispr/openwhispr.git",
+      "role": "requested; product and provider reference",
+      "revision": "8d294236840663f6fbf38b00a4845cfb6f14bc17",
+      "commit_date": "2026-09-26T01:19:56+02:00",
+      "tracked_files": 2569,
+      "license_files": [
+        "LICENSE"
+      ]
+    },
+    {
+      "id": "flow",
+      "url": "https://github.com/jgvilchezc/flow.git",
+      "role": "requested; local transcription and cleanup pipeline",
+      "revision": "d106903ab14f837d05970fd937ad635433101172",
+      "commit_date": "2026-09-23T12:54:54-04:00",
+      "tracked_files": 93,
+      "license_files": [
+        "LICENSE"
+      ]
+    },
+    {
+      "id": "freeflow",
+      "url": "https://github.com/zachlatta/freeflow.git",
+      "role": "requested; context and cleanup reference",
+      "revision": "ad5c827b5a324c503d58f948d500fa5d9f90e7d8",
+      "commit_date": "2026-09-04T12:39:16+04:00",
+      "tracked_files": 87,
+      "license_files": [
+        "LICENSE"
+      ]
+    },
+    {
+      "id": "yap",
+      "url": "https://github.com/Enriquefft/yap.git",
+      "role": "requested name resolved by described provider architecture; identity is an assumption",
+      "revision": "25f7a93441d13ee74c06496c10f28998aae24d25",
+      "commit_date": "2026-04-17T20:36:38-05:00",
+      "tracked_files": 1083,
+      "license_files": [
+        "LICENSE"
+      ]
+    },
+    {
+      "id": "epicenter",
+      "url": "https://github.com/EpicenterHQ/epicenter.git",
+      "role": "requested; current Whispering home",
+      "revision": "20e9f3b4af6166c71484575c93a1047e95f157e4",
+      "commit_date": "2026-09-24T01:32:17-04:00",
+      "tracked_files": 3571,
+      "license_files": [
+        "LICENSE"
+      ]
+    },
+    {
+      "id": "whispers",
+      "url": "https://github.com/OneNoted/whispers.git",
+      "role": "requested; Wayland native reference",
+      "revision": "5f0763109f9dde6c780bd2ef50cbd22e310c28c3",
+      "commit_date": "2026-06-27T20:16:55+02:00",
+      "tracked_files": 772,
+      "license_files": [
+        "LICENSE",
+        "NOTICE"
+      ]
+    },
+    {
+      "id": "voiceink",
+      "url": "https://github.com/Beingpax/VoiceInk.git",
+      "role": "requested; Apple model ecosystem reference",
+      "revision": "5fd71515089f54a2698cda8ec0013b9cd0b3e417",
+      "commit_date": "2026-09-26T13:14:47+05:45",
+      "tracked_files": 472,
+      "license_files": [
+        "LICENSE"
+      ]
+    },
+    {
+      "id": "voxtype",
+      "url": "https://github.com/peteonrails/voxtype.git",
+      "role": "additional; Linux compositor integration",
+      "revision": "9c35b72b4fa3635028dfe70b444ca0dc9dcfb389",
+      "commit_date": "2026-09-23T20:54:21-04:00",
+      "tracked_files": 527,
+      "license_files": [
+        "LICENSE"
+      ]
+    },
+    {
+      "id": "dictus-ios",
+      "url": "https://github.com/getdictus/dictus-ios.git",
+      "role": "additional; native iOS keyboard and host recording",
+      "revision": "0fd7badf47e1f98f3e3757dc84a2b1d4720d9ed8",
+      "commit_date": "2026-09-24T22:22:05+02:00",
+      "tracked_files": 1373,
+      "license_files": [
+        "LICENSE"
+      ]
+    },
+    {
+      "id": "vocaphone",
+      "url": "https://github.com/VocaHQ/vocaphone.git",
+      "role": "additional; iOS and Android dictation",
+      "revision": "8f5ea9bc90073d6a0ab7615494280cff63096b59",
+      "commit_date": "2026-09-26T03:42:19+05:30",
+      "tracked_files": 736,
+      "license_files": [
+        "LICENSE"
+      ]
+    },
+    {
+      "id": "futo-voice-input",
+      "url": "https://github.com/futo-org/voice-input.git",
+      "role": "additional; Android speech integration and license comparison",
+      "revision": "d6e1eb2d139dc1a6342a4681c283686cca4bfceb",
+      "commit_date": "2026-05-01T17:18:41+03:00",
+      "tracked_files": 159,
+      "license_files": [
+        "LICENSE.md"
+      ]
+    },
+    {
+      "id": "futo-keyboard",
+      "url": "https://github.com/futo-org/android-keyboard.git",
+      "role": "additional; current Android input implementation",
+      "revision": "70a5d390c505a6bbcc4e14966e5628e43ca3f1fc",
+      "commit_date": "2026-09-23T18:44:45+02:00",
+      "tracked_files": 2363,
+      "license_files": [
+        "LICENSE.md",
+        "NOTICE"
+      ]
+    }
+  ]
+}

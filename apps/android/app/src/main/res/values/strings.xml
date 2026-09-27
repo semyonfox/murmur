@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Murmur</string>
+    <string name="keyboard_name">Murmur keyboard</string>
+    <string name="bubble_service_name">Murmur voice bubble</string>
+    <string name="bubble_service_description">Shows a dictation bubble beside ordinary text fields and inserts your transcript at the cursor. It checks field focus and cursor context but does not upload existing field text.</string>
+</resources>

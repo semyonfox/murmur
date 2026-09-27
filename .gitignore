@@ -1,0 +1,14 @@
+research/upstream/
+__pycache__/
+.venv/
+node_modules/
+target/
+dist/
+.env
+.env.*
+!.env.example
+evals/private/
+*.wav
+!apps/desktop/src-tauri/resources/*.wav
+*.flac
+*.m4a

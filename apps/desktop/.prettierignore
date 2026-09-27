@@ -1,0 +1,22 @@
+# Dependencies
+node_modules
+bun.lock
+pnpm-lock.yaml
+package-lock.json
+
+# Build outputs
+dist
+target
+*.bundle.*
+
+# Tauri
+src-tauri/target
+src-tauri/gen
+
+# Generated files
+src/bindings.ts
+src-tauri/src/catalog/catalog.json
+
+# Misc
+.DS_Store
+*.log

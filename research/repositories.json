@@ -1,0 +1,18 @@
+{
+  "research_date": "2026-09-26",
+  "repositories": [
+    {"id": "handy", "url": "https://github.com/cjpais/Handy.git", "role": "requested; desktop fork candidate"},
+    {"id": "openwhispr", "url": "https://github.com/OpenWhispr/openwhispr.git", "role": "requested; product and provider reference"},
+    {"id": "flow", "url": "https://github.com/jgvilchezc/flow.git", "role": "requested; local transcription and cleanup pipeline"},
+    {"id": "freeflow", "url": "https://github.com/zachlatta/freeflow.git", "role": "requested; context and cleanup reference"},
+    {"id": "yap", "url": "https://github.com/Enriquefft/yap.git", "role": "requested name resolved by described provider architecture; identity is an assumption"},
+    {"id": "epicenter", "url": "https://github.com/EpicenterHQ/epicenter.git", "role": "requested; current Whispering home"},
+    {"id": "whispers", "url": "https://github.com/OneNoted/whispers.git", "role": "requested; Wayland native reference"},
+    {"id": "voiceink", "url": "https://github.com/Beingpax/VoiceInk.git", "role": "requested; Apple model ecosystem reference"},
+    {"id": "voxtype", "url": "https://github.com/peteonrails/voxtype.git", "role": "additional; Linux compositor integration"},
+    {"id": "dictus-ios", "url": "https://github.com/getdictus/dictus-ios.git", "role": "additional; native iOS keyboard and host recording"},
+    {"id": "vocaphone", "url": "https://github.com/VocaHQ/vocaphone.git", "role": "additional; iOS and Android dictation"},
+    {"id": "futo-voice-input", "url": "https://github.com/futo-org/voice-input.git", "role": "additional; Android speech integration and license comparison"},
+    {"id": "futo-keyboard", "url": "https://github.com/futo-org/android-keyboard.git", "role": "additional; current Android input implementation"}
+  ]
+}

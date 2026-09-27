@@ -1,0 +1,19 @@
+{
+  "verified_on": "2026-09-26",
+  "currency": "USD",
+  "purpose": "planning estimates, not a billing authority",
+  "stt": {
+    "local": {"usd_per_minute": "0", "minimum_seconds": "0", "basis": "no API charge; hardware and energy excluded"},
+    "groq-turbo": {"usd_per_hour": "0.04", "minimum_seconds": "10", "model": "whisper-large-v3-turbo", "source": "https://console.groq.com/docs/speech-to-text"},
+    "groq-large": {"usd_per_hour": "0.111", "minimum_seconds": "10", "model": "whisper-large-v3", "source": "https://console.groq.com/docs/speech-to-text"},
+    "deepgram-nova3": {"usd_per_minute": "0.0043", "minimum_seconds": "0", "model": "nova-3", "basis": "prerecorded monolingual; duration estimate, request granularity not modeled", "source": "https://deepgram.com/pricing"},
+    "openai-mini": {"usd_per_minute": "0.003", "minimum_seconds": "0", "model": "gpt-4o-mini-transcribe", "basis": "estimated equivalent minute price; actual billing uses tokens", "source": "https://developers.openai.com/api/docs/pricing"},
+    "openai-full": {"usd_per_minute": "0.006", "minimum_seconds": "0", "model": "gpt-4o-transcribe", "basis": "estimated equivalent minute price; actual billing uses tokens", "source": "https://developers.openai.com/api/docs/pricing"}
+  },
+  "cleanup": {
+    "local": {"input_usd_per_million": "0", "output_usd_per_million": "0", "assumed_reasoning_tokens_per_session": 0, "basis": "no API charge; hardware and energy excluded"},
+    "groq-oss20": {"input_usd_per_million": "0.075", "output_usd_per_million": "0.30", "assumed_reasoning_tokens_per_session": 200, "model": "openai/gpt-oss-20b", "source": "https://console.groq.com/docs/models"},
+    "groq-oss120": {"input_usd_per_million": "0.15", "output_usd_per_million": "0.60", "assumed_reasoning_tokens_per_session": 200, "model": "openai/gpt-oss-120b", "source": "https://console.groq.com/docs/models"},
+    "openai-4.1-mini": {"input_usd_per_million": "0.40", "output_usd_per_million": "1.60", "assumed_reasoning_tokens_per_session": 0, "model": "gpt-4.1-mini", "source": "https://developers.openai.com/api/docs/models/gpt-4.1-mini"}
+  }
+}

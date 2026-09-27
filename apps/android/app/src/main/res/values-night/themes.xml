@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Murmur" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/murmur_background</item>
+        <item name="android:statusBarColor">@color/murmur_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">@color/murmur_accent</item>
+        <item name="android:colorControlActivated">@color/murmur_accent</item>
+        <item name="android:textColorPrimary">@color/murmur_text</item>
+        <item name="android:textColorSecondary">@color/murmur_muted</item>
+        <item name="android:textColorHint">@color/murmur_muted</item>
+    </style>
+</resources>

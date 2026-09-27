@@ -1,0 +1,1501 @@
+package dev.local.murmur
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.AlertDialog
+import android.content.ComponentName
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Rect
+import android.graphics.Typeface
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
+import android.media.audiofx.NoiseSuppressor
+import android.os.Bundle
+import android.os.Build
+import android.provider.Settings
+import android.speech.SpeechRecognizer
+import android.text.Editable
+import android.text.InputType
+import android.text.TextWatcher
+import android.text.TextUtils
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
+import android.widget.Button
+import android.widget.ArrayAdapter
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.FrameLayout
+import android.widget.ScrollView
+import android.widget.SeekBar
+import android.widget.Spinner
+import android.widget.Switch
+import android.widget.TextView
+import androidx.core.content.FileProvider
+import android.util.JsonWriter
+import java.io.OutputStreamWriter
+import java.io.File
+import java.net.URI
+import java.text.DateFormat
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+class MainActivity : Activity() {
+    private lateinit var settings: AppSettings
+    private val history by lazy { HistoryStore(this) }
+    private lateinit var scroll: ScrollView
+    private lateinit var pageContent: LinearLayout
+    private lateinit var navigation: LinearLayout
+    private lateinit var pageTitle: TextView
+    private lateinit var pageDescription: TextView
+    private val pages = mutableMapOf<Page, LinearLayout>()
+    private val navigationItems = mutableMapOf<Page, LinearLayout>()
+    private val navigationIcons = mutableMapOf<Page, ImageView>()
+    private val navigationLabels = mutableMapOf<Page, TextView>()
+    private var currentPage = Page.HOME
+    private var speechBackCallback: OnBackInvokedCallback? = null
+    private lateinit var speechCard: LinearLayout
+    private lateinit var endpointInput: EditText
+    private lateinit var modelInput: EditText
+    private lateinit var keyInput: EditText
+    private lateinit var keyStatusView: TextView
+    private lateinit var removeKeyButton: Button
+    private lateinit var feedbackView: TextView
+    private lateinit var statusTitle: TextView
+    private lateinit var statusDetail: TextView
+    private lateinit var heroButton: Button
+    private lateinit var updateStatus: TextView
+    private lateinit var updateButton: Button
+    private var availableUpdate: AvailableUpdate? = null
+    private var downloadedUpdate: File? = null
+    private var updateBusy = false
+    private lateinit var inputBubbleRow: SetupRow
+    private lateinit var keyboardRow: SetupRow
+    private lateinit var selectedRow: SetupRow
+    private lateinit var latestView: TextView
+    private lateinit var historyList: LinearLayout
+    private lateinit var retentionButton: Button
+    private lateinit var historyFeedback: TextView
+    private lateinit var statsPaceView: TextView
+    private lateinit var statsWordsView: TextView
+    private lateinit var statsTotalView: TextView
+    private lateinit var statsMinutesView: TextView
+    private lateinit var statsTrendView: TextView
+    private lateinit var statsMethodView: TextView
+    private lateinit var weeklyWordsChart: LinearLayout
+    private lateinit var weeklyPaceRow: LinearLayout
+    private lateinit var weeklyPaceTitle: TextView
+    private lateinit var rawTranscriptCard: LinearLayout
+    private lateinit var rawTranscriptView: TextView
+    private lateinit var homeLatestView: TextView
+    private lateinit var homeLatestDateView: TextView
+    private lateinit var homeLatestLinkView: TextView
+    private lateinit var homeRecentCard: LinearLayout
+    private val presetButtons = mutableListOf<Pair<Button, SpeechPreset>>()
+    private val cleanupPresetButtons = mutableListOf<Pair<Button, SpeechPreset>>()
+    private lateinit var cleanupUrlInput: EditText
+    private lateinit var cleanupModelInput: EditText
+    private lateinit var cleanupKeyInput: EditText
+    private lateinit var cleanupEnabledSwitch: Switch
+    private lateinit var cleanupFormality: Spinner
+    private lateinit var cleanupFeedback: TextView
+    private lateinit var cleanupStatus: TextView
+    private lateinit var cleanupKeyStatus: TextView
+    private lateinit var cleanupRemoveKeyButton: Button
+    private lateinit var speechRecognitionSummary: TextView
+    private lateinit var speechCleanupSummary: TextView
+    private var updatingCleanupSwitch = false
+    private lateinit var dictionaryInput: EditText
+    private lateinit var dictionaryList: LinearLayout
+    private var heroAction: () -> Unit = {}
+    private var pendingReadyStart = false
+
+    private data class SpeechPreset(val label: String, val url: String, val model: String)
+    private enum class Page(val label: String, val description: String, val icon: Int) {
+        HOME("Home", "Your dictation at a glance.", R.drawable.ic_home),
+        SPEECH("Speech", "Recognition and transcript cleanup.", R.drawable.ic_microphone),
+        HISTORY("History", "Past dictations kept on this phone.", R.drawable.ic_document),
+        WORDS("Words", "Names and terms Murmur should spell your way.", R.drawable.ic_dictionary),
+        INPUT("Input", "Set up the bubble or use the Murmur keyboard.", R.drawable.ic_keyboard),
+        RECOGNITION("Recognition", "Choose where recordings are transcribed.", R.drawable.ic_microphone),
+        CLEANUP("Cleanup", "Tidy transcripts before they are inserted.", R.drawable.ic_microphone),
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        settings = AppSettings(this)
+        currentPage = savedInstanceState?.getString("page")?.let { saved ->
+            Page.entries.firstOrNull { it.name == saved }
+        } ?: Page.HOME
+
+        pageContent = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(16), dp(18), dp(28))
+        }
+        scroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(pageContent)
+        }
+        navigation = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            background = rounded(R.color.murmur_surface, 32f, stroke = R.color.murmur_border)
+            elevation = dp(8).toFloat()
+        }
+        val dockHost = FrameLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
+            val dockWidth = dp(minOf(resources.configuration.screenWidthDp - 28, 420))
+            addView(navigation, FrameLayout.LayoutParams(dockWidth, dp(64), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+                topMargin = dp(8)
+            })
+        }
+        val shell = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            fitsSystemWindows = true
+            setBackgroundColor(color(R.color.murmur_background))
+            addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(dockHost, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(84)))
+        }
+        setContentView(shell)
+
+        pageTitle = text("", 28f, R.color.murmur_text, bold = true)
+        pageDescription = text("", 13f, R.color.murmur_muted).apply { setPadding(0, dp(2), 0, dp(16)) }
+        pageContent.addView(pageTitle)
+        pageContent.addView(pageDescription)
+        val mainTabs = listOf(Page.HOME, Page.SPEECH, Page.HISTORY, Page.WORDS, Page.INPUT)
+        Page.entries.forEach { page ->
+            pages[page] = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            pageContent.addView(pages.getValue(page))
+            if (page !in mainTabs) return@forEach
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                minimumHeight = dp(56)
+                contentDescription = "${page.label} section"
+                setOnClickListener { showPage(page) }
+            }
+            val icon = ImageView(this).apply {
+                setImageResource(page.icon)
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }
+            val label = text(page.label, 12f, R.color.murmur_muted, bold = true).apply {
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                setPadding(0, dp(2), 0, 0)
+                gravity = Gravity.CENTER
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+            }
+            item.addView(icon, LinearLayout.LayoutParams(dp(24), dp(24)))
+            item.addView(label, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            navigationItems[page] = item
+            navigationIcons[page] = icon
+            navigationLabels[page] = label
+            navigation.addView(item, LinearLayout.LayoutParams(0, dp(56), 1f))
+        }
+
+        val home = pages.getValue(Page.HOME)
+        val speech = pages.getValue(Page.SPEECH)
+        val recognition = pages.getValue(Page.RECOGNITION)
+        val cleanup = pages.getValue(Page.CLEANUP)
+        val transcript = pages.getValue(Page.HISTORY)
+        val words = pages.getValue(Page.WORDS)
+        val inputPage = pages.getValue(Page.INPUT)
+
+        val statsCard = card()
+        val statsIntro = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(15), dp(16), dp(14))
+            addView(text("Your dictation stats", 16f, R.color.murmur_text, bold = true))
+            addView(text("Based on retained history. Deleted dictations aren't counted.", 12f, R.color.murmur_muted).apply {
+                setPadding(0, dp(3), 0, 0)
+            })
+        }
+        statsCard.addView(statsIntro)
+        divider(statsCard)
+        val (totalCell, totalValue) = statsCell("Retained words")
+        statsTotalView = totalValue
+        val (weekCell, weekValue) = statsCell("This week")
+        statsWordsView = weekValue
+        statsCard.addView(statsRow(totalCell, weekCell))
+        divider(statsCard)
+        val (paceCell, paceValue) = statsCell("Recorded pace")
+        statsPaceView = paceValue
+        val (minutesCell, minutesValue) = statsCell("Recorded minutes")
+        statsMinutesView = minutesValue
+        statsCard.addView(statsRow(paceCell, minutesCell))
+        divider(statsCard)
+        val chartSection = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            addView(text("Words each week", 14f, R.color.murmur_text, bold = true))
+        }
+        statsTrendView = text("", 12f, R.color.murmur_muted).apply { setPadding(0, dp(3), 0, dp(14)) }
+        chartSection.addView(statsTrendView)
+        weeklyWordsChart = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
+        chartSection.addView(weeklyWordsChart)
+        weeklyPaceTitle = text("Recorded pace each week", 13f, R.color.murmur_text, bold = true).apply {
+            setPadding(0, dp(18), 0, dp(8))
+        }
+        chartSection.addView(weeklyPaceTitle)
+        weeklyPaceRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        chartSection.addView(weeklyPaceRow)
+        statsMethodView = text("", 11f, R.color.murmur_muted).apply {
+            setPadding(0, dp(17), 0, 0)
+        }
+        chartSection.addView(statsMethodView)
+        statsCard.addView(chartSection)
+        home.addView(statsCard)
+
+        if (packageName == "ie.semyon.murmur") {
+            home.addView(groupTitle("Move your data"))
+            val migrationCard = card().apply { setPadding(dp(16), dp(15), dp(16), dp(16)) }
+            val migrationStatus = text(
+                if (settings.migrationComplete) "Your old settings and history were copied. The old app still has its data."
+                else "Update the old Murmur app to the bridge build, then move its settings, saved keys and text history here.",
+                13f, R.color.murmur_muted,
+            ).apply { setPadding(0, 0, 0, dp(12)) }
+            migrationCard.addView(migrationStatus)
+            val migrationButton = button(if (settings.migrationComplete) "Copy again" else "Move data from old app", primary = false) { }
+            migrationButton.setOnClickListener {
+                AlertDialog.Builder(this)
+                    .setTitle("Move data from old Murmur?")
+                    .setMessage(if (settings.migrationComplete)
+                        "This replaces your current settings with the old app's settings and restores any old dictations you deleted here. The old app keeps its data."
+                    else
+                        "This copies your settings, saved keys and complete text history. The old app keeps its data. Android will ask you to grant microphone and accessibility access again for this new app.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Move data") { _, _ ->
+                        migrationButton.isEnabled = false
+                        migrationStatus.text = "Copying data from old Murmur…"
+                        Thread {
+                            val result = runCatching { MigrationTransfer.importFromOldApp(this) }
+                            runOnUiThread {
+                                if (isFinishing || isDestroyed) return@runOnUiThread
+                                migrationButton.isEnabled = true
+                                result.onSuccess { transfer ->
+                                    val keyStatus = if (transfer.keysUnavailable) "At least one saved key could not be read; re-enter it in Speech."
+                                    else "Saved keys were copied."
+                                    AlertDialog.Builder(this)
+                                        .setTitle("Data moved")
+                                        .setMessage("Settings and ${transfer.added} dictations were copied. $keyStatus Check your history before removing the old app.")
+                                        .setPositiveButton("Done") { _, _ -> recreate() }
+                                        .show()
+                                }.onFailure { error ->
+                                    migrationStatus.text = when (error) {
+                                        is java.io.FileNotFoundException -> "Update the old Murmur app to the bridge build, then try again. Its data is still there."
+                                        is SecurityException -> "The two apps must be signed with the same key. Your old data is unchanged."
+                                        else -> "Could not move data. Your old app still has it; try again."
+                                    }
+                                }
+                            }
+                        }.start()
+                    }
+                    .show()
+            }
+            migrationCard.addView(migrationButton)
+            home.addView(migrationCard)
+        }
+
+        home.addView(groupTitle("Recent dictation"))
+        val recent = card().apply { setPadding(dp(18), dp(16), dp(18), dp(16)) }
+        homeRecentCard = recent
+        homeLatestDateView = text("", 12f, R.color.murmur_muted).apply { setPadding(0, 0, 0, dp(7)) }
+        recent.addView(homeLatestDateView)
+        homeLatestView = text("", 15f, R.color.murmur_text).apply {
+            maxLines = 3
+            ellipsize = TextUtils.TruncateAt.END
+            setLineSpacing(dp(3).toFloat(), 1f)
+        }
+        recent.addView(homeLatestView)
+        homeLatestLinkView = text("View transcript  ↗", 13f, R.color.murmur_accent, bold = true).apply {
+            setPadding(0, dp(14), 0, 0)
+        }
+        recent.addView(homeLatestLinkView)
+        recent.contentDescription = "View latest transcript"
+        recent.setOnClickListener { showPage(Page.HISTORY) }
+        home.addView(recent)
+
+        home.addView(groupTitle("Voice"))
+        val status = card().apply { setPadding(dp(16), dp(15), dp(16), dp(16)) }
+        statusTitle = text("", 15f, R.color.murmur_text, bold = true)
+        statusDetail = text("", 12f, R.color.murmur_muted).apply { setPadding(0, dp(3), 0, dp(10)) }
+        heroButton = button("", primary = true) { heroAction() }
+        status.addView(statusTitle)
+        status.addView(statusDetail)
+        status.addView(heroButton)
+        home.addView(status)
+
+        home.addView(groupTitle("App updates"))
+        val updateCard = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        updateCard.addView(text("Murmur ${BuildConfig.VERSION_NAME}", 15f, R.color.murmur_text, bold = true))
+        updateStatus = text(
+            if (BuildConfig.UPDATE_MANIFEST_URL.isBlank()) "Updates are not configured in this build."
+            else "Check for a newer signed version.",
+            12f, R.color.murmur_muted,
+        ).apply { setPadding(0, dp(5), 0, dp(10)) }
+        updateCard.addView(updateStatus)
+        updateButton = button("Check for updates", primary = false) { onUpdateButton() }.apply {
+            isEnabled = BuildConfig.UPDATE_MANIFEST_URL.isNotBlank()
+        }
+        updateCard.addView(updateButton)
+        home.addView(updateCard)
+
+        val speechOverview = card()
+        speechRecognitionSummary = destinationRow(speechOverview, "Recognition") { showPage(Page.RECOGNITION) }
+        divider(speechOverview)
+        speechCleanupSummary = destinationRow(speechOverview, "Transcript cleanup") { showPage(Page.CLEANUP) }
+        speech.addView(speechOverview)
+        speech.addView(text("Recognition receives audio. Cleanup receives transcript text only when you turn it on.", 12f, R.color.murmur_muted).apply {
+            setPadding(dp(4), dp(12), dp(4), 0)
+        })
+
+        addSpeechBackLink(recognition)
+
+        speechCard = card().apply { setPadding(dp(16), dp(12), dp(16), dp(16)) }
+        val localAvailable = Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(this)
+        speechCard.addView(Switch(this).apply {
+            text = "Use on-device recognition"
+            textSize = 15f
+            setTextColor(color(R.color.murmur_text))
+            isChecked = settings.useOnDeviceRecognition && localAvailable
+            isEnabled = localAvailable
+            setOnCheckedChangeListener { _, checked ->
+                settings.useOnDeviceRecognition = checked
+                refreshStatus()
+            }
+        })
+        speechCard.addView(text(
+            if (localAvailable) "Uses this phone's installed offline speech service. Its model and language support depend on the device."
+            else "This phone has no on-device speech service. Use the endpoint below.",
+            12f, R.color.murmur_muted,
+        ))
+        speechCard.addView(fieldLabel("Service"))
+        val presets = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        listOf(
+            SpeechPreset("OpenRouter", AppSettings.DEFAULT_ENDPOINT, AppSettings.DEFAULT_MODEL),
+            SpeechPreset("OpenAI", "https://api.openai.com/v1/audio/transcriptions", "whisper-1"),
+            SpeechPreset("Groq", "https://api.groq.com/openai/v1/audio/transcriptions", "whisper-large-v3-turbo"),
+        ).forEach { preset ->
+            val chip = button(preset.label, primary = false) {
+                endpointInput.setText(preset.url)
+                modelInput.setText(preset.model)
+            }.apply {
+                textSize = 14f
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                setPadding(dp(14), 0, dp(14), 0)
+            }
+            presetButtons += chip to preset
+            presets.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)).apply {
+                bottomMargin = dp(6)
+            })
+        }
+        speechCard.addView(presets)
+        speechCard.addView(fieldLabel("Transcription URL"))
+        endpointInput = input(settings.endpointUrl, "https://…/audio/transcriptions", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        speechCard.addView(endpointInput)
+        speechCard.addView(fieldLabel("Model ID"))
+        modelInput = input(settings.model, "whisper-large-v3-turbo", InputType.TYPE_CLASS_TEXT)
+        speechCard.addView(modelInput)
+        speechCard.addView(fieldLabel("API key"))
+        keyInput = input("", "Paste your key", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        speechCard.addView(keyInput)
+        val keyLine = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(6), 0, dp(12))
+        }
+        keyStatusView = text("", 12f, R.color.murmur_muted)
+        keyLine.addView(keyStatusView, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        removeKeyButton = button("Remove", primary = false) {
+            settings.clearApiKey()
+            feedbackView.text = "API key removed."
+            refreshStatus()
+        }
+        keyLine.addView(removeKeyButton)
+        speechCard.addView(keyLine)
+        speechCard.addView(button("Save", primary = true) { save() })
+        feedbackView = text("", 13f, R.color.murmur_muted).apply { setPadding(0, dp(8), 0, 0) }
+        speechCard.addView(feedbackView)
+        speechCard.addView(text("HTTPS is required, except for a server on this phone. The key is encrypted with Android Keystore.", 12f, R.color.murmur_muted).apply {
+            setPadding(0, dp(4), 0, 0)
+        })
+        recognition.addView(speechCard)
+        addSpeechBackLink(cleanup)
+        cleanup.addView(text("A cloud cleanup service receives transcript text and saved dictionary terms, never audio. Raw text stays in History for recovery.", 13f, R.color.murmur_muted).apply {
+            setPadding(dp(4), 0, dp(4), dp(8))
+        })
+        val cleanupCard = card().apply { setPadding(dp(16), dp(12), dp(16), dp(16)) }
+        cleanupEnabledSwitch = Switch(this).apply {
+            text = "Use transcript cleanup"
+            textSize = 15f
+            setTextColor(color(R.color.murmur_text))
+            isChecked = settings.cleanupEnabled
+            setOnCheckedChangeListener { _, enabled ->
+                if (updatingCleanupSwitch) return@setOnCheckedChangeListener
+                if (enabled && !saveCleanup(enableAfterSave = true)) {
+                    updatingCleanupSwitch = true
+                    isChecked = false
+                    updatingCleanupSwitch = false
+                } else if (!enabled) {
+                    settings.cleanupEnabled = false
+                    refreshStatus()
+                }
+            }
+        }
+        cleanupCard.addView(cleanupEnabledSwitch)
+        cleanupStatus = text("", 12f, R.color.murmur_muted).apply { setPadding(0, dp(2), 0, dp(8)) }
+        cleanupCard.addView(cleanupStatus)
+        cleanupCard.addView(fieldLabel("Service"))
+        val cleanupPresets = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        listOf(
+            SpeechPreset("OpenRouter", AppSettings.DEFAULT_CLEANUP_URL, ""),
+            SpeechPreset("Custom URL", "", ""),
+        ).forEach { preset ->
+            val chip = button(preset.label, primary = false) {
+                if (preset.url.isNotEmpty() || cleanupUrlInput.text.toString().trim() == AppSettings.DEFAULT_CLEANUP_URL) {
+                    cleanupUrlInput.setText(preset.url)
+                }
+                if (preset.model.isNotBlank()) cleanupModelInput.setText(preset.model)
+            }.apply {
+                gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                setPadding(dp(14), 0, dp(14), 0)
+            }
+            cleanupPresetButtons += chip to preset
+            cleanupPresets.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)).apply {
+                bottomMargin = dp(6)
+            })
+        }
+        cleanupCard.addView(cleanupPresets)
+        cleanupCard.addView(fieldLabel("Chat completions URL"))
+        cleanupUrlInput = input(settings.cleanupUrl, "https://…/chat/completions", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        cleanupCard.addView(cleanupUrlInput)
+        cleanupCard.addView(fieldLabel("Model ID · required"))
+        cleanupModelInput = input(settings.cleanupModel, "Your text model", InputType.TYPE_CLASS_TEXT)
+        cleanupCard.addView(cleanupModelInput)
+        cleanupCard.addView(text("Choose a text model from your provider, then turn on cleanup. The switch saves these fields for you.", 12f, R.color.murmur_muted).apply {
+            setPadding(0, dp(6), 0, 0)
+        })
+        cleanupCard.addView(fieldLabel("Formality"))
+        cleanupFormality = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
+                listOf("Very casual", "Casual", "Natural", "Polished", "Formal"))
+            setSelection(settings.cleanupFormality)
+        }
+        cleanupCard.addView(cleanupFormality)
+        cleanupCard.addView(fieldLabel("Cleanup API key"))
+        cleanupKeyInput = input("", "Required for OpenRouter", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        cleanupCard.addView(cleanupKeyInput)
+        cleanupKeyStatus = text("", 12f, R.color.murmur_muted).apply { setPadding(0, dp(8), 0, dp(8)) }
+        cleanupCard.addView(cleanupKeyStatus)
+        cleanupCard.addView(button("Save cleanup settings", primary = true) { saveCleanup() })
+        cleanupRemoveKeyButton = button("Remove cleanup key", primary = false) {
+            settings.clearCleanupKey()
+            if (settings.cleanupEnabled && URI(settings.cleanupUrl).host.equals("openrouter.ai", ignoreCase = true)) {
+                settings.cleanupEnabled = false
+                cleanupFeedback.text = "Key removed. Cleanup is off until you add another key."
+            } else cleanupFeedback.text = "Cleanup key removed."
+            refreshStatus()
+        }
+        cleanupCard.addView(cleanupRemoveKeyButton)
+        cleanupFeedback = text("", 13f, R.color.murmur_muted).apply { setPadding(0, dp(8), 0, 0) }
+        cleanupCard.addView(cleanupFeedback)
+        cleanupCard.addView(text("Cloud cleanup sends transcript text to the service above and may incur separate charges. A custom local server must be reachable from this phone.", 12f, R.color.murmur_muted).apply {
+            setPadding(0, dp(8), 0, 0)
+        })
+        cleanup.addView(cleanupCard)
+        val cleanupEditWatcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                cleanupStatus.text = "Unsaved changes · turn on to save and enable, or save below."
+                cleanupStatus.setTextColor(color(R.color.murmur_muted))
+                refreshCleanupPresets()
+            }
+        }
+        cleanupUrlInput.addTextChangedListener(cleanupEditWatcher)
+        cleanupModelInput.addTextChangedListener(cleanupEditWatcher)
+        cleanupKeyInput.addTextChangedListener(cleanupEditWatcher)
+        endpointInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) = refreshPresets()
+        })
+
+        transcript.addView(text("Raw and cleaned text stay on this phone. Audio is deleted after each request.", 13f, R.color.murmur_muted).apply {
+            setPadding(dp(4), 0, dp(4), dp(8))
+        })
+        val latest = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        latestView = text("No transcript yet.", 15f, R.color.murmur_text).apply { setTextIsSelectable(true) }
+        latest.addView(latestView)
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(12), 0, 0)
+        }
+        actions.addView(button("Copy", primary = false) {
+            settings.latestTranscript?.let { transcript ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Murmur transcript", transcript))
+            }
+        })
+        actions.addView(View(this), LinearLayout.LayoutParams(dp(8), 0))
+        actions.addView(button("Clear latest", primary = false) {
+            settings.latestTranscript = null
+            refreshStatus()
+        })
+        latest.addView(actions)
+        transcript.addView(latest)
+        rawTranscriptCard = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        rawTranscriptCard.addView(text("RAW TRANSCRIPT", 11f, R.color.murmur_muted, bold = true).apply { letterSpacing = 0.08f })
+        rawTranscriptView = text("", 15f, R.color.murmur_text).apply {
+            setPadding(0, dp(8), 0, 0)
+            setTextIsSelectable(true)
+        }
+        rawTranscriptCard.addView(rawTranscriptView)
+        transcript.addView(rawTranscriptCard, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(12)
+        })
+        transcript.addView(groupTitle("Storage"))
+        retentionButton = button("", primary = false) { showRetentionChoices() }
+        transcript.addView(retentionButton)
+        transcript.addView(button("Export text history", primary = false) {
+            startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "application/json"
+                putExtra(Intent.EXTRA_TITLE, "murmur-history.json")
+            }, HISTORY_EXPORT_REQUEST)
+        })
+        historyFeedback = text("", 12f, R.color.murmur_muted)
+        transcript.addView(historyFeedback)
+        transcript.addView(groupTitle("Past dictations"))
+        historyList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        transcript.addView(historyList)
+
+        words.addView(text("Preferred spelling for names and unusual terms. Used by transcript cleanup when it is on.", 13f, R.color.murmur_muted).apply {
+            setPadding(dp(4), 0, dp(4), dp(8))
+        })
+        val addWord = card().apply { setPadding(dp(16), dp(12), dp(16), dp(16)) }
+        dictionaryInput = input("", "Add a name or term", InputType.TYPE_CLASS_TEXT)
+        addWord.addView(dictionaryInput)
+        addWord.addView(button("Add word", primary = true) { addDictionaryWord() }.apply {
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(10)
+            }
+        })
+        words.addView(addWord)
+        words.addView(groupTitle("Saved words"))
+        dictionaryList = card()
+        words.addView(dictionaryList)
+        refreshDictionary()
+
+        inputPage.addView(groupTitle("Voice bubble"))
+        inputPage.addView(text("Keep your usual keyboard. The bubble appears beside ordinary text fields on Android 13 and newer. Drag it to move it; tap to dictate.", 13f, R.color.murmur_muted).apply {
+            setPadding(dp(4), 0, dp(4), dp(8))
+        })
+        val bubbleSettings = card()
+        inputBubbleRow = setupRow(bubbleSettings, "Accessibility service") { explainAccessibility() }
+        inputPage.addView(bubbleSettings)
+        val appearance = card().apply {
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(10)
+            }
+        }
+        val sizeNames = listOf("Tiny", "Small", "Medium", "Large", "Extra large")
+        val sizeLabel = text("Bubble size · ${sizeNames[(settings.bubbleSizeDp - 40) / 4]}", 15f, R.color.murmur_text)
+        appearance.addView(sizeLabel)
+        appearance.addView(SeekBar(this).apply {
+            max = 4
+            progress = (settings.bubbleSizeDp - 40) / 4
+            progressTintList = ColorStateList.valueOf(color(R.color.murmur_accent))
+            thumbTintList = ColorStateList.valueOf(color(R.color.murmur_accent))
+            contentDescription = "Bubble size"
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar, value: Int, fromUser: Boolean) {
+                    if (fromUser) settings.bubbleSizeDp = 40 + value * 4
+                    sizeLabel.text = "Bubble size · ${sizeNames[value]}"
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
+                override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
+            })
+        })
+        val opacityLabel = text("Bubble opacity · ${settings.bubbleOpacityPercent}%", 15f, R.color.murmur_text)
+        appearance.addView(opacityLabel)
+        appearance.addView(SeekBar(this).apply {
+            max = 12
+            progress = (settings.bubbleOpacityPercent - 40) / 5
+            progressTintList = ColorStateList.valueOf(color(R.color.murmur_accent))
+            thumbTintList = ColorStateList.valueOf(color(R.color.murmur_accent))
+            contentDescription = "Bubble opacity"
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar, value: Int, fromUser: Boolean) {
+                    if (fromUser) settings.bubbleOpacityPercent = 40 + value * 5
+                    opacityLabel.text = "Bubble opacity · ${40 + value * 5}%"
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
+                override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
+            })
+        })
+        appearance.addView(text("The bubble stays above the keyboard and remembers where you leave it.", 12f, R.color.murmur_muted))
+        inputPage.addView(appearance)
+        inputPage.addView(text("If Android says Restricted setting, open Settings → Apps → Murmur → ⋮ → Allow restricted settings. Then return to Accessibility and enable Murmur voice bubble. This is a sideloaded-app restriction; signing the APK does not remove it.", 13f, R.color.murmur_muted).apply {
+            setPadding(dp(4), dp(12), dp(4), 0)
+        })
+        inputPage.addView(groupTitle("Audio processing"))
+        val noiseAvailable = NoiseSuppressor.isAvailable()
+        val noiseCard = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        val noiseToggle = Switch(this).apply {
+            text = "Reduce background noise"
+            textSize = 15f
+            setTextColor(color(R.color.murmur_text))
+            isChecked = settings.noiseSuppressionEnabled && noiseAvailable
+            isEnabled = noiseAvailable
+            setOnCheckedChangeListener { _, checked -> settings.noiseSuppressionEnabled = checked }
+        }
+        noiseCard.addView(noiseToggle)
+        noiseCard.addView(text(
+            if (noiseAvailable) "Uses this phone's capture effect when available. It may alter quiet speech."
+            else "This phone does not provide a noise suppression effect.",
+            12f, R.color.murmur_muted,
+        ))
+        inputPage.addView(noiseCard)
+        inputPage.addView(groupTitle("Murmur keyboard"))
+        inputPage.addView(text("A fallback for phones older than Android 13, or if you prefer a keyboard with a mic key.", 13f, R.color.murmur_muted).apply {
+            setPadding(dp(4), 0, dp(4), dp(8))
+        })
+        val keyboard = card()
+        keyboardRow = setupRow(keyboard, "Murmur keyboard") {
+            startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+        }
+        divider(keyboard)
+        selectedRow = setupRow(keyboard, "Current keyboard") {
+            (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
+        }
+        inputPage.addView(keyboard)
+        showPage(currentPage)
+        refreshHistory()
+        if (BuildConfig.UPDATE_MANIFEST_URL.isNotBlank()) checkForUpdates(automatic = true)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("page", currentPage.name)
+        super.onSaveInstanceState(outState)
+    }
+
+    private fun showPage(page: Page) {
+        currentPage = page
+        pageTitle.text = if (page == Page.HOME) "Murmur" else page.label
+        pageDescription.text = page.description
+        pages.forEach { (section, view) -> view.visibility = if (section == page) View.VISIBLE else View.GONE }
+        val selectedTab = if (page == Page.RECOGNITION || page == Page.CLEANUP) Page.SPEECH else page
+        navigationItems.forEach { (section, item) ->
+            val selected = section == selectedTab
+            item.isSelected = selected
+            item.contentDescription = if (selected) "${section.label}, selected" else section.label
+            navigationLabels.getValue(section).setTextColor(color(if (selected) R.color.murmur_accent else R.color.murmur_muted))
+            navigationIcons.getValue(section).imageTintList = ColorStateList.valueOf(color(if (selected) R.color.murmur_accent else R.color.murmur_muted))
+            val selection = if (selected) GradientDrawable().apply {
+                setColor((color(R.color.murmur_accent) and 0x00ffffff) or (28 shl 24))
+                cornerRadius = dp(28).toFloat()
+            } else null
+            item.background = RippleDrawable(
+                ColorStateList.valueOf((color(R.color.murmur_accent) and 0x00ffffff) or (32 shl 24)),
+                selection,
+                GradientDrawable().apply {
+                    setColor(Color.WHITE)
+                    cornerRadius = dp(28).toFloat()
+                },
+            )
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            speechBackCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
+            speechBackCallback = if (page == Page.RECOGNITION || page == Page.CLEANUP) {
+                OnBackInvokedCallback { showPage(Page.SPEECH) }.also {
+                    onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, it)
+                }
+            } else null
+        }
+        scroll.scrollTo(0, 0)
+    }
+
+    @SuppressLint("GestureBackNavigation")
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    override fun onBackPressed() {
+        if (currentPage == Page.RECOGNITION || currentPage == Page.CLEANUP) showPage(Page.SPEECH)
+        else super.onBackPressed()
+    }
+
+    override fun onDestroy() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            speechBackCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
+            speechBackCallback = null
+        }
+        super.onDestroy()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::statusTitle.isInitialized) {
+            refreshStatus()
+            refreshHistory()
+        }
+    }
+
+    private fun onUpdateButton() {
+        if (updateBusy) return
+        val readyApk = downloadedUpdate
+        val update = availableUpdate
+        when {
+            readyApk != null && readyApk.exists() -> installUpdate(readyApk)
+            update != null -> downloadUpdate(update)
+            else -> checkForUpdates(automatic = false)
+        }
+    }
+
+    private fun checkForUpdates(automatic: Boolean) {
+        if (updateBusy) return
+        updateBusy = true
+        updateButton.isEnabled = false
+        if (!automatic) updateStatus.text = "Checking for updates…"
+        Thread {
+            val result = runCatching { UpdateClient(this).check() }
+            runOnUiThread {
+                updateBusy = false
+                result.onSuccess { update ->
+                    availableUpdate = update
+                    downloadedUpdate = null
+                    updateStatus.text = if (update == null) "Murmur is up to date."
+                        else "Version ${update.versionName} is available (${update.sizeBytes / 1_000_000} MB)."
+                    updateButton.text = if (update == null) "Check for updates" else "Download update"
+                }.onFailure { error ->
+                    if (!automatic) updateStatus.text = error.message ?: "Could not check for updates."
+                }
+                updateButton.isEnabled = true
+            }
+        }.start()
+    }
+
+    private fun downloadUpdate(update: AvailableUpdate) {
+        if (MurmurReadyService.isActive) {
+            AlertDialog.Builder(this).setTitle("Turn off voice capture first")
+                .setMessage("Stop the voice bubble before installing an update. Then return here to download it.")
+                .setPositiveButton("OK", null).show()
+            return
+        }
+        updateBusy = true
+        updateButton.isEnabled = false
+        updateStatus.text = "Downloading update…"
+        Thread {
+            val result = runCatching {
+                UpdateClient(this).download(update) { percent ->
+                    runOnUiThread { updateStatus.text = "Downloading update… $percent%" }
+                }
+            }
+            runOnUiThread {
+                updateBusy = false
+                result.onSuccess { file ->
+                    downloadedUpdate = file
+                    updateStatus.text = "Download verified. Android will ask you to confirm the update."
+                    updateButton.text = "Install update"
+                    installUpdate(file)
+                }.onFailure { error ->
+                    updateStatus.text = error.message ?: "Could not download the update."
+                    updateButton.text = "Retry download"
+                }
+                updateButton.isEnabled = true
+            }
+        }.start()
+    }
+
+    private fun installUpdate(apk: File) {
+        if (MurmurReadyService.isActive) {
+            updateStatus.text = "Turn off the voice bubble before installing."
+            return
+        }
+        if (!packageManager.canRequestPackageInstalls()) {
+            AlertDialog.Builder(this).setTitle("Allow Murmur to install updates")
+                .setMessage("Android needs your permission to install a downloaded Murmur APK. Return here and tap Install update afterwards.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Open settings") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                }.show()
+            return
+        }
+        val uri = FileProvider.getUriForFile(this, "$packageName.updates", apk)
+        val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+            data = uri
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        runCatching { startActivity(intent) }.onFailure {
+            updateStatus.text = "Android could not open the installer."
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // the keyboard picker is a dialog, so resume never fires after it
+        if (hasFocus && ::statusTitle.isInitialized) refreshStatus()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == NOTIFICATION_REQUEST && pendingReadyStart) {
+            pendingReadyStart = false
+            beginVoiceReady()
+        }
+        refreshStatus()
+    }
+
+    @Deprecated("Uses the platform document picker without an added activity-result dependency")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != HISTORY_EXPORT_REQUEST || resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        historyFeedback.text = "Exporting history…"
+        Thread {
+            val result = runCatching {
+                contentResolver.openOutputStream(uri)?.use { output ->
+                    JsonWriter(OutputStreamWriter(output, Charsets.UTF_8)).use { writer -> history.writeExport(writer) }
+                } ?: error("Could not open the selected file.")
+            }
+            runOnUiThread {
+                historyFeedback.text = if (result.isSuccess) "Text history exported."
+                    else "Could not export history. Choose another location."
+            }
+        }.start()
+    }
+
+    private fun explainAccessibility() {
+        if (Build.VERSION.SDK_INT < 33) {
+            showPage(Page.INPUT)
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Enable Murmur voice bubble")
+            .setMessage(
+                "Murmur uses Android Accessibility to detect when an ordinary text field is focused and insert your dictation at the cursor while your usual keyboard stays active. " +
+                    "It checks the field type and cursor context for safe placement and spacing, but does not upload text already in the field. " +
+                    "The bubble stays hidden in password and other sensitive fields. " +
+                    "Recording starts only when you tap the bubble. Recorded audio goes to the transcription endpoint you configure in Speech. " +
+                    "If Android blocks the switch, open Settings → Apps → Murmur → ⋮ → Allow restricted settings, then return to Accessibility."
+            )
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Agree and open Settings") { _, _ ->
+                getSharedPreferences("murmur", MODE_PRIVATE).edit()
+                    .putBoolean("bubble_disclosure_accepted", true).apply()
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            .show()
+    }
+
+    private fun startVoiceReady() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), MICROPHONE_REQUEST)
+            return
+        }
+        if (!isBubbleEnabled()) {
+            explainAccessibility()
+            return
+        }
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            !getSharedPreferences("murmur", MODE_PRIVATE).getBoolean("notification_permission_requested", false)
+        ) {
+            pendingReadyStart = true
+            getSharedPreferences("murmur", MODE_PRIVATE).edit()
+                .putBoolean("notification_permission_requested", true).apply()
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_REQUEST)
+            return
+        }
+        beginVoiceReady()
+    }
+
+    private fun beginVoiceReady() {
+        try {
+            MurmurReadyService.start(this)
+        } catch (_: Exception) {
+            feedbackView.text = "Voice ready could not start. Open Murmur and try again."
+        }
+        window.decorView.postDelayed({ refreshStatus() }, 400)
+    }
+
+    private fun isBubbleEnabled(): Boolean {
+        if (Build.VERSION.SDK_INT < 33 ||
+            !getSharedPreferences("murmur", MODE_PRIVATE).getBoolean("bubble_disclosure_accepted", false)
+        ) return false
+        val component = ComponentName(this, MurmurAccessibilityService::class.java)
+        return Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+            .orEmpty().split(':').any { ComponentName.unflattenFromString(it) == component }
+    }
+
+    private fun save() {
+        try {
+            val previousUrl = settings.endpointUrl
+            settings.saveEndpoint(endpointInput.text.toString(), modelInput.text.toString())
+            val key = keyInput.text.toString()
+            if (key.isNotBlank()) settings.saveApiKey(key.trim())
+            keyInput.text.clear()
+            feedbackView.text = if (settings.endpointUrl != previousUrl && key.isBlank()) {
+                "Saved. The previous endpoint's key was removed."
+            } else "Saved."
+        } catch (error: IllegalArgumentException) {
+            feedbackView.text = error.message ?: "Check the URL and model."
+        } catch (_: Exception) {
+            feedbackView.text = "Could not save the key. Enter it again and retry."
+        }
+        refreshStatus()
+    }
+
+    private fun saveCleanup(enableAfterSave: Boolean = false): Boolean {
+        try {
+            val url = try { AppSettings.parseCleanupUrl(cleanupUrlInput.text.toString()) }
+                catch (error: IllegalArgumentException) {
+                    cleanupUrlInput.error = error.message
+                    throw error
+                }
+            val model = cleanupModelInput.text.toString().trim()
+            if (model.isBlank()) {
+                cleanupModelInput.error = "Enter a model ID"
+                throw IllegalArgumentException("Add a cleanup model ID below to turn this on.")
+            }
+            val endpointChanged = url.toASCIIString() != settings.cleanupUrl
+            val key = cleanupKeyInput.text.toString().trim()
+            val hasKey = key.isNotEmpty() || (!endpointChanged && settings.hasCleanupKey)
+            if (enableAfterSave && url.host.equals("openrouter.ai", ignoreCase = true) && !hasKey) {
+                cleanupKeyInput.error = "API key required"
+                throw IllegalArgumentException("Add a cleanup API key below to use OpenRouter.")
+            }
+            if (endpointChanged) settings.cleanupEnabled = false
+            settings.saveCleanupEndpoint(
+                url.toASCIIString(),
+                model,
+                cleanupFormality.selectedItemPosition,
+            )
+            if (key.isNotBlank()) settings.saveCleanupKey(key)
+            cleanupKeyInput.text.clear()
+            settings.cleanupEnabled = enableAfterSave || (settings.cleanupEnabled && !endpointChanged &&
+                (!url.host.equals("openrouter.ai", ignoreCase = true) || hasKey))
+            settings.lastCleanupFailure = null
+            cleanupFeedback.text = if (enableAfterSave) "Saved and turned on." else if (endpointChanged) {
+                "Saved. Cleanup is off because the service changed."
+            } else "Cleanup settings saved."
+            refreshStatus()
+            return true
+        } catch (error: IllegalArgumentException) {
+            val message = error.message ?: "Check the cleanup settings."
+            cleanupStatus.text = message
+            cleanupStatus.setTextColor(color(R.color.murmur_error))
+            cleanupFeedback.text = message
+        } catch (_: Exception) {
+            cleanupStatus.text = "Could not save the cleanup key. Enter it again and retry."
+            cleanupStatus.setTextColor(color(R.color.murmur_error))
+            cleanupFeedback.text = cleanupStatus.text
+        }
+        return false
+    }
+
+    private fun addDictionaryWord() {
+        try {
+            settings.addDictionaryTerm(dictionaryInput.text.toString())
+            dictionaryInput.text.clear()
+            refreshDictionary()
+        } catch (error: IllegalArgumentException) {
+            dictionaryInput.error = error.message
+        }
+    }
+
+    private fun refreshDictionary() {
+        dictionaryList.removeAllViews()
+        val terms = settings.dictionary
+        if (terms.isEmpty()) {
+            dictionaryList.addView(text("No words saved yet.", 14f, R.color.murmur_muted).apply {
+                setPadding(dp(16), dp(16), dp(16), dp(16))
+            })
+            return
+        }
+        terms.forEachIndexed { index, term ->
+            if (index > 0) divider(dictionaryList)
+            val row = row()
+            row.addView(text(term, 15f, R.color.murmur_text), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            row.addView(button("Remove", primary = false) {
+                settings.removeDictionaryTerm(term)
+                refreshDictionary()
+            })
+            dictionaryList.addView(row)
+        }
+    }
+
+    private fun refreshHistory() {
+        if (!::historyList.isInitialized) return
+        retentionButton.text = when (settings.historyRetentionDays) {
+            7 -> "Keep history for 7 days"
+            30 -> "Keep history for 30 days"
+            90 -> "Keep history for 90 days"
+            else -> "Keep history until deleted"
+        }
+        val summary = runCatching { history.stats() }.getOrNull()
+        renderStats(summary)
+        historyList.removeAllViews()
+        val records = runCatching { history.recent() }.getOrNull()
+        if (records == null) {
+            homeLatestView.text = "History could not be loaded."
+            homeLatestDateView.visibility = View.GONE
+            homeLatestLinkView.text = "Open history  ↗"
+            homeRecentCard.contentDescription = "Open history"
+            historyList.addView(text("History could not be loaded.", 14f, R.color.murmur_muted))
+            return
+        }
+        val latest = records.firstOrNull()
+        homeLatestView.text = latest?.finalText ?: "Your first dictation will appear here."
+        homeLatestDateView.text = latest?.let {
+            DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it.timestamp))
+        }.orEmpty()
+        homeLatestDateView.visibility = if (latest == null) View.GONE else View.VISIBLE
+        homeLatestLinkView.text = if (latest == null) "Open history  ↗" else "View transcript  ↗"
+        homeRecentCard.contentDescription = if (latest == null) "Open history" else "View latest transcript"
+        if (records.isEmpty()) {
+            historyList.addView(card().apply {
+                setPadding(dp(16), dp(18), dp(16), dp(18))
+                addView(text("No past dictations yet.", 14f, R.color.murmur_muted))
+            })
+            return
+        }
+        records.forEach { record ->
+            val entry = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+            entry.addView(text(DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(record.timestamp)),
+                12f, R.color.murmur_muted))
+            entry.addView(text(record.finalText, 15f, R.color.murmur_text).apply {
+                setPadding(0, dp(7), 0, dp(10))
+                maxLines = 3
+                ellipsize = TextUtils.TruncateAt.END
+            })
+            val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            actions.addView(button("View", primary = false) {
+                val detail = if (record.raw == record.finalText) record.finalText
+                    else "${record.finalText}\n\nRaw transcript\n${record.raw}"
+                AlertDialog.Builder(this).setTitle("Dictation").setMessage(detail)
+                    .setPositiveButton("Close", null).show()
+            })
+            actions.addView(button("Copy", primary = false) {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Murmur transcript", record.finalText))
+            })
+            actions.addView(button("Delete", primary = false) {
+                AlertDialog.Builder(this).setTitle("Delete dictation?")
+                    .setMessage("This removes the raw and cleaned text from this phone.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Delete") { _, _ ->
+                        history.delete(record.id)
+                        if (settings.latestHistoryId == record.id) {
+                            settings.latestTranscript = null
+                            refreshStatus()
+                        }
+                        refreshHistory()
+                    }.show()
+            })
+            entry.addView(actions)
+            historyList.addView(entry, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                bottomMargin = dp(10)
+            })
+        }
+    }
+
+    private fun renderStats(stats: DictationStats?) {
+        val hasHistory = (stats?.dictations ?: 0) > 0
+        val numbers = NumberFormat.getIntegerInstance()
+        statsTotalView.text = stats?.let { numbers.format(it.totalWords) } ?: "—"
+        statsWordsView.text = stats?.let { numbers.format(it.thisWeekWords) } ?: "—"
+        statsPaceView.text = stats?.recordedWpm?.let { "${numbers.format(it)} wpm" } ?: "—"
+        statsMinutesView.text = stats?.takeIf { it.recordingsWithDuration > 0 }?.let {
+            "${NumberFormat.getNumberInstance().apply { maximumFractionDigits = 1 }.format(it.recordedMinutes)} min"
+        } ?: "—"
+        statsTrendView.text = when {
+            stats == null -> "Statistics are unavailable right now"
+            !hasHistory -> "Your first dictation will start the weekly chart."
+            stats.weekOverWeekPercent == null -> "No previous week to compare"
+            else -> {
+                val change = stats.weekOverWeekPercent
+                val sign = if (change > 0) "+" else ""
+                "$sign${NumberFormat.getNumberInstance().apply { maximumFractionDigits = 0 }.format(change)}% vs last full week"
+            }
+        }
+        statsMethodView.text = when {
+            stats == null -> "Try again after Murmur has finished starting up."
+            stats.recordingsWithDuration == 0 -> "No recorded durations yet, so pace and minutes cannot be calculated. This week is still in progress."
+            else -> "Pace uses ${stats.recordingsWithDuration} of ${stats.dictations} dictations with recorded duration and includes pauses. This week is still in progress."
+        }
+        weeklyWordsChart.visibility = if (hasHistory) View.VISIBLE else View.GONE
+        weeklyPaceTitle.visibility = if (hasHistory) View.VISIBLE else View.GONE
+        weeklyPaceRow.visibility = if (hasHistory) View.VISIBLE else View.GONE
+        statsMethodView.visibility = if (hasHistory) View.VISIBLE else View.GONE
+
+        weeklyWordsChart.removeAllViews()
+        weeklyPaceRow.removeAllViews()
+        if (stats == null) return
+        val highestWeek = stats.weeks.maxOfOrNull { it.words }?.coerceAtLeast(1) ?: 1
+        val dateFormat = SimpleDateFormat("M/d", Locale.getDefault())
+        stats.weeks.forEachIndexed { index, week ->
+            val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+            column.contentDescription = "${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(week.weekStart))}: ${week.words} words"
+            column.addView(text(if (week.words == 0) "" else compactCount(week.words), 10f, R.color.murmur_muted).apply {
+                gravity = Gravity.CENTER
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(18)))
+            val barArea = FrameLayout(this)
+            val barHeight = if (week.words == 0) dp(3) else dp((week.words * 68.0 / highestWeek).toInt().coerceAtLeast(6))
+            val barColor = when {
+                week.words == 0 -> color(R.color.murmur_border)
+                index == stats.weeks.lastIndex -> color(R.color.murmur_accent)
+                else -> (color(R.color.murmur_accent) and 0x00ffffff) or (145 shl 24)
+            }
+            barArea.addView(View(this).apply {
+                background = GradientDrawable().apply { setColor(barColor); cornerRadius = dp(3).toFloat() }
+            }, FrameLayout.LayoutParams(dp(19), barHeight, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL))
+            column.addView(barArea, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(68)))
+            column.addView(text(dateFormat.format(Date(week.weekStart)), 10f, R.color.murmur_muted).apply {
+                gravity = Gravity.CENTER
+                maxLines = 1
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(20)))
+            weeklyWordsChart.addView(column, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+            weeklyPaceRow.addView(text(week.recordedWpm?.toString() ?: "—", 10f, R.color.murmur_muted).apply {
+                gravity = Gravity.CENTER
+                contentDescription = "${dateFormat.format(Date(week.weekStart))}: " +
+                    (week.recordedWpm?.let { "$it words per minute" } ?: "no recorded pace")
+            }, LinearLayout.LayoutParams(0, dp(24), 1f))
+        }
+    }
+
+    private fun compactCount(count: Int): String = if (count < 1_000) count.toString()
+        else String.format(Locale.getDefault(), "%.1fk", count / 1_000.0)
+
+    private fun showRetentionChoices() {
+        val choices = arrayOf("Until deleted", "7 days", "30 days", "90 days")
+        val days = intArrayOf(0, 7, 30, 90)
+        AlertDialog.Builder(this).setTitle("Keep text history")
+            .setSingleChoiceItems(choices, days.indexOf(settings.historyRetentionDays)) { dialog, which ->
+                dialog.dismiss()
+                val selected = days[which]
+                if (selected == settings.historyRetentionDays) return@setSingleChoiceItems
+                if (selected == 0) {
+                    settings.historyRetentionDays = 0
+                    refreshHistory()
+                } else {
+                    AlertDialog.Builder(this).setTitle("Change history retention?")
+                        .setMessage("Dictations older than ${choices[which]} will be deleted from this phone now and after future recordings.")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Delete older entries") { _, _ ->
+                            settings.historyRetentionDays = selected
+                            history.pruneOlderThan(selected)
+                            if (settings.latestHistoryId?.let { !history.contains(it) } == true) {
+                                settings.latestTranscript = null
+                                refreshStatus()
+                            }
+                            refreshHistory()
+                        }.show()
+                }
+            }.setNegativeButton("Cancel", null).show()
+    }
+
+    private fun refreshStatus() {
+        val micAllowed = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val keyboardEnabled = imm.enabledInputMethodList.any { it.packageName == packageName }
+        val keyboardSelected = Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
+            ?.startsWith("$packageName/") == true
+        val host = runCatching { URI(settings.endpointUrl).host }.getOrNull() ?: settings.endpointUrl
+        val onPhone = host == "localhost" || host == "127.0.0.1"
+        val localRecognition = settings.useOnDeviceRecognition && Build.VERSION.SDK_INT >= 31 &&
+            SpeechRecognizer.isOnDeviceRecognitionAvailable(this)
+        val keyDone = localRecognition || settings.hasApiKey || onPhone
+        val bubbleSupported = Build.VERSION.SDK_INT >= 33
+        val bubbleEnabled = isBubbleEnabled()
+        val voiceReady = MurmurReadyService.isActive
+
+        inputBubbleRow.update(bubbleEnabled, when {
+            !bubbleSupported -> "Available on Android 13 and newer"
+            bubbleEnabled -> "Enabled"
+            else -> "Open Accessibility settings to enable"
+        }, "Enable", hidden = !bubbleSupported)
+        keyboardRow.update(keyboardEnabled, if (keyboardEnabled) "Enabled" else "Off", "Enable")
+        selectedRow.update(keyboardSelected, if (keyboardSelected) "Murmur keyboard" else "Your usual keyboard", "Switch", neutral = true)
+
+        // one obvious next step, in the order setup has to happen
+        val next: Triple<String, String, () -> Unit> = when {
+            !micAllowed -> Triple("Allow the microphone to start", "Allow microphone") {
+                requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), MICROPHONE_REQUEST)
+            }
+            bubbleSupported && !bubbleEnabled -> Triple("Turn on the voice bubble", "Enable voice bubble") { explainAccessibility() }
+            !keyDone -> Triple("Add your API key", "Add API key") { focusKeyInput() }
+            bubbleSupported && !voiceReady -> Triple("Voice bubble is off", "Turn on voice bubble") { startVoiceReady() }
+            bubbleSupported -> Triple("Ready. Tap the bubble in any text field", "Turn off voice bubble") {
+                MurmurReadyService.stop(this)
+                window.decorView.postDelayed({ refreshStatus() }, 400)
+            }
+            !keyboardEnabled -> Triple("Enable the Murmur keyboard", "Open keyboard settings") {
+                startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+            }
+            !keyboardSelected -> Triple("Switch to the Murmur keyboard", "Choose keyboard") {
+                imm.showInputMethodPicker()
+            }
+            else -> Triple("Ready. Tap Mic on the Murmur keyboard", "", {})
+        }
+        statusTitle.text = next.first
+        heroAction = next.third
+        heroButton.text = next.second
+        heroButton.visibility = if (next.second.isEmpty()) View.GONE else View.VISIBLE
+        styleButton(heroButton, primary = !(bubbleSupported && voiceReady && micAllowed && bubbleEnabled && keyDone))
+        statusDetail.text = if (localRecognition || onPhone) "Audio stays on this phone" else "Audio is sent to $host for transcription"
+        speechRecognitionSummary.text = if (localRecognition) "On-device recognition" else "$host · ${settings.model}"
+        val cleanupHost = runCatching { URI(settings.cleanupUrl).host }.getOrNull() ?: "your service"
+        speechCleanupSummary.text = when {
+            settings.cleanupEnabled && settings.lastCleanupFailure != null -> "On · last cleanup failed; raw text used"
+            settings.cleanupEnabled -> "On · $cleanupHost · ${settings.cleanupModel}"
+            settings.cleanupModel.isBlank() -> "Off · add a model to enable"
+            cleanupHost.equals("openrouter.ai", ignoreCase = true) && !settings.hasCleanupKey -> "Off · add a cleanup key"
+            else -> "Off · ready to turn on"
+        }
+        updatingCleanupSwitch = true
+        cleanupEnabledSwitch.isChecked = settings.cleanupEnabled
+        updatingCleanupSwitch = false
+        cleanupStatus.setTextColor(color(R.color.murmur_muted))
+        cleanupStatus.text = when {
+            settings.cleanupEnabled -> "On · $cleanupHost · ${settings.cleanupModel}"
+            settings.cleanupModel.isBlank() -> "Off · add a model ID below, then turn this on."
+            cleanupHost.equals("openrouter.ai", ignoreCase = true) && !settings.hasCleanupKey ->
+                "Off · add a cleanup API key below, then turn this on."
+            else -> "Off · ready to turn on."
+        }
+        if (settings.cleanupEnabled && settings.lastCleanupFailure != null) {
+            cleanupStatus.text = "${cleanupStatus.text}\n${settings.lastCleanupFailure}"
+            cleanupStatus.setTextColor(color(R.color.murmur_error))
+        }
+
+        keyStatusView.text = if (settings.hasApiKey) "A key is saved for $host" else "No key saved"
+        removeKeyButton.visibility = if (settings.hasApiKey) View.VISIBLE else View.GONE
+        latestView.text = settings.latestTranscript ?: "No transcript yet."
+        rawTranscriptView.text = settings.latestRawTranscript.orEmpty()
+        rawTranscriptCard.visibility = if (settings.latestRawTranscript != null &&
+            settings.latestRawTranscript != settings.latestTranscript) View.VISIBLE else View.GONE
+        cleanupKeyStatus.text = if (settings.hasCleanupKey) "Cleanup key saved separately from speech" else "No cleanup key saved"
+        cleanupRemoveKeyButton.visibility = if (settings.hasCleanupKey) View.VISIBLE else View.GONE
+        refreshPresets()
+        refreshCleanupPresets()
+    }
+
+    private fun refreshPresets() {
+        val current = endpointInput.text.toString().trim()
+        presetButtons.forEach { (chip, preset) ->
+            val selected = current == preset.url
+            chip.background = RippleDrawable(
+                ColorStateList.valueOf(color(R.color.murmur_border)),
+                rounded(R.color.murmur_background, 8f, stroke = if (selected) R.color.murmur_accent else R.color.murmur_border),
+                null,
+            )
+            chip.setTextColor(color(if (selected) R.color.murmur_accent else R.color.murmur_text))
+            chip.text = if (selected) "✓  ${preset.label}" else preset.label
+            chip.contentDescription = "${preset.label}${if (selected) ", selected" else ""}"
+        }
+    }
+
+    private fun refreshCleanupPresets() {
+        val current = cleanupUrlInput.text.toString().trim()
+        cleanupPresetButtons.forEach { (chip, preset) ->
+            val selected = if (preset.url.isEmpty()) current != AppSettings.DEFAULT_CLEANUP_URL
+                else current == preset.url
+            chip.background = RippleDrawable(
+                ColorStateList.valueOf(color(R.color.murmur_border)),
+                rounded(R.color.murmur_background, 8f, stroke = if (selected) R.color.murmur_accent else R.color.murmur_border),
+                null,
+            )
+            chip.setTextColor(color(if (selected) R.color.murmur_accent else R.color.murmur_text))
+            chip.text = if (selected) "✓  ${preset.label}" else preset.label
+            chip.contentDescription = "${preset.label}${if (selected) ", selected" else ""}"
+        }
+    }
+
+    private fun focusKeyInput() {
+        showPage(Page.RECOGNITION)
+        keyInput.requestFocus()
+        scroll.post {
+            val field = Rect(0, 0, keyInput.width, keyInput.height)
+            scroll.offsetDescendantRectToMyCoords(keyInput, field)
+            scroll.smoothScrollTo(0, field.top - dp(48))
+        }
+        (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(keyInput, 0)
+    }
+
+    private inner class SetupRow(val detail: TextView, val action: Button) {
+        fun update(done: Boolean, detailText: String, actionText: String, hidden: Boolean = false, neutral: Boolean = false) {
+            detail.text = if (done && !neutral) "✓  $detailText" else detailText
+            detail.setTextColor(color(if (done && !neutral) R.color.murmur_accent else R.color.murmur_muted))
+            action.text = actionText
+            action.visibility = if (done || hidden) View.GONE else View.VISIBLE
+        }
+    }
+
+    private fun setupRow(parent: LinearLayout, title: String, onAction: () -> Unit): SetupRow {
+        val row = row()
+        val labels = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        labels.addView(text(title, 15f, R.color.murmur_text))
+        val detail = text("", 13f, R.color.murmur_muted)
+        labels.addView(detail)
+        row.addView(labels, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        // secondary on purpose: the status card carries the one primary action
+        val action = button("", primary = false, onAction)
+        row.addView(action)
+        parent.addView(row)
+        return SetupRow(detail, action)
+    }
+
+    private fun destinationRow(parent: LinearLayout, title: String, onOpen: () -> Unit): TextView {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(72)
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Open $title"
+            setOnClickListener { onOpen() }
+        }
+        val labels = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        labels.addView(text(title, 15f, R.color.murmur_text, bold = true))
+        val detail = text("", 12f, R.color.murmur_muted).apply { setPadding(0, dp(3), 0, 0) }
+        labels.addView(detail)
+        row.addView(labels, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(text("›", 24f, R.color.murmur_muted).apply { gravity = Gravity.CENTER })
+        parent.addView(row)
+        return detail
+    }
+
+    private fun addSpeechBackLink(page: LinearLayout) {
+        page.addView(text("‹  Speech", 14f, R.color.murmur_accent, bold = true).apply {
+            setPadding(dp(4), 0, dp(4), dp(15))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { showPage(Page.SPEECH) }
+        })
+    }
+
+    private fun row(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        minimumHeight = dp(56)
+        setPadding(dp(16), dp(8), dp(12), dp(8))
+    }
+
+    private fun statsCell(label: String): Pair<LinearLayout, TextView> {
+        val value = text("—", 24f, R.color.murmur_text, bold = true).apply {
+            setPadding(0, dp(4), 0, 0)
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+        }
+        val cell = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(13), dp(10), dp(13))
+            addView(text(label, 11f, R.color.murmur_muted))
+            addView(value)
+        }
+        return cell to value
+    }
+
+    private fun statsRow(left: LinearLayout, right: LinearLayout): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        addView(left, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        addView(View(this@MainActivity).apply { setBackgroundColor(color(R.color.murmur_border)) },
+            LinearLayout.LayoutParams(dp(1), ViewGroup.LayoutParams.MATCH_PARENT))
+        addView(right, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+    }
+
+    private fun card(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        background = rounded(R.color.murmur_surface, 12f, stroke = R.color.murmur_border)
+    }
+
+    private fun divider(parent: LinearLayout) {
+        parent.addView(View(this).apply { setBackgroundColor(color(R.color.murmur_border)) },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)))
+    }
+
+    private fun groupTitle(value: String): TextView = text(value.uppercase(), 12f, R.color.murmur_muted).apply {
+        letterSpacing = 0.06f
+        setPadding(dp(4), dp(24), dp(4), dp(8))
+    }
+
+    private fun fieldLabel(value: String): TextView = text(value, 14f, R.color.murmur_text).apply {
+        setPadding(0, dp(10), 0, dp(6))
+    }
+
+    private fun text(value: String, size: Float, colorRes: Int, bold: Boolean = false): TextView = TextView(this).apply {
+        text = value
+        textSize = size
+        setTextColor(color(colorRes))
+        if (bold) typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+
+    private fun input(value: String, hint: String, type: Int): EditText = EditText(this).apply {
+        setText(value)
+        this.hint = hint
+        inputType = type
+        isSingleLine = true
+        textSize = 15f
+        setTextColor(color(R.color.murmur_text))
+        setHintTextColor(color(R.color.murmur_muted))
+        background = rounded(R.color.murmur_background, 8f, stroke = R.color.murmur_border)
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
+    private fun button(label: String, primary: Boolean, action: () -> Unit): Button = Button(this).apply {
+        text = label
+        isAllCaps = false
+        textSize = 14f
+        stateListAnimator = null
+        minHeight = dp(40)
+        minimumHeight = dp(40)
+        minWidth = 0
+        minimumWidth = 0
+        setPadding(dp(16), 0, dp(16), 0)
+        styleButton(this, primary)
+        setOnClickListener { action() }
+    }
+
+    private fun styleButton(button: Button, primary: Boolean) {
+        button.setTextColor(color(if (primary) R.color.murmur_on_accent else R.color.murmur_text))
+        val shape = if (primary) rounded(R.color.murmur_accent, 8f)
+        else rounded(android.R.color.transparent, 8f, stroke = R.color.murmur_border)
+        button.background = RippleDrawable(ColorStateList.valueOf(color(R.color.murmur_border)), shape, null)
+    }
+
+    private fun rounded(fill: Int, radius: Float, stroke: Int? = null) = GradientDrawable().apply {
+        setColor(color(fill))
+        cornerRadius = dp(radius.toInt()).toFloat()
+        if (stroke != null) setStroke(dp(1), color(stroke))
+    }
+
+    private fun color(res: Int): Int = getColor(res)
+
+    private fun dp(value: Int): Int = (resources.displayMetrics.density * value).toInt()
+
+    companion object {
+        private const val MICROPHONE_REQUEST = 1
+        private const val NOTIFICATION_REQUEST = 2
+        private const val HISTORY_EXPORT_REQUEST = 3
+    }
+}

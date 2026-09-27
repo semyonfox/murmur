@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="murmur_background">#161918</color>
+    <color name="murmur_surface">#1E2220</color>
+    <color name="murmur_text">#E5E8E6</color>
+    <color name="murmur_muted">#8D9591</color>
+    <color name="murmur_border">#268D9591</color>
+    <color name="murmur_accent">#7CC2A6</color>
+    <color name="murmur_error">#FF7B88</color>
+    <color name="murmur_on_accent">#0F1B16</color>
+    <color name="murmur_recording">#EF6B6B</color>
+    <color name="murmur_busy">#E0A04A</color>
+    <color name="murmur_keyboard">#121413</color>
+    <color name="murmur_key">#262A28</color>
+</resources>
