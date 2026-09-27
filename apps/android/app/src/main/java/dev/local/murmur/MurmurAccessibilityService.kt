@@ -217,7 +217,7 @@ class MurmurAccessibilityService : AccessibilityService() {
             return
         }
         val endpoint = try {
-            settings.endpointOrNull()
+            settings.activeEndpointOrNull()
         } catch (_: Exception) {
             showMessage("Check Murmur settings")
             return
@@ -274,7 +274,7 @@ class MurmurAccessibilityService : AccessibilityService() {
         recordingStartedAt = SystemClock.elapsedRealtime()
         recordingEndedAt = 0L
         try {
-            val recognizer = OnDeviceSpeechSession(this, onResult = { raw ->
+            val recognizer = OnDeviceSpeechSession(this, settings.speechLanguage, onResult = { raw ->
                 onDeviceSession = null
                 if (recordingSession != session || destroyed) return@OnDeviceSpeechSession
                 mainHandler.removeCallbacks(refreshTimer)
@@ -322,10 +322,12 @@ class MurmurAccessibilityService : AccessibilityService() {
             } catch (error: Exception) {
                 mainHandler.post {
                     if (request === client && recordingSession == session && !destroyed) {
-                        showMessage(if (error is HttpStatusException) "Server returned HTTP ${error.statusCode}" else "Transcription failed")
+                        showMessage(if (error is HttpStatusException) "Server returned HTTP ${error.statusCode}"
+                            else error.message ?: "Transcription failed")
                     }
                 }
             } finally {
+                if (endpoint.localModel != null) LocalWhisper.release()
                 file.delete()
                 mainHandler.post {
                     if (request === client) {
@@ -356,20 +358,21 @@ class MurmurAccessibilityService : AccessibilityService() {
             }
         }
         var cleanupFailure: String? = null
-        val cleaned = try { cleanup?.let { cleaner?.clean(it, raw) } } catch (error: Exception) {
+        val prepared = settings.prepareTranscript(raw)
+        val cleaned = try { cleanup?.let { cleaner?.clean(it, prepared) } } catch (error: Exception) {
             cleanupFailure = if (error is HttpStatusException) "Last cleanup failed (HTTP ${error.statusCode}); raw text was used."
                 else "Last cleanup failed; raw text was used."
             null
         }
-        val transcript = cleaned ?: raw
+        val transcript = cleaned ?: prepared
         mainHandler.post {
             if (recordingSession != session || destroyed || (client != null && request !== client)) return@post
             val historyId = runCatching { history.add(raw, transcript, durationMs) }.getOrNull()
-            settings.saveTranscript(raw, cleaned, historyId)
+            settings.saveTranscript(raw, transcript, historyId)
             if (cleaner != null) settings.lastCleanupFailure = cleanupFailure
             cleanupRequest = null
             if (client == null) requestTask = null
-            val suffix = if (cleaner != null && cleaned == null) " · raw used" else ""
+            val suffix = if (cleaner != null && cleaned == null) " · online cleanup failed" else ""
             showMessage((if (insertAtCursor(target, transcript)) "Sent to field · saved" else "Saved in Murmur · field changed") + suffix)
         }
     }

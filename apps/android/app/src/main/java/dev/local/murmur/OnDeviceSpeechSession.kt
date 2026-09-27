@@ -12,6 +12,7 @@ import android.speech.SpeechRecognizer
 @TargetApi(31)
 internal class OnDeviceSpeechSession(
     context: Context,
+    private val language: String = "auto",
     private val onResult: (String) -> Unit,
     private val onError: () -> Unit,
     private val onSpeechEnd: () -> Unit = {},
@@ -53,6 +54,7 @@ internal class OnDeviceSpeechSession(
         recognizer.startListening(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            if (language != "auto") putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
         })
     }
 

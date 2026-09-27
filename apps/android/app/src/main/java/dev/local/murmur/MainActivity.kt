@@ -9,6 +9,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import android.net.Uri
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -21,6 +23,7 @@ import android.media.audiofx.NoiseSuppressor
 import android.os.Bundle
 import android.os.Build
 import android.provider.Settings
+import android.provider.OpenableColumns
 import android.speech.SpeechRecognizer
 import android.text.Editable
 import android.text.InputType
@@ -44,6 +47,7 @@ import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
 import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
 import android.util.JsonWriter
 import java.io.OutputStreamWriter
 import java.io.File
@@ -69,6 +73,16 @@ class MainActivity : Activity() {
     private var currentPage = Page.HOME
     private var speechBackCallback: OnBackInvokedCallback? = null
     private lateinit var speechCard: LinearLayout
+    private lateinit var localModelsList: LinearLayout
+    private lateinit var speechLanguageInput: EditText
+    private lateinit var translateSwitch: Switch
+    private val modelProgressRefresh = object : Runnable {
+        override fun run() {
+            if (isFinishing || isDestroyed) return
+            refreshLocalModels()
+            if (LocalSpeechModels.downloadingId != null) window.decorView.postDelayed(this, 1_000)
+        }
+    }
     private lateinit var endpointInput: EditText
     private lateinit var modelInput: EditText
     private lateinit var keyInput: EditText
@@ -88,6 +102,9 @@ class MainActivity : Activity() {
     private lateinit var selectedRow: SetupRow
     private lateinit var latestView: TextView
     private lateinit var historyList: LinearLayout
+    private lateinit var lectureList: LinearLayout
+    private lateinit var lectureStatus: TextView
+    private lateinit var lectureRecordButton: Button
     private lateinit var retentionButton: Button
     private lateinit var historyFeedback: TextView
     private lateinit var statsPaceView: TextView
@@ -106,7 +123,6 @@ class MainActivity : Activity() {
     private lateinit var homeLatestLinkView: TextView
     private lateinit var homeRecentCard: LinearLayout
     private val presetButtons = mutableListOf<Pair<Button, SpeechPreset>>()
-    private val cleanupPresetButtons = mutableListOf<Pair<Button, SpeechPreset>>()
     private lateinit var cleanupUrlInput: EditText
     private lateinit var cleanupModelInput: EditText
     private lateinit var cleanupKeyInput: EditText
@@ -116,6 +132,7 @@ class MainActivity : Activity() {
     private lateinit var cleanupStatus: TextView
     private lateinit var cleanupKeyStatus: TextView
     private lateinit var cleanupRemoveKeyButton: Button
+    private lateinit var cleanupPromptSummary: TextView
     private lateinit var speechRecognitionSummary: TextView
     private lateinit var speechCleanupSummary: TextView
     private var updatingCleanupSwitch = false
@@ -123,6 +140,12 @@ class MainActivity : Activity() {
     private lateinit var dictionaryList: LinearLayout
     private var heroAction: () -> Unit = {}
     private var pendingReadyStart = false
+    private var pendingLectureStart = false
+    private val lectureReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            refreshLectures()
+        }
+    }
 
     private data class SpeechPreset(val label: String, val url: String, val model: String)
     private enum class Page(val label: String, val description: String, val icon: Int) {
@@ -261,56 +284,6 @@ class MainActivity : Activity() {
         statsCard.addView(chartSection)
         home.addView(statsCard)
 
-        if (packageName == "ie.semyon.murmur") {
-            home.addView(groupTitle("Move your data"))
-            val migrationCard = card().apply { setPadding(dp(16), dp(15), dp(16), dp(16)) }
-            val migrationStatus = text(
-                if (settings.migrationComplete) "Your old settings and history were copied. The old app still has its data."
-                else "Update the old Murmur app to the bridge build, then move its settings, saved keys and text history here.",
-                13f, R.color.murmur_muted,
-            ).apply { setPadding(0, 0, 0, dp(12)) }
-            migrationCard.addView(migrationStatus)
-            val migrationButton = button(if (settings.migrationComplete) "Copy again" else "Move data from old app", primary = false) { }
-            migrationButton.setOnClickListener {
-                AlertDialog.Builder(this)
-                    .setTitle("Move data from old Murmur?")
-                    .setMessage(if (settings.migrationComplete)
-                        "This replaces your current settings with the old app's settings and restores any old dictations you deleted here. The old app keeps its data."
-                    else
-                        "This copies your settings, saved keys and complete text history. The old app keeps its data. Android will ask you to grant microphone and accessibility access again for this new app.")
-                    .setNegativeButton("Cancel", null)
-                    .setPositiveButton("Move data") { _, _ ->
-                        migrationButton.isEnabled = false
-                        migrationStatus.text = "Copying data from old Murmur…"
-                        Thread {
-                            val result = runCatching { MigrationTransfer.importFromOldApp(this) }
-                            runOnUiThread {
-                                if (isFinishing || isDestroyed) return@runOnUiThread
-                                migrationButton.isEnabled = true
-                                result.onSuccess { transfer ->
-                                    val keyStatus = if (transfer.keysUnavailable) "At least one saved key could not be read; re-enter it in Speech."
-                                    else "Saved keys were copied."
-                                    AlertDialog.Builder(this)
-                                        .setTitle("Data moved")
-                                        .setMessage("Settings and ${transfer.added} dictations were copied. $keyStatus Check your history before removing the old app.")
-                                        .setPositiveButton("Done") { _, _ -> recreate() }
-                                        .show()
-                                }.onFailure { error ->
-                                    migrationStatus.text = when (error) {
-                                        is java.io.FileNotFoundException -> "Update the old Murmur app to the bridge build, then try again. Its data is still there."
-                                        is SecurityException -> "The two apps must be signed with the same key. Your old data is unchanged."
-                                        else -> "Could not move data. Your old app still has it; try again."
-                                    }
-                                }
-                            }
-                        }.start()
-                    }
-                    .show()
-            }
-            migrationCard.addView(migrationButton)
-            home.addView(migrationCard)
-        }
-
         home.addView(groupTitle("Recent dictation"))
         val recent = card().apply { setPadding(dp(18), dp(16), dp(18), dp(16)) }
         homeRecentCard = recent
@@ -353,6 +326,11 @@ class MainActivity : Activity() {
             isEnabled = BuildConfig.UPDATE_MANIFEST_URL.isNotBlank()
         }
         updateCard.addView(updateButton)
+        updateCard.addView(button("Open-source licenses", primary = false) {
+            val notice = assets.open("licenses/whisper.cpp.txt").bufferedReader().use { it.readText() }
+            AlertDialog.Builder(this).setTitle("whisper.cpp license")
+                .setMessage(notice).setPositiveButton("Close", null).show()
+        })
         home.addView(updateCard)
 
         val speechOverview = card()
@@ -376,6 +354,7 @@ class MainActivity : Activity() {
             isEnabled = localAvailable
             setOnCheckedChangeListener { _, checked ->
                 settings.useOnDeviceRecognition = checked
+                if (checked) settings.localModelId = null
                 refreshStatus()
             }
         })
@@ -384,6 +363,24 @@ class MainActivity : Activity() {
             else "This phone has no on-device speech service. Use the endpoint below.",
             12f, R.color.murmur_muted,
         ))
+        speechCard.addView(fieldLabel("Downloaded models"))
+        speechCard.addView(text("Runs on this phone for dictation, lectures and imported audio. Downloading a model uses data and phone storage. Model weights are licensed separately from the app.", 12f, R.color.murmur_muted))
+        localModelsList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        speechCard.addView(localModelsList)
+        refreshLocalModels()
+        speechCard.addView(fieldLabel("Recognition language"))
+        speechLanguageInput = input(settings.speechLanguage, "auto, en, fr…", InputType.TYPE_CLASS_TEXT)
+        speechCard.addView(speechLanguageInput)
+        speechCard.addView(text("Use auto to detect the language. A language code also applies to the selected online service when supported.", 12f, R.color.murmur_muted))
+        translateSwitch = Switch(this).apply {
+            text = "Translate speech to English"
+            textSize = 15f
+            setTextColor(color(R.color.murmur_text))
+            isChecked = settings.translateToEnglish
+            setOnCheckedChangeListener { _, checked -> settings.translateToEnglish = checked }
+        }
+        speechCard.addView(translateSwitch)
+        speechCard.addView(text("Translation applies to downloaded Whisper models only.", 12f, R.color.murmur_muted))
         speechCard.addView(fieldLabel("Service"))
         val presets = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         listOf(
@@ -393,7 +390,7 @@ class MainActivity : Activity() {
         ).forEach { preset ->
             val chip = button(preset.label, primary = false) {
                 endpointInput.setText(preset.url)
-                modelInput.setText(preset.model)
+                modelInput.setText(settings.speechModelFor(preset.url) ?: preset.model)
             }.apply {
                 textSize = 14f
                 maxLines = 1
@@ -438,10 +435,18 @@ class MainActivity : Activity() {
         })
         recognition.addView(speechCard)
         addSpeechBackLink(cleanup)
-        cleanup.addView(text("A cloud cleanup service receives transcript text and saved dictionary terms, never audio. Raw text stays in History for recovery.", 13f, R.color.murmur_muted).apply {
+        cleanup.addView(text("If you choose an online cleanup service, it receives transcript text and dictionary terms, never audio. Raw text stays in History for recovery.", 13f, R.color.murmur_muted).apply {
             setPadding(dp(4), 0, dp(4), dp(8))
         })
         val cleanupCard = card().apply { setPadding(dp(16), dp(12), dp(16), dp(16)) }
+        cleanupCard.addView(Switch(this).apply {
+            text = "Remove filler words"
+            textSize = 15f
+            setTextColor(color(R.color.murmur_text))
+            isChecked = settings.removeFillerWords
+            setOnCheckedChangeListener { _, checked -> settings.removeFillerWords = checked }
+        })
+        cleanupCard.addView(text("Runs on this phone before optional AI cleanup. The original transcript stays in History.", 12f, R.color.murmur_muted))
         cleanupEnabledSwitch = Switch(this).apply {
             text = "Use transcript cleanup"
             textSize = 15f
@@ -463,32 +468,35 @@ class MainActivity : Activity() {
         cleanupStatus = text("", 12f, R.color.murmur_muted).apply { setPadding(0, dp(2), 0, dp(8)) }
         cleanupCard.addView(cleanupStatus)
         cleanupCard.addView(fieldLabel("Service"))
-        val cleanupPresets = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        listOf(
+        val cleanupServices = listOf(
             SpeechPreset("OpenRouter", AppSettings.DEFAULT_CLEANUP_URL, ""),
+            SpeechPreset("OpenAI", "https://api.openai.com/v1/chat/completions", ""),
+            SpeechPreset("Z.AI", "https://api.z.ai/api/paas/v4/chat/completions", ""),
+            SpeechPreset("SiliconFlow", "https://api.siliconflow.com/v1/chat/completions", ""),
+            SpeechPreset("Anthropic", "https://api.anthropic.com/v1/messages", ""),
+            SpeechPreset("Groq", "https://api.groq.com/openai/v1/chat/completions", ""),
+            SpeechPreset("Cerebras", "https://api.cerebras.ai/v1/chat/completions", ""),
+            SpeechPreset("AWS Bedrock (Mantle)", "https://bedrock-mantle.us-east-1.api.aws/v1/chat/completions", ""),
+            SpeechPreset("Ollama on this phone", "http://127.0.0.1:11434/v1/chat/completions", ""),
             SpeechPreset("Custom URL", "", ""),
-        ).forEach { preset ->
-            val chip = button(preset.label, primary = false) {
-                if (preset.url.isNotEmpty() || cleanupUrlInput.text.toString().trim() == AppSettings.DEFAULT_CLEANUP_URL) {
-                    cleanupUrlInput.setText(preset.url)
-                }
-                if (preset.model.isNotBlank()) cleanupModelInput.setText(preset.model)
-            }.apply {
-                gravity = Gravity.CENTER_VERTICAL or Gravity.START
-                setPadding(dp(14), 0, dp(14), 0)
-            }
-            cleanupPresetButtons += chip to preset
-            cleanupPresets.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)).apply {
-                bottomMargin = dp(6)
-            })
-        }
-        cleanupCard.addView(cleanupPresets)
-        cleanupCard.addView(fieldLabel("Chat completions URL"))
+        )
+        cleanupCard.addView(button("Choose cleanup service", primary = false) {
+            AlertDialog.Builder(this).setTitle("Cleanup service")
+                .setItems(cleanupServices.map { it.label }.toTypedArray()) { _, index ->
+                    val url = cleanupServices[index].url
+                    if (url.isNotEmpty()) {
+                        cleanupUrlInput.setText(url)
+                        cleanupModelInput.setText(settings.cleanupModelFor(url).orEmpty())
+                    } else cleanupUrlInput.requestFocus()
+                }.setNegativeButton("Cancel", null).show()
+        })
+        cleanupCard.addView(fieldLabel("Cleanup API URL"))
         cleanupUrlInput = input(settings.cleanupUrl, "https://…/chat/completions", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         cleanupCard.addView(cleanupUrlInput)
         cleanupCard.addView(fieldLabel("Model ID · required"))
         cleanupModelInput = input(settings.cleanupModel, "Your text model", InputType.TYPE_CLASS_TEXT)
         cleanupCard.addView(cleanupModelInput)
+        cleanupCard.addView(button("Browse provider models", primary = false) { browseCleanupModels() })
         cleanupCard.addView(text("Choose a text model from your provider, then turn on cleanup. The switch saves these fields for you.", 12f, R.color.murmur_muted).apply {
             setPadding(0, dp(6), 0, 0)
         })
@@ -499,6 +507,23 @@ class MainActivity : Activity() {
             setSelection(settings.cleanupFormality)
         }
         cleanupCard.addView(cleanupFormality)
+        cleanupCard.addView(fieldLabel("Cleanup instructions"))
+        cleanupPromptSummary = text("", 12f, R.color.murmur_muted)
+        cleanupCard.addView(cleanupPromptSummary)
+        cleanupCard.addView(button("Choose instructions", primary = false) { chooseCleanupPrompt() })
+        cleanupCard.addView(button("Create instructions", primary = false) { editCleanupPrompt(null) })
+        cleanupCard.addView(button("Edit selected instructions", primary = false) {
+            settings.cleanupPrompts.selected?.let(::editCleanupPrompt)
+        })
+        cleanupCard.addView(button("Delete selected instructions", primary = false) {
+            val selected = settings.cleanupPrompts.selected ?: return@button
+            AlertDialog.Builder(this).setTitle("Delete ${selected.name}?")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Delete") { _, _ ->
+                    settings.cleanupPrompts.delete(selected.id)
+                    refreshStatus()
+                }.show()
+        })
         cleanupCard.addView(fieldLabel("Cleanup API key"))
         cleanupKeyInput = input("", "Required for OpenRouter", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
         cleanupCard.addView(cleanupKeyInput)
@@ -516,7 +541,7 @@ class MainActivity : Activity() {
         cleanupCard.addView(cleanupRemoveKeyButton)
         cleanupFeedback = text("", 13f, R.color.murmur_muted).apply { setPadding(0, dp(8), 0, 0) }
         cleanupCard.addView(cleanupFeedback)
-        cleanupCard.addView(text("Cloud cleanup sends transcript text to the service above and may incur separate charges. A custom local server must be reachable from this phone.", 12f, R.color.murmur_muted).apply {
+        cleanupCard.addView(text("An online cleanup service may charge separately. A local server must run on this phone; localhost is not your computer.", 12f, R.color.murmur_muted).apply {
             setPadding(0, dp(8), 0, 0)
         })
         cleanup.addView(cleanupCard)
@@ -526,7 +551,6 @@ class MainActivity : Activity() {
             override fun afterTextChanged(s: Editable?) {
                 cleanupStatus.text = "Unsaved changes · turn on to save and enable, or save below."
                 cleanupStatus.setTextColor(color(R.color.murmur_muted))
-                refreshCleanupPresets()
             }
         }
         cleanupUrlInput.addTextChangedListener(cleanupEditWatcher)
@@ -538,9 +562,25 @@ class MainActivity : Activity() {
             override fun afterTextChanged(s: Editable?) = refreshPresets()
         })
 
-        transcript.addView(text("Raw and cleaned text stay on this phone. Audio is deleted after each request.", 13f, R.color.murmur_muted).apply {
+        transcript.addView(text("Dictation audio is temporary. Lecture audio and raw and cleaned text stay on this phone until their retention period ends or you delete them.", 13f, R.color.murmur_muted).apply {
             setPadding(dp(4), 0, dp(4), dp(8))
         })
+        val lectureCard = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        lectureCard.addView(text("Lectures and audio files", 17f, R.color.murmur_text, bold = true))
+        lectureCard.addView(text("Record a lecture or choose an audio file. Murmur saves the audio here and transcribes it in two-minute parts using your selected endpoint. Your endpoint may charge for every part. On-device recognition cannot process saved audio.", 12f, R.color.murmur_muted).apply {
+            setPadding(0, dp(6), 0, dp(8))
+        })
+        lectureStatus = text("", 13f, R.color.murmur_muted)
+        lectureCard.addView(lectureStatus)
+        val lectureActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        lectureRecordButton = button("Record lecture", primary = true) { onLectureRecord() }
+        lectureActions.addView(lectureRecordButton)
+        lectureActions.addView(button("Choose audio", primary = false) { chooseLectureAudio() })
+        lectureCard.addView(lectureActions)
+        transcript.addView(lectureCard)
+        transcript.addView(groupTitle("Saved lectures"))
+        lectureList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        transcript.addView(lectureList)
         val latest = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
         latestView = text("No transcript yet.", 15f, R.color.murmur_text).apply { setTextIsSelectable(true) }
         latest.addView(latestView)
@@ -754,7 +794,26 @@ class MainActivity : Activity() {
         if (::statusTitle.isInitialized) {
             refreshStatus()
             refreshHistory()
+            refreshLectures()
+            refreshLocalModels()
+            if (LocalSpeechModels.downloadingId != null) window.decorView.postDelayed(modelProgressRefresh, 1_000)
         }
+    }
+
+    override fun onPause() {
+        window.decorView.removeCallbacks(modelProgressRefresh)
+        super.onPause()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        ContextCompat.registerReceiver(this, lectureReceiver, IntentFilter(LectureService.ACTION_STATE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    override fun onStop() {
+        unregisterReceiver(lectureReceiver)
+        super.onStop()
     }
 
     private fun onUpdateButton() {
@@ -824,8 +883,8 @@ class MainActivity : Activity() {
     }
 
     private fun installUpdate(apk: File) {
-        if (MurmurReadyService.isActive) {
-            updateStatus.text = "Turn off the voice bubble before installing."
+        if (MurmurReadyService.isActive || LectureService.isActive) {
+            updateStatus.text = "Finish the voice bubble or lecture before installing."
             return
         }
         if (!packageManager.canRequestPackageInstalls()) {
@@ -859,13 +918,31 @@ class MainActivity : Activity() {
             pendingReadyStart = false
             beginVoiceReady()
         }
+        if (requestCode == MICROPHONE_REQUEST && pendingLectureStart) {
+            pendingLectureStart = false
+            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) beginLectureRecording()
+            else lectureStatus.text = "Microphone permission is needed to record a lecture."
+        }
         refreshStatus()
     }
 
     @Deprecated("Uses the platform document picker without an added activity-result dependency")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != HISTORY_EXPORT_REQUEST || resultCode != RESULT_OK) return
+        if (resultCode != RESULT_OK) return
+        if (requestCode == LECTURE_IMPORT_REQUEST) {
+            val uri = data?.data ?: return
+            if (!lectureEndpointReady()) return
+            runCatching {
+                val title = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                    ?.substringBeforeLast('.')?.takeIf(String::isNotBlank) ?: "Imported audio"
+                LectureService.import(this, uri, title)
+            }.onFailure { lectureStatus.text = it.message ?: "Could not open audio file." }
+            refreshLectures()
+            return
+        }
+        if (requestCode != HISTORY_EXPORT_REQUEST) return
         val uri = data?.data ?: return
         historyFeedback.text = "Exporting history…"
         Thread {
@@ -947,12 +1024,15 @@ class MainActivity : Activity() {
     private fun save() {
         try {
             val previousUrl = settings.endpointUrl
+            settings.speechLanguage = speechLanguageInput.text.toString()
             settings.saveEndpoint(endpointInput.text.toString(), modelInput.text.toString())
+            settings.localModelId = null
+            settings.useOnDeviceRecognition = false
             val key = keyInput.text.toString()
             if (key.isNotBlank()) settings.saveApiKey(key.trim())
             keyInput.text.clear()
-            feedbackView.text = if (settings.endpointUrl != previousUrl && key.isBlank()) {
-                "Saved. The previous endpoint's key was removed."
+            feedbackView.text = if (settings.endpointUrl != previousUrl && key.isBlank() && !settings.hasApiKey) {
+                "Saved. Add a key for this service if it needs one."
             } else "Saved."
         } catch (error: IllegalArgumentException) {
             feedbackView.text = error.message ?: "Check the URL and model."
@@ -960,6 +1040,61 @@ class MainActivity : Activity() {
             feedbackView.text = "Could not save the key. Enter it again and retry."
         }
         refreshStatus()
+        refreshLocalModels()
+    }
+
+    private fun refreshLocalModels() {
+        if (!::localModelsList.isInitialized) return
+        val downloadingId = LocalSpeechModels.downloadingId
+        if (::feedbackView.isInitialized) {
+            if (downloadingId != null) {
+                val label = LocalSpeechModels.catalog.firstOrNull { it.id == downloadingId }?.label ?: "model"
+                feedbackView.text = "Downloading $label · ${LocalSpeechModels.downloadPercent}%"
+            } else LocalSpeechModels.downloadMessage?.let { feedbackView.text = it }
+        }
+        localModelsList.removeAllViews()
+        LocalSpeechModels.catalog.forEach { model ->
+            val installed = LocalSpeechModels.isInstalled(this, model)
+            val supported = LocalSpeechModels.canRun(this, model)
+            val resumable = File(LocalSpeechModels.file(this, model).absolutePath + ".part").length() > 0
+            val active = settings.localModelId == model.id
+            val row = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, dp(4)) }
+            row.addView(text(model.label + when {
+                active -> " · selected"
+                !supported -> " · needs ${model.minimumRamGb} GB RAM"
+                else -> ""
+            }, 14f, R.color.murmur_text, bold = active))
+            val downloading = downloadingId == model.id
+            row.addView(button(if (downloading) "Cancel download" else if (installed) if (active) "Selected" else "Use this model" else if (resumable) "Resume download" else "Download", primary = active) {
+                if (downloading) {
+                    LocalSpeechModels.cancelDownload()
+                    feedbackView.text = "Cancelling download…"
+                    return@button
+                }
+                if (installed) {
+                    settings.localModelId = model.id
+                    refreshLocalModels()
+                    refreshStatus()
+                } else if (downloadingId == null) {
+                    LocalSpeechModels.startDownload(this, model)
+                    refreshLocalModels()
+                    window.decorView.removeCallbacks(modelProgressRefresh)
+                    window.decorView.postDelayed(modelProgressRefresh, 1_000)
+                }
+            }.apply { isEnabled = downloading || (downloadingId == null && !active && supported) })
+            if (installed) row.addView(button("Delete model", primary = false) {
+                AlertDialog.Builder(this).setTitle("Delete ${model.label}?")
+                    .setMessage("The model will need to be downloaded again before it can transcribe audio.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Delete") { _, _ ->
+                        if (active) settings.localModelId = null
+                        LocalSpeechModels.file(this, model).delete()
+                        refreshLocalModels()
+                        refreshStatus()
+                    }.show()
+            })
+            localModelsList.addView(row)
+        }
     }
 
     private fun saveCleanup(enableAfterSave: Boolean = false): Boolean {
@@ -976,7 +1111,7 @@ class MainActivity : Activity() {
             }
             val endpointChanged = url.toASCIIString() != settings.cleanupUrl
             val key = cleanupKeyInput.text.toString().trim()
-            val hasKey = key.isNotEmpty() || (!endpointChanged && settings.hasCleanupKey)
+            val hasKey = key.isNotEmpty() || settings.hasCleanupKeyFor(url.toASCIIString())
             if (enableAfterSave && url.host.equals("openrouter.ai", ignoreCase = true) && !hasKey) {
                 cleanupKeyInput.error = "API key required"
                 throw IllegalArgumentException("Add a cleanup API key below to use OpenRouter.")
@@ -1008,6 +1143,61 @@ class MainActivity : Activity() {
             cleanupFeedback.text = cleanupStatus.text
         }
         return false
+    }
+
+    private fun browseCleanupModels() {
+        val url = try { AppSettings.parseCleanupUrl(cleanupUrlInput.text.toString()) }
+            catch (error: IllegalArgumentException) {
+                cleanupFeedback.text = error.message
+                return
+            }
+        cleanupFeedback.text = "Loading models…"
+        Thread({
+            val result = runCatching { CleanupModelCatalog.fetch(url, settings.cleanupKeyFor(url.toASCIIString())) }
+            runOnUiThread {
+                result.onSuccess { models ->
+                    if (models.isEmpty()) cleanupFeedback.text = "No models returned. You can enter a model ID manually."
+                    else {
+                        cleanupFeedback.text = "Choose a model."
+                        AlertDialog.Builder(this).setTitle("Cleanup models")
+                            .setItems(models.toTypedArray()) { _, index -> cleanupModelInput.setText(models[index]) }
+                            .setNegativeButton("Cancel", null).show()
+                    }
+                }.onFailure { error -> cleanupFeedback.text = error.message ?: "Could not load models. Enter an ID manually." }
+            }
+        }, "murmur-cleanup-models").start()
+    }
+
+    private fun chooseCleanupPrompt() {
+        val prompts = settings.cleanupPrompts.all
+        val labels = arrayOf("Default instructions") + prompts.map { it.name }
+        AlertDialog.Builder(this).setTitle("Cleanup instructions")
+            .setItems(labels) { _, index ->
+                settings.cleanupPrompts.select(if (index == 0) null else prompts[index - 1].id)
+                refreshStatus()
+            }.setNegativeButton("Cancel", null).show()
+    }
+
+    private fun editCleanupPrompt(existing: CleanupPrompt?) {
+        val fields = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(8), dp(18), 0)
+        }
+        val name = input(existing?.name.orEmpty(), "Name", InputType.TYPE_CLASS_TEXT)
+        val instructions = input(existing?.instructions.orEmpty(), "How should Murmur clean text?",
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE).apply {
+            minLines = 5
+            gravity = Gravity.TOP
+        }
+        fields.addView(name)
+        fields.addView(instructions)
+        AlertDialog.Builder(this).setTitle(if (existing == null) "Create instructions" else "Edit instructions")
+            .setView(fields).setNegativeButton("Cancel", null)
+            .setPositiveButton("Save") { _, _ ->
+                runCatching { settings.cleanupPrompts.save(existing?.id, name.text.toString(), instructions.text.toString()) }
+                    .onFailure { cleanupFeedback.text = it.message ?: "Could not save instructions." }
+                refreshStatus()
+            }.show()
     }
 
     private fun addDictionaryWord() {
@@ -1113,6 +1303,134 @@ class MainActivity : Activity() {
             historyList.addView(entry, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 bottomMargin = dp(10)
             })
+        }
+    }
+
+    private fun lectureEndpointReady(): Boolean {
+        val ready = runCatching { !settings.useOnDeviceRecognition && settings.activeEndpointOrNull() != null }.getOrDefault(false)
+        if (!ready) {
+            AlertDialog.Builder(this).setTitle("Choose a speech model or endpoint")
+                .setMessage("Lectures and audio files use a downloaded model or a transcription endpoint. The phone's installed speech service cannot process saved audio.")
+                .setNegativeButton("Close", null)
+                .setPositiveButton("Open Recognition") { _, _ -> showPage(Page.RECOGNITION) }
+                .show()
+        }
+        return ready
+    }
+
+    private fun onLectureRecord() {
+        if (LectureService.isActive) {
+            LectureService.finish(this)
+            lectureStatus.text = "Finishing recording…"
+            return
+        }
+        if (!lectureEndpointReady()) return
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            pendingLectureStart = true
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), MICROPHONE_REQUEST)
+            return
+        }
+        beginLectureRecording()
+    }
+
+    private fun beginLectureRecording() {
+        MurmurReadyService.stop(this)
+        runCatching { LectureService.record(this) }
+            .onFailure { lectureStatus.text = it.message ?: "Could not start recording." }
+        lectureStatus.text = "Starting lecture recording…"
+    }
+
+    private fun chooseLectureAudio() {
+        if (LectureService.isActive) {
+            lectureStatus.text = "Finish the current lecture first."
+            return
+        }
+        if (!lectureEndpointReady()) return
+        startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "audio/*"
+        }, LECTURE_IMPORT_REQUEST)
+    }
+
+    private fun refreshLectures() {
+        if (!::lectureList.isInitialized) return
+        lectureStatus.text = LectureService.status
+        lectureRecordButton.text = if (LectureService.isActive && LectureService.status.startsWith("Recording"))
+            "Finish recording" else "Record lecture"
+        lectureRecordButton.isEnabled = !LectureService.isActive || LectureService.status.startsWith("Recording")
+        lectureList.removeAllViews()
+        val records = runCatching { history.lectures() }.getOrElse {
+            lectureList.addView(text("Saved lectures could not be loaded.", 13f, R.color.murmur_muted))
+            return
+        }
+        if (records.isEmpty()) {
+            lectureList.addView(text("No lectures yet.", 13f, R.color.murmur_muted))
+            return
+        }
+        records.forEach { record ->
+            val entry = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+            entry.addView(text(record.title, 15f, R.color.murmur_text, bold = true))
+            val state = if (!LectureService.isActive && record.status in listOf("recording", "processing"))
+                "Interrupted · retry" else record.status.replaceFirstChar(Char::uppercase)
+            val minutes = record.durationMs / 60_000
+            entry.addView(text("$state · ${minutes} min · ${DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(record.timestamp))}",
+                12f, R.color.murmur_muted))
+            if (record.finalText.isNotBlank()) entry.addView(text(record.finalText, 14f, R.color.murmur_text).apply {
+                setPadding(0, dp(8), 0, dp(8))
+                maxLines = 3
+                ellipsize = TextUtils.TruncateAt.END
+            })
+            val textActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            textActions.addView(button("View text", primary = false) {
+                val body = if (record.raw == record.finalText) record.finalText
+                    else "${record.finalText}\n\nRaw transcript\n${record.raw}"
+                AlertDialog.Builder(this).setTitle(record.title).setMessage(body.ifBlank { "No transcript yet." })
+                    .setPositiveButton("Close", null).show()
+            })
+            textActions.addView(button("Copy", primary = false) {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Murmur lecture", record.finalText.ifBlank { record.raw }))
+            })
+            entry.addView(textActions)
+            val audioActions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            audioActions.addView(button("Share audio", primary = false) {
+                val file = history.lectureFile(record.fileName)
+                if (!file.exists()) {
+                    lectureStatus.text = "Saved audio is missing."
+                } else {
+                    val uri = FileProvider.getUriForFile(this, "$packageName.updates", file)
+                    startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                        type = "audio/wav"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }, "Share lecture audio"))
+                }
+            })
+            val manageActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            manageActions.addView(button("Retry", primary = false) {
+                if (LectureService.isActive) lectureStatus.text = "Finish the current lecture first."
+                else if (lectureEndpointReady()) AlertDialog.Builder(this)
+                    .setTitle("Retry transcription?")
+                    .setMessage("Murmur will send this audio to your selected endpoint again. Your endpoint may charge for the new requests. The current transcript stays available until new text arrives.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Retry") { _, _ ->
+                        runCatching { LectureService.retry(this, record.id) }
+                            .onFailure { lectureStatus.text = it.message ?: "Could not retry." }
+                    }.show()
+            })
+            manageActions.addView(button("Delete", primary = false) {
+                if (LectureService.isActive) {
+                    lectureStatus.text = "Finish the current lecture first."
+                } else AlertDialog.Builder(this).setTitle("Delete lecture?")
+                    .setMessage("This removes the saved audio, raw transcript and cleaned transcript from this phone.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Delete") { _, _ -> history.deleteLecture(record.id); refreshLectures() }
+                    .show()
+            })
+            audioActions.addView(manageActions)
+            entry.addView(audioActions)
+            lectureList.addView(entry, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(10) })
         }
     }
 
@@ -1222,7 +1540,12 @@ class MainActivity : Activity() {
         val onPhone = host == "localhost" || host == "127.0.0.1"
         val localRecognition = settings.useOnDeviceRecognition && Build.VERSION.SDK_INT >= 31 &&
             SpeechRecognizer.isOnDeviceRecognitionAvailable(this)
-        val keyDone = localRecognition || settings.hasApiKey || onPhone
+        val localModel = settings.localModelId?.takeIf { id ->
+            LocalSpeechModels.catalog.firstOrNull { it.id == id }?.let {
+                LocalSpeechModels.isInstalled(this, it) && LocalSpeechModels.canRun(this, it)
+            } == true
+        }
+        val keyDone = localRecognition || localModel != null || settings.hasApiKey || onPhone
         val bubbleSupported = Build.VERSION.SDK_INT >= 33
         val bubbleEnabled = isBubbleEnabled()
         val voiceReady = MurmurReadyService.isActive
@@ -1260,11 +1583,15 @@ class MainActivity : Activity() {
         heroButton.text = next.second
         heroButton.visibility = if (next.second.isEmpty()) View.GONE else View.VISIBLE
         styleButton(heroButton, primary = !(bubbleSupported && voiceReady && micAllowed && bubbleEnabled && keyDone))
-        statusDetail.text = if (localRecognition || onPhone) "Audio stays on this phone" else "Audio is sent to $host for transcription"
-        speechRecognitionSummary.text = if (localRecognition) "On-device recognition" else "$host · ${settings.model}"
+        statusDetail.text = if (localRecognition || localModel != null || onPhone) "Audio stays on this phone" else "Audio is sent to $host for transcription"
+        speechRecognitionSummary.text = when {
+            localRecognition -> "Phone speech service"
+            localModel != null -> "Downloaded · $localModel"
+            else -> "$host · ${settings.model}"
+        }
         val cleanupHost = runCatching { URI(settings.cleanupUrl).host }.getOrNull() ?: "your service"
         speechCleanupSummary.text = when {
-            settings.cleanupEnabled && settings.lastCleanupFailure != null -> "On · last cleanup failed; raw text used"
+            settings.cleanupEnabled && settings.lastCleanupFailure != null -> "On · last cleanup failed; local cleanup used"
             settings.cleanupEnabled -> "On · $cleanupHost · ${settings.cleanupModel}"
             settings.cleanupModel.isBlank() -> "Off · add a model to enable"
             cleanupHost.equals("openrouter.ai", ignoreCase = true) && !settings.hasCleanupKey -> "Off · add a cleanup key"
@@ -1293,9 +1620,9 @@ class MainActivity : Activity() {
         rawTranscriptCard.visibility = if (settings.latestRawTranscript != null &&
             settings.latestRawTranscript != settings.latestTranscript) View.VISIBLE else View.GONE
         cleanupKeyStatus.text = if (settings.hasCleanupKey) "Cleanup key saved separately from speech" else "No cleanup key saved"
+        cleanupPromptSummary.text = settings.cleanupPrompts.selected?.let { "Using ${it.name}" } ?: "Using default instructions"
         cleanupRemoveKeyButton.visibility = if (settings.hasCleanupKey) View.VISIBLE else View.GONE
         refreshPresets()
-        refreshCleanupPresets()
     }
 
     private fun refreshPresets() {
@@ -1313,21 +1640,6 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun refreshCleanupPresets() {
-        val current = cleanupUrlInput.text.toString().trim()
-        cleanupPresetButtons.forEach { (chip, preset) ->
-            val selected = if (preset.url.isEmpty()) current != AppSettings.DEFAULT_CLEANUP_URL
-                else current == preset.url
-            chip.background = RippleDrawable(
-                ColorStateList.valueOf(color(R.color.murmur_border)),
-                rounded(R.color.murmur_background, 8f, stroke = if (selected) R.color.murmur_accent else R.color.murmur_border),
-                null,
-            )
-            chip.setTextColor(color(if (selected) R.color.murmur_accent else R.color.murmur_text))
-            chip.text = if (selected) "✓  ${preset.label}" else preset.label
-            chip.contentDescription = "${preset.label}${if (selected) ", selected" else ""}"
-        }
-    }
 
     private fun focusKeyInput() {
         showPage(Page.RECOGNITION)
@@ -1497,5 +1809,6 @@ class MainActivity : Activity() {
         private const val MICROPHONE_REQUEST = 1
         private const val NOTIFICATION_REQUEST = 2
         private const val HISTORY_EXPORT_REQUEST = 3
+        private const val LECTURE_IMPORT_REQUEST = 4
     }
 }

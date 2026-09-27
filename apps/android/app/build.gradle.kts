@@ -19,6 +19,12 @@ android {
     namespace = "dev.local.murmur"
     compileSdk = 36
 
+    packaging { jniLibs.excludes += "**/libparakeet.so" }
+
+    externalNativeBuild {
+        cmake { path = file("src/main/cpp/CMakeLists.txt") }
+    }
+
     buildFeatures {
         buildConfig = true
     }
@@ -36,11 +42,13 @@ android {
     }
 
     defaultConfig {
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86") }
+        externalNativeBuild { cmake { targets += "murmur_whisper" } }
         applicationId = if (legacyBridge) "dev.local.murmur" else "ie.semyon.murmur"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = if (legacyBridge) "0.1.5-bridge" else "0.1.5"
+        versionCode = if (legacyBridge) 6 else 9
+        versionName = if (legacyBridge) "0.1.5-bridge" else "0.1.8"
         manifestPlaceholders["migrationProviderEnabled"] = legacyBridge.toString()
         val updateManifestUrl = providers.gradleProperty("murmurUpdateManifestUrl").orNull
             ?: "https://github.com/semyonfox/murmur/releases/latest/download/android-update.json"

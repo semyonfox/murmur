@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.22)
+project(murmur_whisper LANGUAGES C CXX)
+
+set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
+set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+if(ANDROID_ABI STREQUAL "arm64-v8a" OR ANDROID_ABI STREQUAL "x86_64")
+    add_link_options(-Wl,-z,max-page-size=16384)
+endif()
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../../native/whisper.cpp whisper-build)
+set_target_properties(parakeet PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
+add_library(murmur_whisper SHARED whisper_jni.cpp)
+target_link_libraries(murmur_whisper PRIVATE whisper)
+target_include_directories(murmur_whisper PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native/whisper.cpp/include)

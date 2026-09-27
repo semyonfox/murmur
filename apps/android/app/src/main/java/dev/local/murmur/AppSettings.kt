@@ -9,20 +9,59 @@ import org.json.JSONObject
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.security.KeyStore
+import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-internal class TranscriptionEndpoint(val uri: URI, val model: String, val apiKey: String?)
-internal class CleanupEndpoint(val uri: URI, val model: String, val apiKey: String?, val formality: Int, val dictionary: List<String>)
+internal class TranscriptionEndpoint(
+    val uri: URI, val model: String, val apiKey: String?, val localModel: java.io.File? = null,
+    val language: String = "auto", val translate: Boolean = false,
+)
+internal class CleanupEndpoint(
+    val uri: URI, val model: String, val apiKey: String?, val formality: Int,
+    val dictionary: List<String>, val customInstructions: String?,
+)
 
 internal class AppSettings(context: Context) {
+    private val appContext = context.applicationContext
+    val cleanupPrompts = CleanupPrompts(context)
     private val preferences = context.getSharedPreferences("murmur", Context.MODE_PRIVATE)
+
+    init {
+        val speech = preferences.getString(API_KEY, null)
+        val cleanup = preferences.getString(CLEANUP_KEY, null)
+        val speechModel = preferences.getString(MODEL, null)
+        val textModel = preferences.getString(CLEANUP_MODEL, null)
+        if (speech != null || cleanup != null ||
+            (speechModel != null && !preferences.contains(keyName(MODEL, endpointUrl))) ||
+            (textModel != null && !preferences.contains(keyName(CLEANUP_MODEL, cleanupUrl)))) {
+            preferences.edit().apply {
+                if (speechModel != null && !preferences.contains(keyName(MODEL, endpointUrl)))
+                    putString(keyName(MODEL, endpointUrl), speechModel)
+                if (textModel != null && !preferences.contains(keyName(CLEANUP_MODEL, cleanupUrl)))
+                    putString(keyName(CLEANUP_MODEL, cleanupUrl), textModel)
+                if (speech != null) {
+                    val destination = keyName(API_KEY, endpointUrl)
+                    if (!preferences.contains(destination)) putString(destination, speech)
+                    remove(API_KEY)
+                }
+                if (cleanup != null) {
+                    val destination = keyName(CLEANUP_KEY, cleanupUrl)
+                    if (!preferences.contains(destination)) putString(destination, cleanup)
+                    remove(CLEANUP_KEY)
+                }
+            }.commit()
+        }
+    }
 
     val endpointUrl: String get() = preferences.getString(ENDPOINT_URL, DEFAULT_ENDPOINT) ?: DEFAULT_ENDPOINT
     val model: String get() = preferences.getString(MODEL, DEFAULT_MODEL) ?: DEFAULT_MODEL
-    val hasApiKey: Boolean get() = preferences.contains(API_KEY)
+    fun speechModelFor(url: String): String? = preferences.getString(keyName(MODEL, url), null)
+    fun cleanupModelFor(url: String): String? = preferences.getString(keyName(CLEANUP_MODEL, url), null)
+    val hasApiKey: Boolean get() = preferences.contains(keyName(API_KEY, endpointUrl)) ||
+        (endpointUrl == DEFAULT_ENDPOINT && preferences.contains(API_KEY))
     var noiseSuppressionEnabled: Boolean
         get() = preferences.getBoolean(NOISE_SUPPRESSION, false)
         set(value) { preferences.edit().putBoolean(NOISE_SUPPRESSION, value).apply() }
@@ -41,6 +80,30 @@ internal class AppSettings(context: Context) {
     var useOnDeviceRecognition: Boolean
         get() = preferences.getBoolean(ON_DEVICE_RECOGNITION, false)
         set(value) { preferences.edit().putBoolean(ON_DEVICE_RECOGNITION, value).apply() }
+    var localModelId: String?
+        get() = preferences.getString(LOCAL_MODEL_ID, null)
+        set(value) {
+            require(value == null || LocalSpeechModels.catalog.any { it.id == value })
+            preferences.edit().apply {
+                if (value == null) remove(LOCAL_MODEL_ID) else putString(LOCAL_MODEL_ID, value)
+                if (value != null) putBoolean(ON_DEVICE_RECOGNITION, false)
+            }.apply()
+        }
+    var speechLanguage: String
+        get() = preferences.getString(SPEECH_LANGUAGE, "auto") ?: "auto"
+        set(value) {
+            val normalized = value.trim().lowercase()
+            require(normalized == "auto" || normalized.matches(Regex("[a-z]{2,3}(-[a-z]{2,4})?"))) { "Use auto or a language code such as en or fr." }
+            preferences.edit().putString(SPEECH_LANGUAGE, normalized).apply()
+        }
+    var translateToEnglish: Boolean
+        get() = preferences.getBoolean(TRANSLATE_TO_ENGLISH, false)
+        set(value) { preferences.edit().putBoolean(TRANSLATE_TO_ENGLISH, value).apply() }
+    var removeFillerWords: Boolean
+        get() = preferences.getBoolean(REMOVE_FILLER_WORDS, true)
+        set(value) { preferences.edit().putBoolean(REMOVE_FILLER_WORDS, value).apply() }
+    fun prepareTranscript(raw: String): String = TranscriptText.prepare(raw,
+        if (translateToEnglish && localModelId != null) "en" else speechLanguage, removeFillerWords)
     var historyRetentionDays: Int
         get() = preferences.getInt(HISTORY_RETENTION_DAYS, 0)
         set(value) {
@@ -61,7 +124,12 @@ internal class AppSettings(context: Context) {
     val cleanupUrl: String get() = preferences.getString(CLEANUP_URL, DEFAULT_CLEANUP_URL) ?: DEFAULT_CLEANUP_URL
     val cleanupModel: String get() = preferences.getString(CLEANUP_MODEL, DEFAULT_CLEANUP_MODEL) ?: DEFAULT_CLEANUP_MODEL
     val cleanupFormality: Int get() = preferences.getInt(CLEANUP_FORMALITY, 2).coerceIn(0, 4)
-    val hasCleanupKey: Boolean get() = preferences.contains(CLEANUP_KEY)
+    val hasCleanupKey: Boolean get() = preferences.contains(keyName(CLEANUP_KEY, cleanupUrl)) ||
+        (cleanupUrl == DEFAULT_CLEANUP_URL && preferences.contains(CLEANUP_KEY))
+    fun hasCleanupKeyFor(url: String): Boolean = preferences.contains(keyName(CLEANUP_KEY, url)) ||
+        (url == DEFAULT_CLEANUP_URL && preferences.contains(CLEANUP_KEY))
+    fun cleanupKeyFor(url: String): String? = readKey(keyName(CLEANUP_KEY, url))
+        ?: if (url == DEFAULT_CLEANUP_URL) readKey(CLEANUP_KEY) else null
     val dictionary: List<String> get() = runCatching {
         val values = JSONArray(preferences.getString(DICTIONARY, "[]"))
         (0 until values.length()).mapNotNull { values.optString(it).takeIf(String::isNotBlank) }
@@ -101,23 +169,32 @@ internal class AppSettings(context: Context) {
             "Enter a valid model ID."
         }
         val normalizedUrl = uri.toASCIIString()
-        val previousUrl = preferences.getString(ENDPOINT_URL, DEFAULT_ENDPOINT)
         preferences.edit()
-            .apply { if (previousUrl != normalizedUrl) remove(API_KEY) }
             .putString(ENDPOINT_URL, normalizedUrl)
             .putString(MODEL, trimmedModel)
+            .putString(keyName(MODEL, normalizedUrl), trimmedModel)
             .apply()
     }
 
     fun endpointOrNull(): TranscriptionEndpoint? {
         if (endpointUrl.isBlank() || model.isBlank()) return null
-        return TranscriptionEndpoint(parseEndpointUrl(endpointUrl), model, readApiKey())
+        return TranscriptionEndpoint(parseEndpointUrl(endpointUrl), model, readApiKey(), language = speechLanguage)
+    }
+
+    fun activeEndpointOrNull(): TranscriptionEndpoint? {
+        val id = localModelId ?: return endpointOrNull()
+        val selected = LocalSpeechModels.catalog.firstOrNull { it.id == id } ?: return null
+        require(LocalSpeechModels.canRun(appContext, selected)) { "This phone does not have enough memory for the selected model." }
+        require(LocalSpeechModels.isInstalled(appContext, selected)) { "Download the selected speech model first." }
+        return TranscriptionEndpoint(URI("murmur-local://speech/audio/transcriptions"), id, null,
+            LocalSpeechModels.file(appContext, selected), speechLanguage, translateToEnglish)
     }
 
     fun cleanupEndpointOrNull(): CleanupEndpoint? {
         if (!cleanupEnabled) return null
         require(cleanupModel.isNotBlank()) { "Choose a cleanup model in Murmur." }
-        return CleanupEndpoint(parseCleanupUrl(cleanupUrl), cleanupModel, readKey(CLEANUP_KEY), cleanupFormality, dictionary)
+        return CleanupEndpoint(parseCleanupUrl(cleanupUrl), cleanupModel, readCleanupKey(), cleanupFormality,
+            dictionary, cleanupPrompts.selected?.instructions)
     }
 
     fun saveCleanupEndpoint(url: String, modelId: String, formality: Int) {
@@ -127,15 +204,18 @@ internal class AppSettings(context: Context) {
         require(formality in 0..4) { "Choose a formality level." }
         val normalizedUrl = uri.toASCIIString()
         preferences.edit()
-            .apply { if (cleanupUrl != normalizedUrl) remove(CLEANUP_KEY) }
             .putString(CLEANUP_URL, normalizedUrl)
             .putString(CLEANUP_MODEL, model)
+            .putString(keyName(CLEANUP_MODEL, normalizedUrl), model)
             .putInt(CLEANUP_FORMALITY, formality)
             .apply()
     }
 
-    fun saveCleanupKey(key: String) = saveKey(CLEANUP_KEY, key)
-    fun clearCleanupKey() { preferences.edit().remove(CLEANUP_KEY).apply() }
+    fun saveCleanupKey(key: String) = saveKey(keyName(CLEANUP_KEY, cleanupUrl), key)
+    fun clearCleanupKey() {
+        preferences.edit().remove(keyName(CLEANUP_KEY, cleanupUrl))
+            .apply { if (cleanupUrl == DEFAULT_CLEANUP_URL) remove(CLEANUP_KEY) }.apply()
+    }
 
     fun addDictionaryTerm(value: String) {
         val term = value.trim()
@@ -153,7 +233,7 @@ internal class AppSettings(context: Context) {
 
     fun saveApiKey(key: String) {
         require(preferences.contains(ENDPOINT_URL)) { "Save the endpoint before adding its key." }
-        saveKey(API_KEY, key)
+        saveKey(keyName(API_KEY, endpointUrl), key)
     }
 
     private fun saveKey(name: String, key: String) {
@@ -168,12 +248,13 @@ internal class AppSettings(context: Context) {
     }
 
     fun clearApiKey() {
-        preferences.edit().remove(API_KEY).apply()
+        preferences.edit().remove(keyName(API_KEY, endpointUrl))
+            .apply { if (endpointUrl == DEFAULT_ENDPOINT) remove(API_KEY) }.apply()
     }
 
     fun migrationSnapshot(): JSONObject = JSONObject().apply {
         val speechKey = runCatching { readApiKey() }
-        val textKey = runCatching { readKey(CLEANUP_KEY) }
+        val textKey = runCatching { readCleanupKey() }
         put("endpoint_url", endpointUrl)
         put("model", model)
         put("api_key", speechKey.getOrNull())
@@ -184,11 +265,18 @@ internal class AppSettings(context: Context) {
         put("bubble_x_fraction", bubbleXFraction.toDouble())
         put("bubble_y_fraction", bubbleYFraction.toDouble())
         put("on_device_recognition", useOnDeviceRecognition)
+        put("local_model_id", localModelId)
+        put("speech_language", speechLanguage)
+        put("translate_to_english", translateToEnglish)
+        put("remove_filler_words", removeFillerWords)
         put("history_retention_days", historyRetentionDays)
         put("cleanup_enabled", cleanupEnabled)
         put("cleanup_url", cleanupUrl)
         put("cleanup_model", cleanupModel)
         put("cleanup_formality", cleanupFormality)
+        put("cleanup_prompts", JSONArray(cleanupPrompts.all.map { prompt -> JSONObject()
+            .put("id", prompt.id).put("name", prompt.name).put("instructions", prompt.instructions) }))
+        put("selected_cleanup_prompt", cleanupPrompts.selectedId)
         put("cleanup_key", textKey.getOrNull())
         put("cleanup_key_unreadable", textKey.isFailure)
         put("last_cleanup_failure", lastCleanupFailure)
@@ -220,6 +308,12 @@ internal class AppSettings(context: Context) {
         val rawText = snapshot.optString("latest_raw_transcript").takeIf { !snapshot.isNull("latest_raw_transcript") }
         val cleanupFailure = snapshot.optString("last_cleanup_failure").takeIf { !snapshot.isNull("last_cleanup_failure") }
         val transcriptTime = snapshot.optLong("latest_transcript_time", 0L).coerceAtLeast(0L)
+        val prompts = snapshot.optJSONArray("cleanup_prompts") ?: JSONArray()
+        require(prompts.length() <= 20)
+        for (index in 0 until prompts.length()) {
+            val prompt = prompts.getJSONObject(index)
+            require(prompt.getString("name").length in 1..80 && prompt.getString("instructions").length in 1..4000)
+        }
 
         saveEndpoint(endpoint, modelId)
         clearApiKey()
@@ -236,8 +330,14 @@ internal class AppSettings(context: Context) {
             .putFloat(BUBBLE_X, snapshot.getDouble("bubble_x_fraction").toFloat().coerceIn(0f, 1f))
             .putFloat(BUBBLE_Y, snapshot.getDouble("bubble_y_fraction").toFloat().coerceIn(0f, 1f))
             .putBoolean(ON_DEVICE_RECOGNITION, snapshot.getBoolean("on_device_recognition"))
+            .apply { snapshot.optString("local_model_id").takeIf { id -> LocalSpeechModels.catalog.any { it.id == id } }?.let { putString(LOCAL_MODEL_ID, it) } }
+            .putString(SPEECH_LANGUAGE, snapshot.optString("speech_language", "auto"))
+            .putBoolean(TRANSLATE_TO_ENGLISH, snapshot.optBoolean("translate_to_english"))
+            .putBoolean(REMOVE_FILLER_WORDS, snapshot.optBoolean("remove_filler_words", true))
             .putInt(HISTORY_RETENTION_DAYS, retention)
             .putBoolean(CLEANUP_ENABLED, snapshot.getBoolean("cleanup_enabled") && !snapshot.optBoolean("cleanup_key_unreadable"))
+            .putString("cleanup_prompts", prompts.toString())
+            .apply { snapshot.optString("selected_cleanup_prompt").takeIf(String::isNotBlank)?.let { putString("selected_cleanup_prompt", it) } }
             .putString(DICTIONARY, JSONArray(terms).toString())
             .apply { if (cleanupFailure == null) remove(LAST_CLEANUP_FAILURE) else putString(LAST_CLEANUP_FAILURE, cleanupFailure) }
             .apply { if (finalText == null) remove(LATEST_TRANSCRIPT) else putString(LATEST_TRANSCRIPT, finalText) }
@@ -251,7 +351,15 @@ internal class AppSettings(context: Context) {
 
     val migrationComplete: Boolean get() = preferences.getBoolean(MIGRATION_COMPLETE, false)
 
-    private fun readApiKey(): String? = readKey(API_KEY)
+    private fun readApiKey(): String? = readKey(keyName(API_KEY, endpointUrl))
+        ?: if (endpointUrl == DEFAULT_ENDPOINT) readKey(API_KEY) else null
+
+    private fun readCleanupKey(): String? = readKey(keyName(CLEANUP_KEY, cleanupUrl))
+        ?: if (cleanupUrl == DEFAULT_CLEANUP_URL) readKey(CLEANUP_KEY) else null
+
+    private fun keyName(prefix: String, url: String): String = prefix + "_" +
+        MessageDigest.getInstance("SHA-256").digest(url.toByteArray(StandardCharsets.UTF_8))
+            .take(12).joinToString("") { "%02x".format(it) }
 
     private fun readKey(name: String): String? {
         val stored = preferences.getString(name, null) ?: return null
@@ -296,6 +404,10 @@ internal class AppSettings(context: Context) {
         private const val BUBBLE_X = "bubble_x_fraction"
         private const val BUBBLE_Y = "bubble_y_fraction"
         private const val ON_DEVICE_RECOGNITION = "on_device_recognition"
+        private const val LOCAL_MODEL_ID = "local_model_id"
+        private const val SPEECH_LANGUAGE = "speech_language"
+        private const val TRANSLATE_TO_ENGLISH = "translate_to_english"
+        private const val REMOVE_FILLER_WORDS = "remove_filler_words"
         private const val HISTORY_RETENTION_DAYS = "history_retention_days"
         private const val CLEANUP_ENABLED = "cleanup_enabled"
         private const val LAST_CLEANUP_FAILURE = "last_cleanup_failure"
@@ -342,8 +454,8 @@ internal class AppSettings(context: Context) {
             require(host != null &&
                 (uri.scheme?.lowercase() == "https" || (uri.scheme?.lowercase() == "http" && loopback)) &&
                 uri.userInfo == null && uri.query == null && uri.fragment == null &&
-                uri.path.endsWith("/chat/completions")) {
-                "Use an HTTPS /chat/completions URL. HTTP is allowed only for this phone's localhost."
+                (uri.path.endsWith("/chat/completions") || uri.path.endsWith("/messages"))) {
+                "Use an HTTPS /chat/completions or /messages URL. HTTP is allowed only for this phone's localhost."
             }
             return uri
         }
