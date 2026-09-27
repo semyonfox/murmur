@@ -2,6 +2,7 @@ package dev.local.murmur
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.ComponentName
@@ -70,6 +71,11 @@ class MainActivity : Activity() {
     private val navigationItems = mutableMapOf<Page, LinearLayout>()
     private val navigationIcons = mutableMapOf<Page, ImageView>()
     private val navigationLabels = mutableMapOf<Page, TextView>()
+    private var dockExpanded = true
+    private var dockProgress = 1f
+    private var dockPreviousOffset = 0
+    private var dockDownwardTravel = 0
+    private var dockAnimator: ValueAnimator? = null
     private var currentPage = Page.HOME
     private var speechBackCallback: OnBackInvokedCallback? = null
     private lateinit var speechCard: LinearLayout
@@ -167,32 +173,29 @@ class MainActivity : Activity() {
 
         pageContent = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(16), dp(18), dp(28))
+            setPadding(dp(18), dp(16), dp(18), dp(112))
         }
         scroll = ScrollView(this).apply {
             isFillViewport = true
             addView(pageContent)
+            setOnScrollChangeListener { _, _, scrollY, _, _ -> onPageScroll(scrollY) }
         }
         navigation = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(4), dp(4), dp(4), dp(4))
-            background = rounded(R.color.murmur_surface, 32f, stroke = R.color.murmur_border)
+            background = rounded(R.color.murmur_surface, 32f, stroke = R.color.murmur_border).apply {
+                alpha = 230
+            }
             elevation = dp(8).toFloat()
         }
-        val dockHost = FrameLayout(this).apply {
-            clipChildren = false
-            clipToPadding = false
-            val dockWidth = dp(minOf(resources.configuration.screenWidthDp - 28, 420))
-            addView(navigation, FrameLayout.LayoutParams(dockWidth, dp(64), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-                topMargin = dp(8)
-            })
-        }
-        val shell = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+        val shell = FrameLayout(this).apply {
             fitsSystemWindows = true
             setBackgroundColor(color(R.color.murmur_background))
-            addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-            addView(dockHost, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(84)))
+            addView(scroll, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+            val dockWidth = dp(minOf(resources.configuration.screenWidthDp - 28, 420))
+            addView(navigation, FrameLayout.LayoutParams(dockWidth, dp(64), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+                bottomMargin = dp(12)
+            })
         }
         setContentView(shell)
 
@@ -748,10 +751,10 @@ class MainActivity : Activity() {
             val selected = section == selectedTab
             item.isSelected = selected
             item.contentDescription = if (selected) "${section.label}, selected" else section.label
-            navigationLabels.getValue(section).setTextColor(color(if (selected) R.color.murmur_accent else R.color.murmur_muted))
-            navigationIcons.getValue(section).imageTintList = ColorStateList.valueOf(color(if (selected) R.color.murmur_accent else R.color.murmur_muted))
+            navigationLabels.getValue(section).setTextColor(color(if (selected) R.color.murmur_on_accent else R.color.murmur_muted))
+            navigationIcons.getValue(section).imageTintList = ColorStateList.valueOf(color(if (selected) R.color.murmur_on_accent else R.color.murmur_muted))
             val selection = if (selected) GradientDrawable().apply {
-                setColor((color(R.color.murmur_accent) and 0x00ffffff) or (28 shl 24))
+                setColor((color(R.color.murmur_accent) and 0x00ffffff) or (242 shl 24))
                 cornerRadius = dp(28).toFloat()
             } else null
             item.background = RippleDrawable(
@@ -772,6 +775,62 @@ class MainActivity : Activity() {
             } else null
         }
         scroll.scrollTo(0, 0)
+        dockPreviousOffset = 0
+        dockDownwardTravel = 0
+        setDockExpanded(true)
+    }
+
+    private fun onPageScroll(scrollY: Int) {
+        val offset = scrollY.coerceAtLeast(0)
+        if (offset <= dp(40) || offset < dockPreviousOffset) {
+            dockDownwardTravel = 0
+            setDockExpanded(true)
+        } else {
+            dockDownwardTravel += offset - dockPreviousOffset
+            if (dockDownwardTravel >= dp(20)) {
+                dockDownwardTravel = 0
+                setDockExpanded(false)
+            }
+        }
+        dockPreviousOffset = offset
+    }
+
+    private fun setDockExpanded(expanded: Boolean) {
+        if (dockExpanded == expanded) return
+        dockExpanded = expanded
+        dockAnimator?.cancel()
+        val target = if (expanded) 1f else 0f
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            applyDockProgress(target)
+            return
+        }
+        dockAnimator = ValueAnimator.ofFloat(dockProgress, target).apply {
+            duration = 280
+            addUpdateListener { applyDockProgress(it.animatedValue as Float) }
+            start()
+        }
+    }
+
+    private fun applyDockProgress(progress: Float) {
+        dockProgress = progress
+        val screenWidth = resources.configuration.screenWidthDp
+        val expandedWidth = dp(minOf(screenWidth - 28, 420))
+        val compactWidth = dp(maxOf(228, minOf(screenWidth - 80, 350)))
+        navigation.layoutParams = (navigation.layoutParams as FrameLayout.LayoutParams).apply {
+            width = compactWidth + ((expandedWidth - compactWidth) * progress).toInt()
+            height = dp(52) + (dp(12) * progress).toInt()
+        }
+        navigationItems.values.forEach { item ->
+            item.layoutParams = (item.layoutParams as LinearLayout.LayoutParams).apply {
+                height = dp(44) + (dp(12) * progress).toInt()
+            }
+        }
+        navigationLabels.values.forEach { label ->
+            label.alpha = progress
+            label.layoutParams = (label.layoutParams as LinearLayout.LayoutParams).apply {
+                height = (dp(16) * progress).toInt()
+            }
+        }
     }
 
     @SuppressLint("GestureBackNavigation")
