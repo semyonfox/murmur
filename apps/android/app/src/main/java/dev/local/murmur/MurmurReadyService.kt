@@ -75,7 +75,7 @@ internal class MurmurReadyService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         return Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setSmallIcon(R.drawable.ic_murmur_notification)
             .setContentTitle("Murmur voice ready")
             .setContentText("Tap the popup in a text field to dictate")
             .setContentIntent(openIntent)

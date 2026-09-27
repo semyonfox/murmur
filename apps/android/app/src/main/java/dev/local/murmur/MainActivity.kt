@@ -75,6 +75,7 @@ class MainActivity : Activity() {
     private var dockProgress = 1f
     private var dockPreviousOffset = 0
     private var dockDownwardTravel = 0
+    private var dockUpwardTravel = 0
     private var dockAnimator: ValueAnimator? = null
     private var currentPage = Page.HOME
     private var speechBackCallback: OnBackInvokedCallback? = null
@@ -777,19 +778,30 @@ class MainActivity : Activity() {
         scroll.scrollTo(0, 0)
         dockPreviousOffset = 0
         dockDownwardTravel = 0
+        dockUpwardTravel = 0
         setDockExpanded(true)
     }
 
     private fun onPageScroll(scrollY: Int) {
-        val offset = scrollY.coerceAtLeast(0)
-        if (offset <= dp(40) || offset < dockPreviousOffset) {
+        val maxOffset = (scroll.getChildAt(0).height - scroll.height).coerceAtLeast(0)
+        val offset = scrollY.coerceIn(0, maxOffset)
+        if (offset <= dp(40)) {
             dockDownwardTravel = 0
+            dockUpwardTravel = 0
             setDockExpanded(true)
-        } else {
+        } else if (offset > dockPreviousOffset) {
+            dockUpwardTravel = 0
             dockDownwardTravel += offset - dockPreviousOffset
             if (dockDownwardTravel >= dp(20)) {
                 dockDownwardTravel = 0
                 setDockExpanded(false)
+            }
+        } else if (offset < dockPreviousOffset) {
+            dockDownwardTravel = 0
+            dockUpwardTravel += dockPreviousOffset - offset
+            if (dockUpwardTravel >= dp(20)) {
+                dockUpwardTravel = 0
+                setDockExpanded(true)
             }
         }
         dockPreviousOffset = offset

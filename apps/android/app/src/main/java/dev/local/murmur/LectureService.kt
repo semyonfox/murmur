@@ -193,7 +193,7 @@ internal class LectureService : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val builder = Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setSmallIcon(R.drawable.ic_murmur_notification)
             .setContentTitle("Murmur lecture")
             .setContentText(label)
             .setContentIntent(open)
