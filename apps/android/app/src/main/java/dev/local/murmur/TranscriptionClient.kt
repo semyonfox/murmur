@@ -20,11 +20,19 @@ internal class TranscriptionClient {
 
     fun transcribe(endpoint: TranscriptionEndpoint, audioFile: File, allowEmpty: Boolean = false): String {
         check(!cancelled.get()) { "Transcription cancelled." }
+        endpoint.localModel?.let { model ->
+            val text = LocalWhisper.transcribe(model, audioFile, endpoint.language, endpoint.translate)
+            if (text.isEmpty() && !allowEmpty) throw IOException("No speech returned.")
+            return text
+        }
         val boundary = "murmur-${UUID.randomUUID()}"
+        val languagePart = if (endpoint.language == "auto") "" else
+            "--$boundary\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\n${endpoint.language}\r\n"
         val prefix = (
             "--$boundary\r\n" +
                 "Content-Disposition: form-data; name=\"model\"\r\n\r\n" +
                 endpoint.model + "\r\n" +
+                languagePart +
                 "--$boundary\r\n" +
                 "Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n" +
                 "Content-Type: audio/wav\r\n\r\n"

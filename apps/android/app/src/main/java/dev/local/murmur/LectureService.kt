@@ -128,11 +128,12 @@ internal class LectureService : Service() {
                     val stamp = "[%02d:%02d] ".format((index * 120) / 60, (index * 120) % 60)
                     raw.append(stamp).append(piece).append('\n')
                     history.updateLecture(id, raw.toString().trim(), cleaned.toString().trim(), duration, "processing")
-                    val finalPiece = if (cleanup == null) piece else runCatching {
-                        CleanupClient().clean(cleanup, piece)
+                    val prepared = settings.prepareTranscript(piece)
+                    val finalPiece = if (cleanup == null) prepared else runCatching {
+                        CleanupClient().clean(cleanup, prepared)
                     }.getOrElse { error ->
                         settings.lastCleanupFailure = error.message ?: "Cleanup failed."
-                        piece
+                        prepared
                     }
                     cleaned.append(stamp).append(finalPiece).append('\n')
                     history.updateLecture(id, raw.toString().trim(), cleaned.toString().trim(), duration, "processing")
@@ -143,6 +144,7 @@ internal class LectureService : Service() {
         } catch (error: Exception) {
             fail(error)
         } finally {
+            if (settings.localModelId != null) LocalWhisper.release()
             activeId = 0
             worker = null
             stopSelf()
@@ -151,7 +153,7 @@ internal class LectureService : Service() {
 
     private fun requireEndpoint(): TranscriptionEndpoint {
         check(!settings.useOnDeviceRecognition) { "Select an endpoint in Speech → Recognition for lectures." }
-        return settings.endpointOrNull() ?: error("Set up a transcription endpoint in Speech → Recognition.")
+        return settings.activeEndpointOrNull() ?: error("Set up a speech model or transcription endpoint in Speech → Recognition.")
     }
 
     private fun failStart(error: Throwable) {

@@ -171,7 +171,7 @@ class MurmurInputMethodService : InputMethodService() {
             return
         }
         val endpoint = try {
-            settings.endpointOrNull()
+            settings.activeEndpointOrNull()
         } catch (_: Exception) {
             showStatus("Check the saved endpoint or key in Murmur.")
             return
@@ -212,7 +212,7 @@ class MurmurInputMethodService : InputMethodService() {
         val startedAt = android.os.SystemClock.elapsedRealtime()
         onDeviceRecordingEndedAt = 0L
         try {
-            val recognizer = OnDeviceSpeechSession(this, onResult = { raw ->
+            val recognizer = OnDeviceSpeechSession(this, settings.speechLanguage, onResult = { raw ->
                 onDeviceSession = null
                 if (recordingSession != session) return@OnDeviceSpeechSession
                 micButton?.isEnabled = true
@@ -257,10 +257,11 @@ class MurmurInputMethodService : InputMethodService() {
                 mainHandler.post {
                     if (request === client) showStatus(
                         if (error is HttpStatusException) error.message ?: "Transcription failed."
-                        else "Transcription failed. Check the endpoint and connection."
+                        else error.message ?: "Transcription failed."
                     )
                 }
             } finally {
+                if (endpoint.localModel != null) LocalWhisper.release()
                 file.delete()
                 mainHandler.post {
                     if (request === client) {
@@ -287,16 +288,17 @@ class MurmurInputMethodService : InputMethodService() {
         }
         if (cleaner != null) mainHandler.post { if (recordingSession == session) showStatus("Cleaning transcript…") }
         var cleanupFailure: String? = null
-        val cleaned = try { cleanup?.let { cleaner?.clean(it, raw) } } catch (error: Exception) {
+        val prepared = settings.prepareTranscript(raw)
+        val cleaned = try { cleanup?.let { cleaner?.clean(it, prepared) } } catch (error: Exception) {
             cleanupFailure = if (error is HttpStatusException) "Last cleanup failed (HTTP ${error.statusCode}); raw text was used."
                 else "Last cleanup failed; raw text was used."
             null
         }
-        val transcript = cleaned ?: raw
+        val transcript = cleaned ?: prepared
         mainHandler.post {
             if (recordingSession != session || (client != null && request !== client)) return@post
             val historyId = runCatching { history.add(raw, transcript, durationMs) }.getOrNull()
-            settings.saveTranscript(raw, cleaned, historyId)
+            settings.saveTranscript(raw, transcript, historyId)
             if (cleaner != null) settings.lastCleanupFailure = cleanupFailure
             cleanupRequest = null
             if (client == null) requestTask = null
@@ -311,7 +313,7 @@ class MurmurInputMethodService : InputMethodService() {
                     transcript.firstOrNull()?.isLetterOrDigit() == true
                 val inserted = connection?.commitText(if (leadingSpace) " $transcript" else transcript, 1) == true
                 val status = if (inserted) "Inserted. Copy stays in Murmur." else "Saved in Murmur. Insertion failed."
-                showStatus(if (cleaner != null && cleaned == null) "$status Cleanup failed; raw used." else status)
+                showStatus(if (cleaner != null && cleaned == null) "$status Online cleanup failed." else status)
             } else showStatus("Saved in Murmur. Editor changed.")
         }
     }
