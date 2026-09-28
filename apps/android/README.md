@@ -52,9 +52,9 @@ The release must contain `android-update.json` and the signed APK named in it. F
 
 ```json
 {
-  "versionCode": 13,
-  "versionName": "0.1.12",
-  "apkUrl": "https://github.com/semyonfox/murmur/releases/download/v0.1.12/murmur-0.1.12.apk",
+  "versionCode": 14,
+  "versionName": "0.1.13",
+  "apkUrl": "https://github.com/semyonfox/murmur/releases/download/v0.1.13/murmur-0.1.13.apk",
   "sha256": "64 lowercase hexadecimal characters from the exact signed APK",
   "sizeBytes": 12345678
 }
@@ -63,8 +63,8 @@ The release must contain `android-update.json` and the signed APK named in it. F
 Generate the manifest from the exact signed APK, then upload both files as assets of the same public GitHub Release:
 
 ```sh
-python3 scripts/create_update_manifest.py path/to/murmur-0.1.12.apk \
-  --repository semyonfox/murmur --tag v0.1.12 --version-code 13 --version-name 0.1.12
+python3 scripts/create_update_manifest.py path/to/murmur-0.1.13.apk \
+  --repository semyonfox/murmur --tag v0.1.13 --version-code 14 --version-name 0.1.13
 ```
 
 Increase `versionCode` for each release. Use the same application ID and signing certificate as the installed version; changing either prevents an in-place update. New installs use `ie.semyon.murmur`. The current APK is still debug signed; protect a durable release signing key before distributing the first release APK. An existing debug installation cannot be upgraded to a differently signed release. Neither the key nor its passwords belong in this repository. Do not publish the manifest until the APK is uploaded and its SHA-256 and byte size match. The updater checks those values and the APK's package, version and signer before asking Android to install it. It requires a public HTTPS release; private GitHub Releases cannot be read by the app without credentials.
