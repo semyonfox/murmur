@@ -845,15 +845,16 @@ class MainActivity : Activity() {
             Page.LECTURES, Page.STATS -> Page.HOME
             else -> page
         }
+        val dockSelectedColor = Color.rgb(124, 194, 166)
         navigationItems.forEach { (section, item) ->
             val selected = section == selectedTab
             item.isSelected = selected
             item.contentDescription = if (selected) "${section.label}, selected" else section.label
-            val dockTextColor = if (selected) Color.rgb(240, 240, 240) else Color.argb(199, 240, 240, 240)
+            val dockTextColor = if (selected) dockSelectedColor else Color.argb(199, 240, 240, 240)
             navigationLabels.getValue(section).setTextColor(dockTextColor)
             navigationIcons.getValue(section).imageTintList = ColorStateList.valueOf(dockTextColor)
             val selection = if (selected) GradientDrawable().apply {
-                setColor(Color.argb(89, 55, 55, 55))
+                setColor(Color.argb(89, 45, 117, 96))
                 cornerRadius = dp(28).toFloat()
             } else null
             item.background = RippleDrawable(
@@ -974,8 +975,11 @@ class MainActivity : Activity() {
                 val canvas = Canvas(bitmap)
                 canvas.drawColor(color(R.color.murmur_background))
                 canvas.scale(0.5f, 0.5f)
-                canvas.translate(-navigation.left.toFloat(), -navigation.top.toFloat())
-                scroll.draw(canvas)
+                canvas.translate(
+                    (scroll.left + pageContent.left - scroll.scrollX - navigation.left).toFloat(),
+                    (scroll.top + pageContent.top - scroll.scrollY - navigation.top).toFloat(),
+                )
+                pageContent.draw(canvas)
                 dockBlurLastCapture = SystemClock.uptimeMillis()
                 image.setImageBitmap(bitmap)
             }
