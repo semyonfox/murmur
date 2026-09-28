@@ -104,7 +104,7 @@ internal class LectureService : Service() {
             val duration = LectureAudio.durationMs(file)
             history.updateLecture(id, "", "", duration, "processing")
             if (!beginForeground("Transcribing lecture", ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)) {
-                fail(IllegalStateException("Could not continue transcription in the background. Retry from History."))
+                fail(IllegalStateException("Could not continue transcription in the background. Retry from Lectures."))
                 return@onSuccess
             }
             publish("Transcribing lecture…", true)
@@ -152,8 +152,8 @@ internal class LectureService : Service() {
     }
 
     private fun requireEndpoint(): TranscriptionEndpoint {
-        check(!settings.useOnDeviceRecognition) { "Select an endpoint in Speech → Recognition for lectures." }
-        return settings.activeEndpointOrNull() ?: error("Set up a speech model or transcription endpoint in Speech → Recognition.")
+        check(!settings.useOnDeviceRecognition) { "Select a downloaded model or endpoint in Models → Recognition for lectures." }
+        return settings.activeEndpointOrNull() ?: error("Set up a speech model or transcription endpoint in Models → Recognition.")
     }
 
     private fun failStart(error: Throwable) {
@@ -166,7 +166,7 @@ internal class LectureService : Service() {
         if (id != 0L) {
             history.lecture(id)?.let { history.updateLecture(id, it.raw, it.finalText, it.durationMs, "failed") }
         }
-        publish(error.message ?: "Lecture could not be transcribed. Retry from History.", false)
+        publish(error.message ?: "Lecture could not be transcribed. Retry from Lectures.", false)
         activeId = 0
         stopSelf()
     }
@@ -193,7 +193,7 @@ internal class LectureService : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val builder = Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setSmallIcon(R.drawable.ic_murmur_notification)
             .setContentTitle("Murmur lecture")
             .setContentText(label)
             .setContentIntent(open)
@@ -219,14 +219,14 @@ internal class LectureService : Service() {
         destroyed = true
         recorder?.stop()
         worker?.interrupt()
-        if (isActive) publish("Lecture stopped. Retry from History.", false)
+        if (isActive) publish("Lecture stopped. Retry from Lectures.", false)
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
 
     override fun onTimeout(startId: Int, fgsType: Int) {
         worker?.interrupt()
-        publish("Android stopped this lecture job. Retry from History.", false)
+        publish("Android stopped this lecture job. Retry from Lectures.", false)
         stopSelf()
     }
 

@@ -44,6 +44,7 @@ class MurmurAccessibilityService : AccessibilityService() {
     private var bubbleParams: WindowManager.LayoutParams? = null
     private var bubbleAttached = false
     private var bubbleIcon: ImageView? = null
+    private var displayedBubbleIcon = R.drawable.ic_murmur_bubble
     private var bubbleTitle: TextView? = null
     private var cancelButton: TextView? = null
     private var bubbleTouchActive = false
@@ -566,14 +567,10 @@ class MurmurAccessibilityService : AccessibilityService() {
             }
         }
         bubbleIcon = ImageView(this).apply {
-            setImageResource(R.drawable.ic_microphone)
-            imageTintList = android.content.res.ColorStateList.valueOf(getColor(R.color.murmur_on_accent))
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(getColor(R.color.murmur_accent))
-            }
-            setPadding(dp(7), dp(7), dp(7), dp(7))
+            setImageResource(R.drawable.ic_murmur_bubble)
+            scaleType = ImageView.ScaleType.FIT_CENTER
         }
+        displayedBubbleIcon = R.drawable.ic_murmur_bubble
         root.addView(bubbleIcon, LinearLayout.LayoutParams(dp(36), dp(36)))
         bubbleTitle = TextView(this).apply {
             textSize = 13f
@@ -602,39 +599,39 @@ class MurmurAccessibilityService : AccessibilityService() {
 
     private fun renderBubble() {
         val title: String?
-        val color: Int
+        val icon: Int
         when (mode) {
             Mode.IDLE -> {
                 title = null
-                color = getColor(R.color.murmur_accent)
+                icon = R.drawable.ic_murmur_bubble
             }
             Mode.RECORDING -> {
                 val elapsed = ((SystemClock.elapsedRealtime() - recordingStartedAt) / 1_000).coerceAtLeast(0)
                 title = "%d:%02d  Done".format(elapsed / 60, elapsed % 60)
-                color = getColor(R.color.murmur_recording)
+                icon = R.drawable.ic_murmur_bubble_recording
             }
             Mode.STOPPING -> {
                 title = "Finishing…"
-                color = getColor(R.color.murmur_busy)
+                icon = R.drawable.ic_murmur_bubble_transcribing
             }
             Mode.TRANSCRIBING -> {
                 title = "Transcribing…"
-                color = getColor(R.color.murmur_busy)
+                icon = R.drawable.ic_murmur_bubble_transcribing
             }
             Mode.CLEANING -> {
                 title = "Cleaning…"
-                color = getColor(R.color.murmur_busy)
+                icon = R.drawable.ic_murmur_bubble_transcribing
             }
             Mode.MESSAGE -> {
                 title = message
-                color = getColor(R.color.murmur_accent)
+                icon = R.drawable.ic_murmur_bubble
             }
         }
         bubbleTitle?.text = title
         bubbleTitle?.visibility = if (title == null) View.GONE else View.VISIBLE
-        bubbleIcon?.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(color)
+        if (icon != displayedBubbleIcon) {
+            bubbleIcon?.setImageResource(icon)
+            displayedBubbleIcon = icon
         }
         val size = settings.bubbleSizeDp
         bubble?.minimumWidth = dp(size)

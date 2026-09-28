@@ -15,5 +15,6 @@ The two apps use the same choices where a phone can perform the work. Android ke
 | Provider models and keys | Browse models; save provider-specific model and key | Browse models; save model and encrypted key per endpoint URL; enter an ID manually if discovery fails |
 | Instructions | Default and named prompts to create, edit, select and delete | Same operations; transcript remains a separate user message |
 | Dictionary | Preferred spelling terms | Same terms, supplied to cleanup as spelling data |
+| Provider usage | OpenRouter key totals in Stats | Same weekly, monthly and all-time key totals in Stats; direct provider and local usage are outside these totals |
 
 The desktop catalog includes additional native engines and filters. Android's current catalog is four multilingual Whisper models with RAM checks. Adding other phone runtimes needs a device benchmark and a model-license check. The Android APK and JVM tests passed; local inference, large downloads, battery use, long lectures and insertion after transcription still need device tests. No Android device was attached during this change.
