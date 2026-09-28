@@ -65,12 +65,8 @@ internal class AppSettings(context: Context) {
     var noiseSuppressionEnabled: Boolean
         get() = preferences.getBoolean(NOISE_SUPPRESSION, false)
         set(value) { preferences.edit().putBoolean(NOISE_SUPPRESSION, value).apply() }
-    var bubbleSizeDp: Int
-        get() = preferences.getInt(BUBBLE_SIZE, 44).coerceIn(40, 56)
-        set(value) { preferences.edit().putInt(BUBBLE_SIZE, value.coerceIn(40, 56)).apply() }
-    var bubbleOpacityPercent: Int
-        get() = preferences.getInt(BUBBLE_OPACITY, 90).coerceIn(40, 100)
-        set(value) { preferences.edit().putInt(BUBBLE_OPACITY, value.coerceIn(40, 100)).apply() }
+    val bubbleSizeDp: Int get() = 48
+    val bubbleOpacityPercent: Int get() = 90
     var bubbleXFraction: Float
         get() = preferences.getFloat(BUBBLE_X, 1f).coerceIn(0f, 1f)
         set(value) { preferences.edit().putFloat(BUBBLE_X, value.coerceIn(0f, 1f)).apply() }
@@ -325,8 +321,6 @@ internal class AppSettings(context: Context) {
         if (textKey != null) saveCleanupKey(textKey)
         preferences.edit()
             .putBoolean(NOISE_SUPPRESSION, snapshot.getBoolean("noise_suppression"))
-            .putInt(BUBBLE_SIZE, snapshot.getInt("bubble_size_dp").coerceIn(40, 56))
-            .putInt(BUBBLE_OPACITY, snapshot.getInt("bubble_opacity_percent").coerceIn(40, 100))
             .putFloat(BUBBLE_X, snapshot.getDouble("bubble_x_fraction").toFloat().coerceIn(0f, 1f))
             .putFloat(BUBBLE_Y, snapshot.getDouble("bubble_y_fraction").toFloat().coerceIn(0f, 1f))
             .putBoolean(ON_DEVICE_RECOGNITION, snapshot.getBoolean("on_device_recognition"))
@@ -356,6 +350,18 @@ internal class AppSettings(context: Context) {
 
     private fun readCleanupKey(): String? = readKey(keyName(CLEANUP_KEY, cleanupUrl))
         ?: if (cleanupUrl == DEFAULT_CLEANUP_URL) readKey(CLEANUP_KEY) else null
+
+    fun openRouterUsageKeys(): List<String> = buildList {
+        if (localModelId == null && !useOnDeviceRecognition && isOpenRouterUrl(endpointUrl)) {
+            readApiKey()?.let(::add)
+        }
+        if (isOpenRouterUrl(cleanupUrl)) readCleanupKey()?.let(::add)
+    }.distinct()
+
+    private fun isOpenRouterUrl(value: String): Boolean = runCatching {
+        val uri = URI(value)
+        uri.scheme == "https" && uri.host == "openrouter.ai" && uri.userInfo == null
+    }.getOrDefault(false)
 
     private fun keyName(prefix: String, url: String): String = prefix + "_" +
         MessageDigest.getInstance("SHA-256").digest(url.toByteArray(StandardCharsets.UTF_8))
@@ -399,8 +405,6 @@ internal class AppSettings(context: Context) {
         private const val MODEL = "model"
         private const val API_KEY = "api_key_encrypted"
         private const val NOISE_SUPPRESSION = "noise_suppression"
-        private const val BUBBLE_SIZE = "bubble_size_dp"
-        private const val BUBBLE_OPACITY = "bubble_opacity_percent"
         private const val BUBBLE_X = "bubble_x_fraction"
         private const val BUBBLE_Y = "bubble_y_fraction"
         private const val ON_DEVICE_RECOGNITION = "on_device_recognition"

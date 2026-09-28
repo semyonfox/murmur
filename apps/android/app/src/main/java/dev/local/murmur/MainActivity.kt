@@ -15,7 +15,11 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Rect
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -23,6 +27,7 @@ import android.graphics.drawable.RippleDrawable
 import android.media.audiofx.NoiseSuppressor
 import android.os.Bundle
 import android.os.Build
+import android.os.SystemClock
 import android.provider.Settings
 import android.provider.OpenableColumns
 import android.speech.SpeechRecognizer
@@ -43,7 +48,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.FrameLayout
 import android.widget.ScrollView
-import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
@@ -56,6 +60,7 @@ import java.net.URI
 import java.text.DateFormat
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
+import java.util.Currency
 import java.util.Date
 import java.util.Locale
 
@@ -65,6 +70,10 @@ class MainActivity : Activity() {
     private lateinit var scroll: ScrollView
     private lateinit var pageContent: LinearLayout
     private lateinit var navigation: LinearLayout
+    private var dockBlur: ImageView? = null
+    private var dockBlurBitmap: Bitmap? = null
+    private var dockBlurQueued = false
+    private var dockBlurLastCapture = 0L
     private lateinit var pageTitle: TextView
     private lateinit var pageDescription: TextView
     private val pages = mutableMapOf<Page, LinearLayout>()
@@ -81,6 +90,10 @@ class MainActivity : Activity() {
     private var speechBackCallback: OnBackInvokedCallback? = null
     private lateinit var speechCard: LinearLayout
     private lateinit var localModelsList: LinearLayout
+    private lateinit var modelDownloadStatus: TextView
+    private lateinit var onDeviceSwitch: Switch
+    private lateinit var onlineSettings: LinearLayout
+    private lateinit var onlineChoiceButton: Button
     private lateinit var speechLanguageInput: EditText
     private lateinit var translateSwitch: Switch
     private val modelProgressRefresh = object : Runnable {
@@ -112,6 +125,9 @@ class MainActivity : Activity() {
     private lateinit var lectureList: LinearLayout
     private lateinit var lectureStatus: TextView
     private lateinit var lectureRecordButton: Button
+    private lateinit var homeLectureRecordButton: Button
+    private lateinit var homeLectureStatus: TextView
+    private lateinit var homeStatsSummary: TextView
     private lateinit var retentionButton: Button
     private lateinit var historyFeedback: TextView
     private lateinit var statsPaceView: TextView
@@ -120,6 +136,14 @@ class MainActivity : Activity() {
     private lateinit var statsMinutesView: TextView
     private lateinit var statsTrendView: TextView
     private lateinit var statsMethodView: TextView
+    private lateinit var costRows: LinearLayout
+    private lateinit var costStatus: TextView
+    private lateinit var costWeekView: TextView
+    private lateinit var costMonthView: TextView
+    private lateinit var costAllView: TextView
+    private lateinit var costByokNote: TextView
+    private lateinit var costRefreshButton: Button
+    private var costLoading = false
     private lateinit var weeklyWordsChart: LinearLayout
     private lateinit var weeklyPaceRow: LinearLayout
     private lateinit var weeklyPaceTitle: TextView
@@ -157,12 +181,14 @@ class MainActivity : Activity() {
     private data class SpeechPreset(val label: String, val url: String, val model: String)
     private enum class Page(val label: String, val description: String, val icon: Int) {
         HOME("Home", "Your dictation at a glance.", R.drawable.ic_home),
-        SPEECH("Speech", "Recognition and transcript cleanup.", R.drawable.ic_microphone),
+        SPEECH("Models", "Choose speech recognition and transcript cleanup.", R.drawable.ic_microphone),
         HISTORY("History", "Past dictations kept on this phone.", R.drawable.ic_document),
         WORDS("Words", "Names and terms Murmur should spell your way.", R.drawable.ic_dictionary),
         INPUT("Input", "Set up the bubble or use the Murmur keyboard.", R.drawable.ic_keyboard),
         RECOGNITION("Recognition", "Choose where recordings are transcribed.", R.drawable.ic_microphone),
         CLEANUP("Cleanup", "Tidy transcripts before they are inserted.", R.drawable.ic_microphone),
+        LECTURES("Lectures", "Record a lecture or transcribe an audio file.", R.drawable.ic_microphone),
+        STATS("Stats", "Your dictation activity and provider usage.", R.drawable.ic_home),
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -179,7 +205,10 @@ class MainActivity : Activity() {
         scroll = ScrollView(this).apply {
             isFillViewport = true
             addView(pageContent)
-            setOnScrollChangeListener { _, _, scrollY, _, _ -> onPageScroll(scrollY) }
+            setOnScrollChangeListener { _, _, scrollY, _, _ ->
+                onPageScroll(scrollY)
+                scheduleDockBlur()
+            }
         }
         navigation = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -194,11 +223,27 @@ class MainActivity : Activity() {
             setBackgroundColor(color(R.color.murmur_background))
             addView(scroll, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
             val dockWidth = dp(minOf(resources.configuration.screenWidthDp - 28, 420))
+            if (Build.VERSION.SDK_INT >= 31) {
+                dockBlur = ImageView(this@MainActivity).apply {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    background = GradientDrawable().apply {
+                        setColor(Color.TRANSPARENT)
+                        cornerRadius = dp(32).toFloat()
+                    }
+                    clipToOutline = true
+                    setRenderEffect(RenderEffect.createBlurEffect(dp(14).toFloat(), dp(14).toFloat(), Shader.TileMode.CLAMP))
+                }
+                addView(dockBlur, FrameLayout.LayoutParams(dockWidth, dp(64), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+                    bottomMargin = dp(12)
+                })
+            }
             addView(navigation, FrameLayout.LayoutParams(dockWidth, dp(64), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
                 bottomMargin = dp(12)
             })
         }
         setContentView(shell)
+        navigation.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> scheduleDockBlur() }
+        scroll.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> scheduleDockBlur() }
 
         pageTitle = text("", 28f, R.color.murmur_text, bold = true)
         pageDescription = text("", 13f, R.color.murmur_muted).apply { setPadding(0, dp(2), 0, dp(16)) }
@@ -240,8 +285,31 @@ class MainActivity : Activity() {
         val recognition = pages.getValue(Page.RECOGNITION)
         val cleanup = pages.getValue(Page.CLEANUP)
         val transcript = pages.getValue(Page.HISTORY)
+        val lectures = pages.getValue(Page.LECTURES)
+        val statsPage = pages.getValue(Page.STATS)
         val words = pages.getValue(Page.WORDS)
         val inputPage = pages.getValue(Page.INPUT)
+
+        val quickActions = card().apply { setPadding(dp(16), dp(16), dp(16), dp(16)) }
+        quickActions.addView(text("Lectures", 17f, R.color.murmur_text, bold = true))
+        quickActions.addView(text("Record now or transcribe an audio file. Find recordings in Lectures.",
+            12f, R.color.murmur_muted).apply { setPadding(0, dp(4), 0, dp(10)) })
+        homeLectureStatus = text("", 12f, R.color.murmur_muted)
+        quickActions.addView(homeLectureStatus)
+        val quickButtons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        homeLectureRecordButton = button("Record lecture", primary = true) { onLectureRecord() }
+        quickButtons.addView(homeLectureRecordButton, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        quickButtons.addView(View(this), LinearLayout.LayoutParams(dp(8), 1))
+        quickButtons.addView(button("Import audio", primary = false) { chooseLectureAudio() },
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        quickActions.addView(quickButtons)
+        quickActions.addView(text("View saved lectures  ↗", 13f, R.color.murmur_accent, bold = true).apply {
+            setPadding(0, dp(12), 0, dp(12))
+            minimumHeight = dp(48)
+            gravity = Gravity.CENTER_VERTICAL
+            setOnClickListener { showPage(Page.LECTURES) }
+        })
+        home.addView(quickActions)
 
         val statsCard = card()
         val statsIntro = LinearLayout(this).apply {
@@ -286,7 +354,30 @@ class MainActivity : Activity() {
         }
         chartSection.addView(statsMethodView)
         statsCard.addView(chartSection)
-        home.addView(statsCard)
+        statsPage.addView(statsCard)
+
+        statsPage.addView(groupTitle("Provider cost"))
+        val costCard = card().apply { setPadding(dp(16), dp(15), dp(16), dp(16)) }
+        val costHeader = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val costHeading = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        costHeading.addView(text("OpenRouter usage", 16f, R.color.murmur_text, bold = true))
+        costHeading.addView(text("For your configured OpenRouter keys", 12f, R.color.murmur_muted))
+        costHeader.addView(costHeading, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        costRefreshButton = button("Refresh", primary = false) { refreshProviderCost() }
+        costHeader.addView(costRefreshButton)
+        costCard.addView(costHeader)
+        costStatus = text("", 12f, R.color.murmur_muted).apply { setPadding(0, dp(12), 0, 0) }
+        costCard.addView(costStatus)
+        costRows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        costWeekView = costRow(costRows, "This week")
+        costMonthView = costRow(costRows, "This month")
+        costAllView = costRow(costRows, "All time")
+        costCard.addView(costRows)
+        costByokNote = text("", 12f, R.color.murmur_muted).apply { setPadding(0, dp(10), 0, 0) }
+        costCard.addView(costByokNote)
+        costCard.addView(text("These are OpenRouter key totals, including use outside Murmur. Local models and direct provider keys are not counted.",
+            12f, R.color.murmur_muted).apply { setPadding(0, dp(12), 0, 0) })
+        statsPage.addView(costCard)
 
         home.addView(groupTitle("Recent dictation"))
         val recent = card().apply { setPadding(dp(18), dp(16), dp(18), dp(16)) }
@@ -307,15 +398,28 @@ class MainActivity : Activity() {
         recent.setOnClickListener { showPage(Page.HISTORY) }
         home.addView(recent)
 
-        home.addView(groupTitle("Voice"))
         val status = card().apply { setPadding(dp(16), dp(15), dp(16), dp(16)) }
+        status.addView(text("Dictation", 17f, R.color.murmur_text, bold = true).apply {
+            setPadding(0, 0, 0, dp(8))
+        })
         statusTitle = text("", 15f, R.color.murmur_text, bold = true)
         statusDetail = text("", 12f, R.color.murmur_muted).apply { setPadding(0, dp(3), 0, dp(10)) }
         heroButton = button("", primary = true) { heroAction() }
         status.addView(statusTitle)
         status.addView(statusDetail)
         status.addView(heroButton)
-        home.addView(status)
+        home.addView(status, 1)
+
+        home.addView(groupTitle("Activity"))
+        val statsPreview = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        homeStatsSummary = text("", 15f, R.color.murmur_text, bold = true)
+        statsPreview.addView(homeStatsSummary)
+        statsPreview.addView(text("View stats and provider cost  ↗", 13f, R.color.murmur_accent).apply {
+            setPadding(0, dp(8), 0, 0)
+        })
+        statsPreview.contentDescription = "View dictation stats and provider cost"
+        statsPreview.setOnClickListener { showPage(Page.STATS) }
+        home.addView(statsPreview)
 
         home.addView(groupTitle("App updates"))
         val updateCard = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
@@ -350,7 +454,7 @@ class MainActivity : Activity() {
 
         speechCard = card().apply { setPadding(dp(16), dp(12), dp(16), dp(16)) }
         val localAvailable = Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(this)
-        speechCard.addView(Switch(this).apply {
+        onDeviceSwitch = Switch(this).apply {
             text = "Use on-device recognition"
             textSize = 15f
             setTextColor(color(R.color.murmur_text))
@@ -359,9 +463,11 @@ class MainActivity : Activity() {
             setOnCheckedChangeListener { _, checked ->
                 settings.useOnDeviceRecognition = checked
                 if (checked) settings.localModelId = null
+                refreshLocalModels()
                 refreshStatus()
             }
-        })
+        }
+        speechCard.addView(onDeviceSwitch)
         speechCard.addView(text(
             if (localAvailable) "Uses this phone's installed offline speech service. Its model and language support depend on the device."
             else "This phone has no on-device speech service. Use the endpoint below.",
@@ -371,7 +477,8 @@ class MainActivity : Activity() {
         speechCard.addView(text("Runs on this phone for dictation, lectures and imported audio. Downloading a model uses data and phone storage. Model weights are licensed separately from the app.", 12f, R.color.murmur_muted))
         localModelsList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         speechCard.addView(localModelsList)
-        refreshLocalModels()
+        modelDownloadStatus = text("", 12f, R.color.murmur_muted)
+        speechCard.addView(modelDownloadStatus)
         speechCard.addView(fieldLabel("Recognition language"))
         speechLanguageInput = input(settings.speechLanguage, "auto, en, fr…", InputType.TYPE_CLASS_TEXT)
         speechCard.addView(speechLanguageInput)
@@ -385,7 +492,15 @@ class MainActivity : Activity() {
         }
         speechCard.addView(translateSwitch)
         speechCard.addView(text("Translation applies to downloaded Whisper models only.", 12f, R.color.murmur_muted))
-        speechCard.addView(fieldLabel("Service"))
+        onlineChoiceButton = button("Use online service", primary = false) {
+            settings.useOnDeviceRecognition = false
+            settings.localModelId = null
+            refreshLocalModels()
+            refreshStatus()
+        }
+        speechCard.addView(onlineChoiceButton)
+        onlineSettings = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        onlineSettings.addView(fieldLabel("Online service"))
         val presets = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         listOf(
             SpeechPreset("OpenRouter", AppSettings.DEFAULT_ENDPOINT, AppSettings.DEFAULT_MODEL),
@@ -407,16 +522,16 @@ class MainActivity : Activity() {
                 bottomMargin = dp(6)
             })
         }
-        speechCard.addView(presets)
-        speechCard.addView(fieldLabel("Transcription URL"))
+        onlineSettings.addView(presets)
+        onlineSettings.addView(fieldLabel("Transcription URL"))
         endpointInput = input(settings.endpointUrl, "https://…/audio/transcriptions", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        speechCard.addView(endpointInput)
-        speechCard.addView(fieldLabel("Model ID"))
+        onlineSettings.addView(endpointInput)
+        onlineSettings.addView(fieldLabel("Model ID"))
         modelInput = input(settings.model, "whisper-large-v3-turbo", InputType.TYPE_CLASS_TEXT)
-        speechCard.addView(modelInput)
-        speechCard.addView(fieldLabel("API key"))
+        onlineSettings.addView(modelInput)
+        onlineSettings.addView(fieldLabel("API key"))
         keyInput = input("", "Paste your key", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        speechCard.addView(keyInput)
+        onlineSettings.addView(keyInput)
         val keyLine = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -430,14 +545,16 @@ class MainActivity : Activity() {
             refreshStatus()
         }
         keyLine.addView(removeKeyButton)
-        speechCard.addView(keyLine)
-        speechCard.addView(button("Save", primary = true) { save() })
+        onlineSettings.addView(keyLine)
+        onlineSettings.addView(button("Save", primary = true) { save() })
         feedbackView = text("", 13f, R.color.murmur_muted).apply { setPadding(0, dp(8), 0, 0) }
-        speechCard.addView(feedbackView)
-        speechCard.addView(text("HTTPS is required, except for a server on this phone. The key is encrypted with Android Keystore.", 12f, R.color.murmur_muted).apply {
+        onlineSettings.addView(feedbackView)
+        onlineSettings.addView(text("HTTPS is required, except for a server on this phone. The key is encrypted with Android Keystore.", 12f, R.color.murmur_muted).apply {
             setPadding(0, dp(4), 0, 0)
         })
+        speechCard.addView(onlineSettings)
         recognition.addView(speechCard)
+        refreshLocalModels()
         addSpeechBackLink(cleanup)
         cleanup.addView(text("If you choose an online cleanup service, it receives transcript text and dictionary terms, never audio. Raw text stays in History for recovery.", 13f, R.color.murmur_muted).apply {
             setPadding(dp(4), 0, dp(4), dp(8))
@@ -566,25 +683,27 @@ class MainActivity : Activity() {
             override fun afterTextChanged(s: Editable?) = refreshPresets()
         })
 
-        transcript.addView(text("Dictation audio is temporary. Lecture audio and raw and cleaned text stay on this phone until their retention period ends or you delete them.", 13f, R.color.murmur_muted).apply {
+        lectures.addView(text("Lecture audio and raw and cleaned text stay on this phone until their retention period ends or you delete them.", 13f, R.color.murmur_muted).apply {
             setPadding(dp(4), 0, dp(4), dp(8))
         })
         val lectureCard = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
-        lectureCard.addView(text("Lectures and audio files", 17f, R.color.murmur_text, bold = true))
-        lectureCard.addView(text("Record a lecture or choose an audio file. Murmur saves the audio here and transcribes it in two-minute parts using your selected endpoint. Your endpoint may charge for every part. On-device recognition cannot process saved audio.", 12f, R.color.murmur_muted).apply {
+        lectureCard.addView(text("New lecture", 17f, R.color.murmur_text, bold = true))
+        lectureCard.addView(text("Record a lecture or import audio. Murmur transcribes it with your selected downloaded model or endpoint. An online endpoint may charge for each part.", 12f, R.color.murmur_muted).apply {
             setPadding(0, dp(6), 0, dp(8))
         })
         lectureStatus = text("", 13f, R.color.murmur_muted)
         lectureCard.addView(lectureStatus)
         val lectureActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         lectureRecordButton = button("Record lecture", primary = true) { onLectureRecord() }
-        lectureActions.addView(lectureRecordButton)
-        lectureActions.addView(button("Choose audio", primary = false) { chooseLectureAudio() })
+        lectureActions.addView(lectureRecordButton, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        lectureActions.addView(View(this), LinearLayout.LayoutParams(dp(8), 1))
+        lectureActions.addView(button("Import audio", primary = false) { chooseLectureAudio() },
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         lectureCard.addView(lectureActions)
-        transcript.addView(lectureCard)
-        transcript.addView(groupTitle("Saved lectures"))
+        lectures.addView(lectureCard)
+        lectures.addView(groupTitle("Saved lectures"))
         lectureList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        transcript.addView(lectureList)
+        lectures.addView(lectureList)
         val latest = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
         latestView = text("No transcript yet.", 15f, R.color.murmur_text).apply { setTextIsSelectable(true) }
         latest.addView(latestView)
@@ -655,49 +774,9 @@ class MainActivity : Activity() {
         val bubbleSettings = card()
         inputBubbleRow = setupRow(bubbleSettings, "Accessibility service") { explainAccessibility() }
         inputPage.addView(bubbleSettings)
-        val appearance = card().apply {
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = dp(10)
-            }
-        }
-        val sizeNames = listOf("Tiny", "Small", "Medium", "Large", "Extra large")
-        val sizeLabel = text("Bubble size · ${sizeNames[(settings.bubbleSizeDp - 40) / 4]}", 15f, R.color.murmur_text)
-        appearance.addView(sizeLabel)
-        appearance.addView(SeekBar(this).apply {
-            max = 4
-            progress = (settings.bubbleSizeDp - 40) / 4
-            progressTintList = ColorStateList.valueOf(color(R.color.murmur_accent))
-            thumbTintList = ColorStateList.valueOf(color(R.color.murmur_accent))
-            contentDescription = "Bubble size"
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar, value: Int, fromUser: Boolean) {
-                    if (fromUser) settings.bubbleSizeDp = 40 + value * 4
-                    sizeLabel.text = "Bubble size · ${sizeNames[value]}"
-                }
-                override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
-                override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
-            })
+        inputPage.addView(text("The bubble stays above the keyboard and remembers where you leave it.", 12f, R.color.murmur_muted).apply {
+            setPadding(dp(4), dp(12), dp(4), 0)
         })
-        val opacityLabel = text("Bubble opacity · ${settings.bubbleOpacityPercent}%", 15f, R.color.murmur_text)
-        appearance.addView(opacityLabel)
-        appearance.addView(SeekBar(this).apply {
-            max = 12
-            progress = (settings.bubbleOpacityPercent - 40) / 5
-            progressTintList = ColorStateList.valueOf(color(R.color.murmur_accent))
-            thumbTintList = ColorStateList.valueOf(color(R.color.murmur_accent))
-            contentDescription = "Bubble opacity"
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar, value: Int, fromUser: Boolean) {
-                    if (fromUser) settings.bubbleOpacityPercent = 40 + value * 5
-                    opacityLabel.text = "Bubble opacity · ${40 + value * 5}%"
-                }
-                override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
-                override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
-            })
-        })
-        appearance.addView(text("The bubble stays above the keyboard and remembers where you leave it.", 12f, R.color.murmur_muted))
-        inputPage.addView(appearance)
         inputPage.addView(text("If Android says Restricted setting, open Settings → Apps → Murmur → ⋮ → Allow restricted settings. Then return to Accessibility and enable Murmur voice bubble. This is a sideloaded-app restriction; signing the APK does not remove it.", 13f, R.color.murmur_muted).apply {
             setPadding(dp(4), dp(12), dp(4), 0)
         })
@@ -747,7 +826,11 @@ class MainActivity : Activity() {
         pageTitle.text = if (page == Page.HOME) "Murmur" else page.label
         pageDescription.text = page.description
         pages.forEach { (section, view) -> view.visibility = if (section == page) View.VISIBLE else View.GONE }
-        val selectedTab = if (page == Page.RECOGNITION || page == Page.CLEANUP) Page.SPEECH else page
+        val selectedTab = when (page) {
+            Page.RECOGNITION, Page.CLEANUP -> Page.SPEECH
+            Page.LECTURES, Page.STATS -> Page.HOME
+            else -> page
+        }
         navigationItems.forEach { (section, item) ->
             val selected = section == selectedTab
             item.isSelected = selected
@@ -769,8 +852,11 @@ class MainActivity : Activity() {
         }
         if (Build.VERSION.SDK_INT >= 33) {
             speechBackCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
-            speechBackCallback = if (page == Page.RECOGNITION || page == Page.CLEANUP) {
-                OnBackInvokedCallback { showPage(Page.SPEECH) }.also {
+            speechBackCallback = if (page == Page.RECOGNITION || page == Page.CLEANUP ||
+                page == Page.LECTURES || page == Page.STATS) {
+                OnBackInvokedCallback {
+                    showPage(if (page == Page.RECOGNITION || page == Page.CLEANUP) Page.SPEECH else Page.HOME)
+                }.also {
                     onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, it)
                 }
             } else null
@@ -780,6 +866,8 @@ class MainActivity : Activity() {
         dockDownwardTravel = 0
         dockUpwardTravel = 0
         setDockExpanded(true)
+        if (page == Page.LECTURES) refreshLectures()
+        if (page == Page.STATS) refreshProviderCost()
     }
 
     private fun onPageScroll(scrollY: Int) {
@@ -832,6 +920,12 @@ class MainActivity : Activity() {
             width = compactWidth + ((expandedWidth - compactWidth) * progress).toInt()
             height = dp(52) + (dp(12) * progress).toInt()
         }
+        dockBlur?.let { blur ->
+            blur.layoutParams = (blur.layoutParams as FrameLayout.LayoutParams).apply {
+                width = compactWidth + ((expandedWidth - compactWidth) * progress).toInt()
+                height = dp(52) + (dp(12) * progress).toInt()
+            }
+        }
         navigationItems.values.forEach { item ->
             item.layoutParams = (item.layoutParams as LinearLayout.LayoutParams).apply {
                 height = dp(44) + (dp(12) * progress).toInt()
@@ -843,13 +937,43 @@ class MainActivity : Activity() {
                 height = (dp(16) * progress).toInt()
             }
         }
+        scheduleDockBlur()
+    }
+
+    private fun scheduleDockBlur() {
+        if (dockBlur == null || dockBlurQueued) return
+        dockBlurQueued = true
+        navigation.postOnAnimation {
+            dockBlurQueued = false
+            val image = dockBlur ?: return@postOnAnimation
+            if (navigation.width == 0 || navigation.height == 0 || scroll.height == 0) return@postOnAnimation
+            val now = SystemClock.uptimeMillis()
+            if (now - dockBlurLastCapture < 48L) {
+                navigation.postDelayed({ scheduleDockBlur() }, 48L - (now - dockBlurLastCapture))
+                return@postOnAnimation
+            }
+            dockBlurLastCapture = now
+            val margin = dp(14)
+            val width = navigation.width + margin * 2
+            val height = navigation.height + margin * 2
+            val bitmap = dockBlurBitmap?.takeIf { it.width == width && it.height == height }
+                ?: Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { dockBlurBitmap = it }
+            val canvas = Canvas(bitmap)
+            canvas.drawColor(color(R.color.murmur_background))
+            canvas.translate((margin - navigation.left).toFloat(), (margin - navigation.top).toFloat())
+            scroll.draw(canvas)
+            image.setImageBitmap(bitmap)
+        }
     }
 
     @SuppressLint("GestureBackNavigation")
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
-        if (currentPage == Page.RECOGNITION || currentPage == Page.CLEANUP) showPage(Page.SPEECH)
-        else super.onBackPressed()
+        when (currentPage) {
+            Page.RECOGNITION, Page.CLEANUP -> showPage(Page.SPEECH)
+            Page.LECTURES, Page.STATS -> showPage(Page.HOME)
+            else -> super.onBackPressed()
+        }
     }
 
     override fun onDestroy() {
@@ -1040,7 +1164,7 @@ class MainActivity : Activity() {
                 "Murmur uses Android Accessibility to detect when an ordinary text field is focused and insert your dictation at the cursor while your usual keyboard stays active. " +
                     "It checks the field type and cursor context for safe placement and spacing, but does not upload text already in the field. " +
                     "The bubble stays hidden in password and other sensitive fields. " +
-                    "Recording starts only when you tap the bubble. Recorded audio goes to the transcription endpoint you configure in Speech. " +
+                    "Recording starts only when you tap the bubble. Audio follows the recognition choice you make in Models. " +
                     "If Android blocks the switch, open Settings → Apps → Murmur → ⋮ → Allow restricted settings, then return to Accessibility."
             )
             .setNegativeButton("Cancel", null)
@@ -1117,12 +1241,11 @@ class MainActivity : Activity() {
     private fun refreshLocalModels() {
         if (!::localModelsList.isInitialized) return
         val downloadingId = LocalSpeechModels.downloadingId
-        if (::feedbackView.isInitialized) {
-            if (downloadingId != null) {
-                val label = LocalSpeechModels.catalog.firstOrNull { it.id == downloadingId }?.label ?: "model"
-                feedbackView.text = "Downloading $label · ${LocalSpeechModels.downloadPercent}%"
-            } else LocalSpeechModels.downloadMessage?.let { feedbackView.text = it }
-        }
+        modelDownloadStatus.text = if (downloadingId != null) {
+            val label = LocalSpeechModels.catalog.firstOrNull { it.id == downloadingId }?.label ?: "model"
+            "Downloading $label · ${LocalSpeechModels.downloadPercent}%"
+        } else LocalSpeechModels.downloadMessage.orEmpty()
+        modelDownloadStatus.visibility = if (modelDownloadStatus.text.isEmpty()) View.GONE else View.VISIBLE
         localModelsList.removeAllViews()
         LocalSpeechModels.catalog.forEach { model ->
             val installed = LocalSpeechModels.isInstalled(this, model)
@@ -1139,7 +1262,7 @@ class MainActivity : Activity() {
             row.addView(button(if (downloading) "Cancel download" else if (installed) if (active) "Selected" else "Use this model" else if (resumable) "Resume download" else "Download", primary = active) {
                 if (downloading) {
                     LocalSpeechModels.cancelDownload()
-                    feedbackView.text = "Cancelling download…"
+                    modelDownloadStatus.text = "Cancelling download…"
                     return@button
                 }
                 if (installed) {
@@ -1165,6 +1288,12 @@ class MainActivity : Activity() {
                     }.show()
             })
             localModelsList.addView(row)
+        }
+        if (::onlineSettings.isInitialized) {
+            val online = !settings.useOnDeviceRecognition && settings.localModelId == null
+            onlineSettings.visibility = if (online) View.VISIBLE else View.GONE
+            onlineChoiceButton.visibility = if (online) View.GONE else View.VISIBLE
+            onDeviceSwitch.isChecked = settings.useOnDeviceRecognition
         }
     }
 
@@ -1426,9 +1555,12 @@ class MainActivity : Activity() {
     private fun refreshLectures() {
         if (!::lectureList.isInitialized) return
         lectureStatus.text = LectureService.status
+        homeLectureStatus.text = if (LectureService.isActive) LectureService.status else ""
         lectureRecordButton.text = if (LectureService.isActive && LectureService.status.startsWith("Recording"))
             "Finish recording" else "Record lecture"
         lectureRecordButton.isEnabled = !LectureService.isActive || LectureService.status.startsWith("Recording")
+        homeLectureRecordButton.text = lectureRecordButton.text
+        homeLectureRecordButton.isEnabled = lectureRecordButton.isEnabled
         lectureList.removeAllViews()
         val records = runCatching { history.lectures() }.getOrElse {
             lectureList.addView(text("Saved lectures could not be loaded.", 13f, R.color.murmur_muted))
@@ -1508,6 +1640,8 @@ class MainActivity : Activity() {
     private fun renderStats(stats: DictationStats?) {
         val hasHistory = (stats?.dictations ?: 0) > 0
         val numbers = NumberFormat.getIntegerInstance()
+        homeStatsSummary.text = stats?.let { "${numbers.format(it.thisWeekWords)} words this week" }
+            ?: "Stats are unavailable right now"
         statsTotalView.text = stats?.let { numbers.format(it.totalWords) } ?: "—"
         statsWordsView.text = stats?.let { numbers.format(it.thisWeekWords) } ?: "—"
         statsPaceView.text = stats?.recordedWpm?.let { "${numbers.format(it)} wpm" } ?: "—"
@@ -1568,6 +1702,56 @@ class MainActivity : Activity() {
                     (week.recordedWpm?.let { "$it words per minute" } ?: "no recorded pace")
             }, LinearLayout.LayoutParams(0, dp(24), 1f))
         }
+    }
+
+    private fun costRow(parent: LinearLayout, label: String): TextView {
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        row.addView(text(label, 13f, R.color.murmur_muted),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        val value = text("—", 15f, R.color.murmur_text, bold = true)
+        row.addView(value)
+        parent.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)))
+        return value
+    }
+
+    private fun refreshProviderCost() {
+        if (costLoading) return
+        costLoading = true
+        costRefreshButton.isEnabled = false
+        costStatus.text = "Checking OpenRouter usage…"
+        Thread {
+            val result = runCatching { OpenRouterUsageClient.fetch(settings.openRouterUsageKeys()) }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                costLoading = false
+                costRefreshButton.isEnabled = true
+                result.onSuccess { usage ->
+                    costRows.visibility = if (usage.keyCount == 0) View.GONE else View.VISIBLE
+                    costStatus.text = if (usage.keyCount == 0)
+                        "Add an OpenRouter key in Models or Cleanup to see provider usage."
+                    else "Across ${usage.keyCount} configured OpenRouter ${if (usage.keyCount == 1) "key" else "keys"}."
+                    costWeekView.text = formatUsd(usage.weekUsd)
+                    costMonthView.text = formatUsd(usage.monthUsd)
+                    costAllView.text = formatUsd(usage.allTimeUsd)
+                    costByokNote.text = if (usage.byokMonthUsd > 0.0)
+                        "BYOK model usage this month: ${formatUsd(usage.byokMonthUsd)}. Your provider bills this separately."
+                    else ""
+                }.onFailure {
+                    costStatus.text = "Could not check OpenRouter usage. Check your connection and key, then retry."
+                    costRows.visibility = View.GONE
+                    costByokNote.text = ""
+                }
+            }
+        }.start()
+    }
+
+    private fun formatUsd(value: Double): String {
+        if (value > 0.0 && value < 0.000001) return "<\$0.000001"
+        return NumberFormat.getCurrencyInstance().apply {
+            currency = Currency.getInstance("USD")
+            minimumFractionDigits = 2
+            maximumFractionDigits = 6
+        }.format(value)
     }
 
     private fun compactCount(count: Int): String = if (count < 1_000) count.toString()
@@ -1637,7 +1821,7 @@ class MainActivity : Activity() {
             bubbleSupported && !bubbleEnabled -> Triple("Turn on the voice bubble", "Enable voice bubble") { explainAccessibility() }
             !keyDone -> Triple("Add your API key", "Add API key") { focusKeyInput() }
             bubbleSupported && !voiceReady -> Triple("Voice bubble is off", "Turn on voice bubble") { startVoiceReady() }
-            bubbleSupported -> Triple("Ready. Tap the bubble in any text field", "Turn off voice bubble") {
+            bubbleSupported -> Triple("Ready to dictate in another app", "Turn off voice bubble") {
                 MurmurReadyService.stop(this)
                 window.decorView.postDelayed({ refreshStatus() }, 400)
             }
@@ -1654,7 +1838,11 @@ class MainActivity : Activity() {
         heroButton.text = next.second
         heroButton.visibility = if (next.second.isEmpty()) View.GONE else View.VISIBLE
         styleButton(heroButton, primary = !(bubbleSupported && voiceReady && micAllowed && bubbleEnabled && keyDone))
-        statusDetail.text = if (localRecognition || localModel != null || onPhone) "Audio stays on this phone" else "Audio is sent to $host for transcription"
+        val audioDestination = if (localRecognition || localModel != null || onPhone)
+            "Audio stays on this phone." else "Audio is sent to $host for transcription."
+        statusDetail.text = if (bubbleSupported && voiceReady && bubbleEnabled && micAllowed && keyDone)
+            "Open a text field, tap the bubble to record, then tap it again to finish. $audioDestination"
+        else audioDestination
         speechRecognitionSummary.text = when {
             localRecognition -> "Phone speech service"
             localModel != null -> "Downloaded · $localModel"
@@ -1768,7 +1956,7 @@ class MainActivity : Activity() {
     }
 
     private fun addSpeechBackLink(page: LinearLayout) {
-        page.addView(text("‹  Speech", 14f, R.color.murmur_accent, bold = true).apply {
+        page.addView(text("‹  Models", 14f, R.color.murmur_accent, bold = true).apply {
             setPadding(dp(4), 0, dp(4), dp(15))
             isClickable = true
             isFocusable = true
