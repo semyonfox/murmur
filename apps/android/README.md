@@ -2,7 +2,7 @@
 
 Murmur is a native Kotlin dictation app. On Android 13 and newer, its optional voice bubble appears beside an ordinary focused text field while your usual keyboard stays selected. The idle bubble is a compact microphone control at a fixed medium size and 90% opacity. Drag it to move it, tap to record, then tap the expanded control to transcribe and insert at the cursor. Its position stays saved on the phone. The existing Murmur keyboard remains available, including on Android 8–12.
 
-The floating bottom dock has Home, Models, History, Words and Input sections. Home leads with lecture recording and audio import, the dictation setup action, recent dictation, and a compact activity summary. Home also opens Lectures and Stats. Stats has the retained-word and pace charts plus OpenRouter key usage for the week, month and all time. Those key totals can include use outside Murmur; local models and direct provider keys are excluded. Models opens separate Recognition and Cleanup screens. Recognition shows the online form only when an online service is selected. History keeps raw and final dictation text for recovery, Words stores preferred spellings for cleanup, and Input covers the bubble, optional device noise suppression and keyboard fallback. The bubble uses an Android `AccessibilityService` with the input method editor capability. It checks field focus, type, and cursor context, then uses `AccessibilityInputConnection.commitText` to insert there. It does not need Android's draw-over-other-apps permission or upload existing field text. Password, numeric and phone fields are excluded. A microphone foreground service, started while Murmur is visible, keeps recording available when you switch apps and provides a persistent **Voice ready** notification with a Stop action. Android restricts starting a microphone service from a background bubble, so this explicit activation is required.
+The floating bottom dock has Home, Models, History, Words and Input sections. It samples the active page behind the dock for blur on Android 12 and newer, with a dark tint and a 70% dark fill; the selected tab adds a 35% fill. Older versions keep the translucent fills without blur. Home leads with lecture recording and audio import, the dictation setup action, recent dictation, and a compact activity summary. Home also opens Lectures and Stats. Stats has the retained-word and pace charts plus OpenRouter key usage for the week, month and all time. Those key totals can include use outside Murmur; local models and direct provider keys are excluded. Models opens separate Recognition and Cleanup screens. Recognition shows the online form only when an online service is selected. History keeps raw and final dictation text for recovery, Words stores preferred spellings for cleanup, and Input covers the bubble, optional device noise suppression and keyboard fallback. The bubble uses an Android `AccessibilityService` with the input method editor capability. It checks field focus, type, and cursor context, then uses `AccessibilityInputConnection.commitText` to insert there. It does not need Android's draw-over-other-apps permission or upload existing field text. Password, numeric and phone fields are excluded. A microphone foreground service, started while Murmur is visible, keeps recording available when you switch apps and provides a persistent **Voice ready** notification with a Stop action. Android restricts starting a microphone service from a background bubble, so this explicit activation is required.
 
 The [model-settings comparison](../../docs/android-model-parity.md) lists the desktop controls and their Android behavior.
 
@@ -52,9 +52,9 @@ The release must contain `android-update.json` and the signed APK named in it. F
 
 ```json
 {
-  "versionCode": 12,
-  "versionName": "0.1.11",
-  "apkUrl": "https://github.com/semyonfox/murmur/releases/download/v0.1.11/murmur-0.1.11.apk",
+  "versionCode": 13,
+  "versionName": "0.1.12",
+  "apkUrl": "https://github.com/semyonfox/murmur/releases/download/v0.1.12/murmur-0.1.12.apk",
   "sha256": "64 lowercase hexadecimal characters from the exact signed APK",
   "sizeBytes": 12345678
 }
@@ -63,8 +63,8 @@ The release must contain `android-update.json` and the signed APK named in it. F
 Generate the manifest from the exact signed APK, then upload both files as assets of the same public GitHub Release:
 
 ```sh
-python3 scripts/create_update_manifest.py path/to/murmur-0.1.11.apk \
-  --repository semyonfox/murmur --tag v0.1.11 --version-code 12 --version-name 0.1.11
+python3 scripts/create_update_manifest.py path/to/murmur-0.1.12.apk \
+  --repository semyonfox/murmur --tag v0.1.12 --version-code 13 --version-name 0.1.12
 ```
 
 Increase `versionCode` for each release. Use the same application ID and signing certificate as the installed version; changing either prevents an in-place update. New installs use `ie.semyon.murmur`. The current APK is still debug signed; protect a durable release signing key before distributing the first release APK. An existing debug installation cannot be upgraded to a differently signed release. Neither the key nor its passwords belong in this repository. Do not publish the manifest until the APK is uploaded and its SHA-256 and byte size match. The updater checks those values and the APK's package, version and signer before asking Android to install it. It requires a public HTTPS release; private GitHub Releases cannot be read by the app without credentials.

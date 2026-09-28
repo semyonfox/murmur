@@ -71,6 +71,7 @@ class MainActivity : Activity() {
     private lateinit var pageContent: LinearLayout
     private lateinit var navigation: LinearLayout
     private var dockBlur: ImageView? = null
+    private lateinit var dockTint: View
     private var dockBlurBitmap: Bitmap? = null
     private var dockBlurQueued = false
     private var dockBlurLastCapture = 0L
@@ -213,10 +214,13 @@ class MainActivity : Activity() {
         navigation = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(4), dp(4), dp(4), dp(4))
-            background = rounded(R.color.murmur_surface, 32f, stroke = R.color.murmur_border).apply {
-                alpha = 230
+            background = GradientDrawable().apply {
+                setColor(Color.argb(179, 35, 35, 35))
+                cornerRadius = dp(32).toFloat()
+                setStroke(1, Color.argb(36, 255, 255, 255))
             }
-            elevation = dp(8).toFloat()
+            clipToOutline = true
+            elevation = dp(12).toFloat()
         }
         val shell = FrameLayout(this).apply {
             fitsSystemWindows = true
@@ -231,12 +235,22 @@ class MainActivity : Activity() {
                         cornerRadius = dp(32).toFloat()
                     }
                     clipToOutline = true
-                    setRenderEffect(RenderEffect.createBlurEffect(dp(14).toFloat(), dp(14).toFloat(), Shader.TileMode.CLAMP))
+                    // intensity 35 with the reference app's Android reduction factor of 4
+                    setRenderEffect(RenderEffect.createBlurEffect(8.75f, 8.75f, Shader.TileMode.CLAMP))
                 }
                 addView(dockBlur, FrameLayout.LayoutParams(dockWidth, dp(64), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
                     bottomMargin = dp(12)
                 })
             }
+            dockTint = View(this@MainActivity).apply {
+                background = GradientDrawable().apply {
+                    setColor(Color.argb(61, 25, 25, 25))
+                    cornerRadius = dp(32).toFloat()
+                }
+            }
+            addView(dockTint, FrameLayout.LayoutParams(dockWidth, dp(64), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+                bottomMargin = dp(12)
+            })
             addView(navigation, FrameLayout.LayoutParams(dockWidth, dp(64), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
                 bottomMargin = dp(12)
             })
@@ -835,10 +849,11 @@ class MainActivity : Activity() {
             val selected = section == selectedTab
             item.isSelected = selected
             item.contentDescription = if (selected) "${section.label}, selected" else section.label
-            navigationLabels.getValue(section).setTextColor(color(if (selected) R.color.murmur_on_accent else R.color.murmur_muted))
-            navigationIcons.getValue(section).imageTintList = ColorStateList.valueOf(color(if (selected) R.color.murmur_on_accent else R.color.murmur_muted))
+            val dockTextColor = if (selected) Color.rgb(240, 240, 240) else Color.argb(199, 240, 240, 240)
+            navigationLabels.getValue(section).setTextColor(dockTextColor)
+            navigationIcons.getValue(section).imageTintList = ColorStateList.valueOf(dockTextColor)
             val selection = if (selected) GradientDrawable().apply {
-                setColor((color(R.color.murmur_accent) and 0x00ffffff) or (242 shl 24))
+                setColor(Color.argb(89, 55, 55, 55))
                 cornerRadius = dp(28).toFloat()
             } else null
             item.background = RippleDrawable(
@@ -866,6 +881,7 @@ class MainActivity : Activity() {
         dockDownwardTravel = 0
         dockUpwardTravel = 0
         setDockExpanded(true)
+        scheduleDockBlur()
         if (page == Page.LECTURES) refreshLectures()
         if (page == Page.STATS) refreshProviderCost()
     }
@@ -925,6 +941,10 @@ class MainActivity : Activity() {
                 width = compactWidth + ((expandedWidth - compactWidth) * progress).toInt()
                 height = dp(52) + (dp(12) * progress).toInt()
             }
+        }
+        dockTint.layoutParams = (dockTint.layoutParams as FrameLayout.LayoutParams).apply {
+            width = compactWidth + ((expandedWidth - compactWidth) * progress).toInt()
+            height = dp(52) + (dp(12) * progress).toInt()
         }
         navigationItems.values.forEach { item ->
             item.layoutParams = (item.layoutParams as LinearLayout.LayoutParams).apply {
