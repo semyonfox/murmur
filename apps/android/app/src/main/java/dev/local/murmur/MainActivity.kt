@@ -231,7 +231,7 @@ class MainActivity : Activity() {
                         cornerRadius = dp(32).toFloat()
                     }
                     clipToOutline = true
-                    setRenderEffect(RenderEffect.createBlurEffect(dp(14).toFloat(), dp(14).toFloat(), Shader.TileMode.CLAMP))
+                    setRenderEffect(RenderEffect.createBlurEffect(dp(10).toFloat(), dp(10).toFloat(), Shader.TileMode.CLAMP))
                 }
                 addView(dockBlur, FrameLayout.LayoutParams(dockWidth, dp(64), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
                     bottomMargin = dp(12)
