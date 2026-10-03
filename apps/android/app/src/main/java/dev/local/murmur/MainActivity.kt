@@ -72,7 +72,6 @@ class MainActivity : Activity() {
     private lateinit var navigation: LinearLayout
     private var dockBlur: ImageView? = null
     private lateinit var dockTint: View
-    private var dockBlurBitmap: Bitmap? = null
     private var dockBlurQueued = false
     private var dockBlurLastCapture = 0L
     private lateinit var pageTitle: TextView
@@ -229,7 +228,7 @@ class MainActivity : Activity() {
             val dockWidth = dp(minOf(resources.configuration.screenWidthDp - 28, 420))
             if (Build.VERSION.SDK_INT >= 31) {
                 dockBlur = ImageView(this@MainActivity).apply {
-                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    scaleType = ImageView.ScaleType.FIT_XY
                     background = GradientDrawable().apply {
                         setColor(Color.TRANSPARENT)
                         cornerRadius = dp(32).toFloat()
@@ -258,6 +257,7 @@ class MainActivity : Activity() {
         setContentView(shell)
         navigation.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> scheduleDockBlur() }
         scroll.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> scheduleDockBlur() }
+        pageContent.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> scheduleDockBlur() }
 
         pageTitle = text("", 28f, R.color.murmur_text, bold = true)
         pageDescription = text("", 13f, R.color.murmur_muted).apply { setPadding(0, dp(2), 0, dp(16)) }
@@ -845,15 +845,16 @@ class MainActivity : Activity() {
             Page.LECTURES, Page.STATS -> Page.HOME
             else -> page
         }
+        val dockSelectedColor = Color.rgb(124, 194, 166)
         navigationItems.forEach { (section, item) ->
             val selected = section == selectedTab
             item.isSelected = selected
             item.contentDescription = if (selected) "${section.label}, selected" else section.label
-            val dockTextColor = if (selected) Color.rgb(240, 240, 240) else Color.argb(199, 240, 240, 240)
+            val dockTextColor = if (selected) dockSelectedColor else Color.argb(199, 240, 240, 240)
             navigationLabels.getValue(section).setTextColor(dockTextColor)
             navigationIcons.getValue(section).imageTintList = ColorStateList.valueOf(dockTextColor)
             val selection = if (selected) GradientDrawable().apply {
-                setColor(Color.argb(89, 55, 55, 55))
+                setColor(Color.argb(89, 45, 117, 96))
                 cornerRadius = dp(28).toFloat()
             } else null
             item.background = RippleDrawable(
@@ -963,27 +964,26 @@ class MainActivity : Activity() {
     private fun scheduleDockBlur() {
         if (dockBlur == null || dockBlurQueued) return
         dockBlurQueued = true
-        navigation.postOnAnimation {
-            dockBlurQueued = false
-            val image = dockBlur ?: return@postOnAnimation
-            if (navigation.width == 0 || navigation.height == 0 || scroll.height == 0) return@postOnAnimation
-            val now = SystemClock.uptimeMillis()
-            if (now - dockBlurLastCapture < 48L) {
-                navigation.postDelayed({ scheduleDockBlur() }, 48L - (now - dockBlurLastCapture))
-                return@postOnAnimation
+        val delay = (dockBlurLastCapture + 32L - SystemClock.uptimeMillis()).coerceAtLeast(0L)
+        navigation.postDelayed({
+            navigation.postOnAnimation {
+                dockBlurQueued = false
+                val image = dockBlur ?: return@postOnAnimation
+                if (navigation.width == 0 || navigation.height == 0 || scroll.height == 0) return@postOnAnimation
+                val bitmap = Bitmap.createBitmap((navigation.width + 1) / 2, (navigation.height + 1) / 2,
+                    Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                canvas.drawColor(color(R.color.murmur_background))
+                canvas.scale(0.5f, 0.5f)
+                canvas.translate(
+                    (scroll.left + pageContent.left - scroll.scrollX - navigation.left).toFloat(),
+                    (scroll.top + pageContent.top - scroll.scrollY - navigation.top).toFloat(),
+                )
+                pageContent.draw(canvas)
+                dockBlurLastCapture = SystemClock.uptimeMillis()
+                image.setImageBitmap(bitmap)
             }
-            dockBlurLastCapture = now
-            val margin = dp(14)
-            val width = navigation.width + margin * 2
-            val height = navigation.height + margin * 2
-            val bitmap = dockBlurBitmap?.takeIf { it.width == width && it.height == height }
-                ?: Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { dockBlurBitmap = it }
-            val canvas = Canvas(bitmap)
-            canvas.drawColor(color(R.color.murmur_background))
-            canvas.translate((margin - navigation.left).toFloat(), (margin - navigation.top).toFloat())
-            scroll.draw(canvas)
-            image.setImageBitmap(bitmap)
-        }
+        }, delay)
     }
 
     @SuppressLint("GestureBackNavigation")
@@ -1260,6 +1260,7 @@ class MainActivity : Activity() {
 
     private fun refreshLocalModels() {
         if (!::localModelsList.isInitialized) return
+        scheduleDockBlur()
         val downloadingId = LocalSpeechModels.downloadingId
         modelDownloadStatus.text = if (downloadingId != null) {
             val label = LocalSpeechModels.catalog.firstOrNull { it.id == downloadingId }?.label ?: "model"
@@ -1431,6 +1432,7 @@ class MainActivity : Activity() {
     }
 
     private fun refreshDictionary() {
+        scheduleDockBlur()
         dictionaryList.removeAllViews()
         val terms = settings.dictionary
         if (terms.isEmpty()) {
@@ -1453,6 +1455,7 @@ class MainActivity : Activity() {
 
     private fun refreshHistory() {
         if (!::historyList.isInitialized) return
+        scheduleDockBlur()
         retentionButton.text = when (settings.historyRetentionDays) {
             7 -> "Keep history for 7 days"
             30 -> "Keep history for 30 days"
@@ -1574,6 +1577,7 @@ class MainActivity : Activity() {
 
     private fun refreshLectures() {
         if (!::lectureList.isInitialized) return
+        scheduleDockBlur()
         lectureStatus.text = LectureService.status
         homeLectureStatus.text = if (LectureService.isActive) LectureService.status else ""
         lectureRecordButton.text = if (LectureService.isActive && LectureService.status.startsWith("Recording"))
@@ -1761,6 +1765,7 @@ class MainActivity : Activity() {
                     costRows.visibility = View.GONE
                     costByokNote.text = ""
                 }
+                scheduleDockBlur()
             }
         }.start()
     }
@@ -1806,6 +1811,7 @@ class MainActivity : Activity() {
     }
 
     private fun refreshStatus() {
+        scheduleDockBlur()
         val micAllowed = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         val keyboardEnabled = imm.enabledInputMethodList.any { it.packageName == packageName }

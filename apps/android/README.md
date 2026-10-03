@@ -19,7 +19,7 @@ On some Android 13+ phones, sideloaded apps cannot enable an Accessibility servi
 
 The default endpoint is OpenRouter's OpenAI-compatible `/audio/transcriptions` API, with `openai/whisper-large-v3-turbo` prefilled. The URL and model are editable. HTTPS is required except for the phone's own `localhost` or `127.0.0.1`; a desktop's localhost is not the phone's localhost. On Android 12 and newer, the optional on-device mode uses the phone's installed offline speech service. Availability, languages and model quality depend on the device. Murmur does not download or select its model, and it never switches from local recognition to the cloud endpoint automatically.
 
-Transcript cleanup is off by default. Models → Cleanup has a separate `/chat/completions` URL, required model ID, formality setting and encrypted key; its default URL is OpenRouter. The status immediately below the switch explains what is missing. Entering a valid model and key, then turning on the switch saves the fields and enables cleanup. Choosing a service preserves any model ID already typed. A custom endpoint on `127.0.0.1` means a server running on the phone; a server on another machine needs HTTPS. When enabled, cleanup receives raw transcript text and Words entries, not audio. A failed or over-aggressive response falls back to raw text, and the latest failure appears in Cleanup. Raw and final text remain separate in History. The Input page offers Android's device noise suppressor when available; it is off by default and can alter quiet speech.
+Transcript cleanup is off by default. Models → Cleanup has a separate `/chat/completions` URL, required model ID, formality setting and encrypted key; its default URL is OpenRouter. The status immediately below the switch explains what is missing. Entering a valid model and key, then turning on the switch saves the fields and enables cleanup. Choosing a service preserves any model ID already typed. A custom endpoint on `127.0.0.1` means a server running on the phone; a server on another machine needs HTTPS. When enabled, cleanup receives transcript text and Words entries, not audio. It prepares clear spoken spellings locally, then asks the selected provider to apply explicit corrections and remove thinking-pause ellipses. A comma or dash marks an explicit spelling replacement; without one, the guessed word must resemble the stated letters. Ordinary descriptions such as "John spelled C-A-T for the class" stay intact for the provider. If the provider overwrites or drops a prepared spelling, cleanup keeps the prepared transcript. Failed, blank, excessively expanded or truncated responses fall back to raw text, and the latest failure appears in Cleanup. Raw and final text remain separate in History. The Input page offers Android's device noise suppressor when available; it is off by default and can alter quiet speech.
 
 Private app preferences hold encrypted speech and cleanup keys per endpoint URL, settings and the latest result. A local SQLite database stores raw and final transcripts, recording duration and timestamps. History defaults to keeping data until deletion; choosing 7, 30 or 90 days asks before removing older entries. History can export raw and final text as an unencrypted JSON file to a location you select. Stats counts dictations; WPM uses raw words divided by recording time, including pauses. Its OpenRouter card queries usage with configured OpenRouter keys on demand. Short dictation WAV files are temporary. Lecture WAV files stay in private app storage until their retention period ends or you delete them. Android offers verified local Whisper downloads and provider-specific cleanup endpoints, model discovery, filler removal and custom instructions. Embedded text cleanup remains planned.
 
@@ -52,9 +52,9 @@ The release must contain `android-update.json` and the signed APK named in it. F
 
 ```json
 {
-  "versionCode": 13,
-  "versionName": "0.1.12",
-  "apkUrl": "https://github.com/semyonfox/murmur/releases/download/v0.1.12/murmur-0.1.12.apk",
+  "versionCode": 14,
+  "versionName": "0.1.13",
+  "apkUrl": "https://github.com/semyonfox/murmur/releases/download/v0.1.13/murmur-0.1.13.apk",
   "sha256": "64 lowercase hexadecimal characters from the exact signed APK",
   "sizeBytes": 12345678
 }
@@ -63,8 +63,8 @@ The release must contain `android-update.json` and the signed APK named in it. F
 Generate the manifest from the exact signed APK, then upload both files as assets of the same public GitHub Release:
 
 ```sh
-python3 scripts/create_update_manifest.py path/to/murmur-0.1.12.apk \
-  --repository semyonfox/murmur --tag v0.1.12 --version-code 13 --version-name 0.1.12
+python3 scripts/create_update_manifest.py path/to/murmur-0.1.13.apk \
+  --repository semyonfox/murmur --tag v0.1.13 --version-code 14 --version-name 0.1.13
 ```
 
 Increase `versionCode` for each release. Use the same application ID and signing certificate as the installed version; changing either prevents an in-place update. New installs use `ie.semyon.murmur`. The current APK is still debug signed; protect a durable release signing key before distributing the first release APK. An existing debug installation cannot be upgraded to a differently signed release. Neither the key nor its passwords belong in this repository. Do not publish the manifest until the APK is uploaded and its SHA-256 and byte size match. The updater checks those values and the APK's package, version and signer before asking Android to install it. It requires a public HTTPS release; private GitHub Releases cannot be read by the app without credentials.

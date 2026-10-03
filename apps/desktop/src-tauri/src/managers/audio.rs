@@ -818,6 +818,7 @@ impl AudioRecordingManager {
         &self,
         binding_id: &str,
         vad_policy: VadPolicy,
+        suspend_for_feedback: bool,
     ) -> Result<RecordingReadiness, String> {
         let mut state = self.state.lock().unwrap();
 
@@ -837,7 +838,7 @@ impl AudioRecordingManager {
             }
 
             if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
-                match rec.start(vad_policy) {
+                match rec.start(vad_policy, suspend_for_feedback) {
                     Ok(receiver) => {
                         let generation = self.capture_generation.fetch_add(1, Ordering::AcqRel) + 1;
                         *self.is_recording.lock().unwrap() = true;
@@ -1000,6 +1001,21 @@ impl AudioRecordingManager {
 
     pub fn is_recording_readiness_current(&self, generation: u64) -> bool {
         self.capture_generation.load(Ordering::Acquire) == generation
+    }
+
+    pub fn resume_recording_after_feedback(&self, generation: u64) -> Option<mpsc::Receiver<()>> {
+        let state = self.state.lock().unwrap();
+        if !matches!(*state, RecordingState::Recording { .. })
+            || !self.is_recording_readiness_current(generation)
+        {
+            return None;
+        }
+        self.recorder
+            .lock()
+            .unwrap()
+            .as_ref()?
+            .resume_after_feedback()
+            .ok()
     }
 
     pub fn cancel_generation(&self) -> u64 {

@@ -1,8 +1,10 @@
 # Cleanup evaluation
 
-`cleanup.jsonl` contains 24 synthetic text fixtures. They test cleanup independently of speech recognition and contain no private recordings. The [published 23-case benchmark](../docs/cleanup-benchmark.md) predates the casual-wording fixture. Its exact second-run prompt is archived in `benchmark-prompt-20260926.txt`; the runner uses the current `benchmark-prompt.txt`.
+`cleanup.jsonl` contains 35 synthetic text fixtures. They test cleanup independently of speech recognition and contain no private recordings. The correction and spoken-spelling cases include surrounding details, chained replacements, dictionary conflicts, literal letters and quoted dialogue. The [published 23-case benchmark](../docs/cleanup-benchmark.md) predates these additions and the casual-wording fixture. Its exact second-run prompt is archived in `benchmark-prompt-20260926.txt`; the runner uses the current `benchmark-prompt.txt`.
 
 `expected_example` is one acceptable wording, not an exact-match oracle. The runner flags missing required text, including missing repeated occurrences, and forbidden additions. These are review cues, not quality scores: capitalization, contractions and equivalent numeric spellings can be acceptable.
+
+The benchmark runner sends raw fixture text directly to the model. Desktop and Android cleanup also prepare clear explicit spellings locally and reject model edits that lose those spellings. Their native unit tests cover that step, which this model-only benchmark does not apply.
 
 Preview the five-model plan without making requests:
 
