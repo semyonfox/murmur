@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, Cloud, HardDrive } from "lucide-react";
 import type { RecordingRetentionPeriod } from "@/bindings";
-import { hostOf } from "@/lib/utils/format";
+import { hostOf, isLoopbackEndpoint } from "@/lib/utils/format";
 import { useSettings } from "../../../hooks/useSettings";
 import type { SidebarSection } from "../../Sidebar";
 import { SettingsGroup } from "../../ui/SettingsGroup";
@@ -71,7 +71,8 @@ export const PrivacySettings: React.FC = () => {
     (candidate) => candidate.id === settings.post_process_provider_id,
   );
   const cleanupIsLocal =
-    provider?.id === "ollama" || provider?.id === "apple_intelligence";
+    provider?.id === "apple_intelligence" ||
+    isLoopbackEndpoint(provider?.base_url ?? "");
   const cleanupLeaves = cleanupOn && !cleanupIsLocal;
   const retention = settings?.recording_retention_period ?? "never";
   const change = t("murmur.privacy.change", { defaultValue: "Change" });
@@ -119,12 +120,14 @@ export const PrivacySettings: React.FC = () => {
                 })
               : cleanupIsLocal
                 ? t("murmur.privacy.cleanup.local", {
-                    provider: provider?.label ?? "",
+                    provider:
+                      hostOf(provider?.base_url ?? "") || provider?.label || "",
                     defaultValue:
                       "Cleaned up on this computer by {{provider}}.",
                   })
                 : t("murmur.privacy.cleanup.cloud", {
-                    provider: provider?.label ?? "",
+                    provider:
+                      hostOf(provider?.base_url ?? "") || provider?.label || "",
                     defaultValue:
                       "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not.",
                   })

@@ -70,6 +70,7 @@ export const RecordingRetentionPeriodSelector: React.FC<RecordingRetentionPeriod
         grouped={grouped}
       >
         <Dropdown
+          label={t("settings.debug.recordingRetention.title")}
           options={retentionOptions}
           selectedValue={selectedRetentionPeriod}
           onSelect={handleRetentionPeriodSelect}

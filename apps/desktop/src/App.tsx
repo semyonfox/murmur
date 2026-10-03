@@ -372,18 +372,15 @@ function App() {
     content = <Onboarding onModelSelected={handleModelSelected} />;
   } else {
     content = (
-      <div
-        dir={direction}
-        className="h-screen flex flex-col select-none cursor-default"
-      >
+      <div dir={direction} className="h-screen flex flex-col cursor-default">
         {/* Main content area that takes remaining space */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex min-h-0 overflow-hidden max-sm:flex-col">
           <Sidebar
             activeSection={currentSection}
             onSectionChange={setCurrentSection}
           />
           {/* Scrollable content area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex min-w-0 flex-col overflow-hidden">
             <div ref={settingsScrollRef} className="flex-1 overflow-y-auto">
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 pt-5 pb-8">
                 <header>

@@ -50,6 +50,7 @@ export const ShortcutActivationSetting: React.FC<ShortcutActivationProps> =
         grouped={grouped}
       >
         <Dropdown
+          label={t("settings.general.shortcutActivation.title")}
           options={options}
           menuClassName="right-0 w-80 max-w-[calc(100vw-2rem)]"
           selectedValue={selected}

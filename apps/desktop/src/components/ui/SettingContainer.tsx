@@ -121,13 +121,13 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
 
   // Horizontal layout (default)
   const horizontalContainerClasses = grouped
-    ? "flex items-center justify-between min-h-12 px-4 p-2"
-    : "flex items-center justify-between min-h-12 px-4 p-2 rounded-lg border border-mid-gray/20";
+    ? "flex items-center justify-between gap-2 min-h-12 px-4 p-2 max-sm:flex-col max-sm:items-stretch"
+    : "flex items-center justify-between gap-2 min-h-12 px-4 p-2 rounded-lg border border-mid-gray/20 max-sm:flex-col max-sm:items-stretch";
 
   if (descriptionMode === "tooltip") {
     return (
       <div className={horizontalContainerClasses}>
-        <div className="max-w-2/3">
+        <div className="max-w-2/3 max-sm:max-w-full">
           <div className="flex items-center gap-2">
             <h3
               className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}
@@ -180,7 +180,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
 
   return (
     <div className={horizontalContainerClasses}>
-      <div className="max-w-2/3">
+      <div className="max-w-2/3 max-sm:max-w-full">
         <h3 className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}>
           {title}
         </h3>

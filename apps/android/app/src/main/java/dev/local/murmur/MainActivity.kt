@@ -51,6 +51,7 @@ import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.core.content.ContextCompat
 import android.util.JsonWriter
@@ -111,6 +112,7 @@ class MainActivity : Activity() {
     private lateinit var feedbackView: TextView
     private lateinit var statusTitle: TextView
     private lateinit var statusDetail: TextView
+    private lateinit var readyFeedback: TextView
     private lateinit var heroButton: Button
     private lateinit var updateStatus: TextView
     private lateinit var updateButton: Button
@@ -272,6 +274,7 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 minimumHeight = dp(56)
+                isFocusable = true
                 contentDescription = "${page.label} section"
                 setOnClickListener { showPage(page) }
             }
@@ -422,6 +425,12 @@ class MainActivity : Activity() {
         status.addView(statusTitle)
         status.addView(statusDetail)
         status.addView(heroButton)
+        readyFeedback = text("", 13f, R.color.murmur_muted).apply {
+            setPadding(0, dp(8), 0, 0)
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            visibility = View.GONE
+        }
+        status.addView(readyFeedback)
         home.addView(status, 1)
 
         home.addView(groupTitle("Activity"))
@@ -497,6 +506,16 @@ class MainActivity : Activity() {
         speechLanguageInput = input(settings.speechLanguage, "auto, en, fr…", InputType.TYPE_CLASS_TEXT)
         speechCard.addView(speechLanguageInput)
         speechCard.addView(text("Use auto to detect the language. A language code also applies to the selected online service when supported.", 12f, R.color.murmur_muted))
+        speechCard.addView(button("Save language", primary = false) {
+            try {
+                settings.speechLanguage = speechLanguageInput.text.toString()
+                speechLanguageInput.setText(settings.speechLanguage)
+                speechLanguageInput.error = null
+                Toast.makeText(this, "Recognition language saved.", Toast.LENGTH_SHORT).show()
+            } catch (error: IllegalArgumentException) {
+                speechLanguageInput.error = error.message
+            }
+        })
         translateSwitch = Switch(this).apply {
             text = "Translate speech to English"
             textSize = 15f
@@ -532,7 +551,7 @@ class MainActivity : Activity() {
                 setPadding(dp(14), 0, dp(14), 0)
             }
             presetButtons += chip to preset
-            presets.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)).apply {
+            presets.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)).apply {
                 bottomMargin = dp(6)
             })
         }
@@ -932,24 +951,24 @@ class MainActivity : Activity() {
         dockProgress = progress
         val screenWidth = resources.configuration.screenWidthDp
         val expandedWidth = dp(minOf(screenWidth - 28, 420))
-        val compactWidth = dp(maxOf(228, minOf(screenWidth - 80, 350)))
+        val compactWidth = dp(maxOf(248, minOf(screenWidth - 80, 350)))
         navigation.layoutParams = (navigation.layoutParams as FrameLayout.LayoutParams).apply {
             width = compactWidth + ((expandedWidth - compactWidth) * progress).toInt()
-            height = dp(52) + (dp(12) * progress).toInt()
+            height = dp(56) + (dp(8) * progress).toInt()
         }
         dockBlur?.let { blur ->
             blur.layoutParams = (blur.layoutParams as FrameLayout.LayoutParams).apply {
                 width = compactWidth + ((expandedWidth - compactWidth) * progress).toInt()
-                height = dp(52) + (dp(12) * progress).toInt()
+                height = dp(56) + (dp(8) * progress).toInt()
             }
         }
         dockTint.layoutParams = (dockTint.layoutParams as FrameLayout.LayoutParams).apply {
             width = compactWidth + ((expandedWidth - compactWidth) * progress).toInt()
-            height = dp(52) + (dp(12) * progress).toInt()
+            height = dp(56) + (dp(8) * progress).toInt()
         }
         navigationItems.values.forEach { item ->
             item.layoutParams = (item.layoutParams as LinearLayout.LayoutParams).apply {
-                height = dp(44) + (dp(12) * progress).toInt()
+                height = dp(48) + (dp(8) * progress).toInt()
             }
         }
         navigationLabels.values.forEach { label ->
@@ -1219,10 +1238,13 @@ class MainActivity : Activity() {
     }
 
     private fun beginVoiceReady() {
+        readyFeedback.text = ""
+        readyFeedback.visibility = View.GONE
         try {
             MurmurReadyService.start(this)
         } catch (_: Exception) {
-            feedbackView.text = "Voice ready could not start. Open Murmur and try again."
+            readyFeedback.text = "Voice bubble could not start. Tap Turn on voice bubble to retry."
+            readyFeedback.visibility = View.VISIBLE
         }
         window.decorView.postDelayed({ refreshStatus() }, 400)
     }
@@ -1502,8 +1524,16 @@ class MainActivity : Activity() {
             actions.addView(button("View", primary = false) {
                 val detail = if (record.raw == record.finalText) record.finalText
                     else "${record.finalText}\n\nRaw transcript\n${record.raw}"
-                AlertDialog.Builder(this).setTitle("Dictation").setMessage(detail)
-                    .setPositiveButton("Close", null).show()
+                val dialog = AlertDialog.Builder(this).setTitle("Dictation").setMessage(detail)
+                    .setPositiveButton("Close", null)
+                if (record.raw != record.finalText) {
+                    dialog.setNeutralButton("Copy raw") { _, _ ->
+                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Murmur raw transcript", record.raw))
+                        historyFeedback.text = "Raw transcript copied."
+                    }
+                }
+                dialog.show().findViewById<TextView>(android.R.id.message)?.setTextIsSelectable(true)
             })
             actions.addView(button("Copy", primary = false) {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -2064,10 +2094,10 @@ class MainActivity : Activity() {
         isAllCaps = false
         textSize = 14f
         stateListAnimator = null
-        minHeight = dp(40)
-        minimumHeight = dp(40)
-        minWidth = 0
-        minimumWidth = 0
+        minHeight = dp(48)
+        minimumHeight = dp(48)
+        minWidth = dp(48)
+        minimumWidth = dp(48)
         setPadding(dp(16), 0, dp(16), 0)
         styleButton(this, primary)
         setOnClickListener { action() }

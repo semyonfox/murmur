@@ -173,6 +173,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
   // Polling for permissions after user clicks a button
   const startPolling = useCallback(() => {
     if (pollingRef.current || permissionPlatform === null) return;
+    errorCountRef.current = 0;
 
     pollingRef.current = setInterval(async () => {
       try {
@@ -241,6 +242,11 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
             clearInterval(pollingRef.current);
             pollingRef.current = null;
           }
+          setPermissions((prev) => ({
+            accessibility:
+              prev.accessibility === "granted" ? "granted" : "needed",
+            microphone: prev.microphone === "granted" ? "granted" : "needed",
+          }));
           toast.error(t("onboarding.permissions.errors.checkFailed"));
         }
       }
@@ -263,6 +269,14 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     if (preview) return;
 
     try {
+      if (permissions.accessibility === "waiting") {
+        const granted = await checkAccessibilityPermission();
+        if (granted) {
+          setPermissions((prev) => ({ ...prev, accessibility: "granted" }));
+          if (permissions.microphone === "granted") await completeOnboarding();
+        }
+        return;
+      }
       await requestAccessibilityPermission();
       setPermissions((prev) => ({ ...prev, accessibility: "waiting" }));
       startPolling();
@@ -278,6 +292,14 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     try {
       if (isWindows) {
         await commands.openMicrophonePrivacySettings();
+      } else if (permissions.microphone === "waiting") {
+        const granted = await checkMicrophonePermission();
+        if (granted) {
+          setPermissions((prev) => ({ ...prev, microphone: "granted" }));
+          if (permissions.accessibility === "granted")
+            await completeOnboarding();
+        }
+        return;
       } else {
         await requestMicrophonePermission();
       }
@@ -356,20 +378,29 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                     <Check className="w-4 h-4" />
                     {t("onboarding.permissions.granted")}
                   </div>
-                ) : permissions.microphone === "waiting" ? (
-                  <div className="flex items-center gap-2 text-text/50 text-sm">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {t("onboarding.permissions.waiting")}
-                  </div>
                 ) : (
-                  <button
-                    onClick={handleGrantMicrophone}
-                    className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium transition-colors"
-                  >
-                    {isWindows
-                      ? t("accessibility.openSettings")
-                      : t("onboarding.permissions.grant")}
-                  </button>
+                  <div className="space-y-3">
+                    {permissions.microphone === "waiting" && (
+                      <p role="status" className="text-sm text-text/60">
+                        {t("murmur.onboarding.microphoneWaiting", {
+                          defaultValue:
+                            "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
+                        })}
+                      </p>
+                    )}
+                    <button
+                      onClick={handleGrantMicrophone}
+                      className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium transition-colors"
+                    >
+                      {isWindows
+                        ? t("accessibility.openSettings")
+                        : permissions.microphone === "waiting"
+                          ? t("murmur.onboarding.recheck", {
+                              defaultValue: "Check again",
+                            })
+                          : t("onboarding.permissions.grant")}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -395,18 +426,27 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                     <Check className="w-4 h-4" />
                     {t("onboarding.permissions.granted")}
                   </div>
-                ) : permissions.accessibility === "waiting" ? (
-                  <div className="flex items-center gap-2 text-text/50 text-sm">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {t("onboarding.permissions.waiting")}
-                  </div>
                 ) : (
-                  <button
-                    onClick={handleGrantAccessibility}
-                    className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium transition-colors"
-                  >
-                    {t("onboarding.permissions.grant")}
-                  </button>
+                  <div className="space-y-3">
+                    {permissions.accessibility === "waiting" && (
+                      <p role="status" className="text-sm text-text/60">
+                        {t("murmur.onboarding.accessibilityWaiting", {
+                          defaultValue:
+                            "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically.",
+                        })}
+                      </p>
+                    )}
+                    <button
+                      onClick={handleGrantAccessibility}
+                      className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium transition-colors"
+                    >
+                      {permissions.accessibility === "waiting"
+                        ? t("murmur.onboarding.recheck", {
+                            defaultValue: "Check again",
+                          })
+                        : t("onboarding.permissions.grant")}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
