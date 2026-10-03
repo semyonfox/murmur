@@ -151,11 +151,28 @@ struct ChatCompletionResponse {
 #[derive(Debug, Deserialize)]
 struct ChatChoice {
     message: ChatMessageResponse,
+    finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ChatMessageResponse {
     content: Option<String>,
+}
+
+fn completion_content(completion: ChatCompletionResponse) -> Result<Option<String>, String> {
+    let Some(choice) = completion.choices.into_iter().next() else {
+        return Ok(None);
+    };
+
+    match choice.finish_reason.as_deref() {
+        Some("length") => {
+            Err("Cleanup response reached the provider output limit before it finished".to_string())
+        }
+        Some("content_filter") => {
+            Err("Cleanup response was stopped by the provider content filter".to_string())
+        }
+        _ => Ok(choice.message.content),
+    }
 }
 
 /// Build headers for API requests based on provider type
@@ -510,10 +527,7 @@ pub async fn send_chat_completion_with_schema(
         .await
         .map_err(|e| report_reqwest_error("Failed to parse API response", &e))?;
 
-    Ok(completion
-        .choices
-        .first()
-        .and_then(|choice| choice.message.content.clone()))
+    completion_content(completion)
 }
 
 /// Fetch available models from an OpenAI-compatible API
@@ -698,6 +712,49 @@ mod tests {
         let details = report_reqwest_error("Failed to parse API response", &error);
         assert!(details.contains("kind: decode"));
         assert!(!details.contains("PRIVATE TRANSCRIPTION CONTENT"));
+    }
+
+    #[tokio::test]
+    async fn complete_response_preserves_final_punctuation_at_eof() {
+        let base_url = serve_one_response(
+            "200 OK",
+            r#"{"choices":[{"message":{"content":"Keep this."},"finish_reason":"stop"}]}"#,
+        )
+        .await;
+
+        let result = send_chat_completion(
+            &provider("custom", &base_url),
+            String::new(),
+            "test-model",
+            "input".to_string(),
+            false,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.as_deref(), Some("Keep this."));
+    }
+
+    #[tokio::test]
+    async fn length_limited_response_is_rejected() {
+        let base_url = serve_one_response(
+            "200 OK",
+            r#"{"choices":[{"message":{"content":"Keep thi"},"finish_reason":"length"}]}"#,
+        )
+        .await;
+
+        let error = send_chat_completion(
+            &provider("custom", &base_url),
+            String::new(),
+            "test-model",
+            "input".to_string(),
+            false,
+        )
+        .await
+        .unwrap_err();
+
+        assert!(error.contains("output limit"));
+        assert!(!error.contains("Keep thi"));
     }
 
     #[tokio::test]

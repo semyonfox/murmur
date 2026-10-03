@@ -30,7 +30,9 @@ enum Cmd {
         Instant,
         mpsc::Sender<()>,
         Option<WavWriter<std::io::BufWriter<std::fs::File>>>,
+        bool,
     ),
+    ResumeAfterFeedback(mpsc::Sender<()>),
     Stop(mpsc::Sender<Result<CaptureOutput, String>>),
     Shutdown,
 }
@@ -454,14 +456,31 @@ impl AudioRecorder {
     pub fn start(
         &self,
         vad_policy: VadPolicy,
+        suspend_for_feedback: bool,
     ) -> Result<mpsc::Receiver<()>, Box<dyn std::error::Error>> {
         let tx = self
             .cmd_tx
             .as_ref()
             .ok_or_else(|| Error::other("Recorder is not open"))?;
         let (ready_tx, ready_rx) = mpsc::channel();
-        tx.send(Cmd::Start(vad_policy, Instant::now(), ready_tx, None))?;
+        tx.send(Cmd::Start(
+            vad_policy,
+            Instant::now(),
+            ready_tx,
+            None,
+            suspend_for_feedback,
+        ))?;
         Ok(ready_rx)
+    }
+
+    pub fn resume_after_feedback(&self) -> Result<mpsc::Receiver<()>, Box<dyn std::error::Error>> {
+        let tx = self
+            .cmd_tx
+            .as_ref()
+            .ok_or_else(|| Error::other("Recorder is not open"))?;
+        let (reply_tx, reply_rx) = mpsc::channel();
+        tx.send(Cmd::ResumeAfterFeedback(reply_tx))?;
+        Ok(reply_rx)
     }
 
     pub fn start_to_file(
@@ -487,6 +506,7 @@ impl AudioRecorder {
             Instant::now(),
             ready_tx,
             Some(writer),
+            false,
         ))?;
         Ok(ready_rx)
     }
@@ -830,6 +850,7 @@ struct CaptureProcessor {
     frame_resampler: FrameResampler,
     max_drain_samples: usize,
     first_chunk_logged: bool,
+    capture_suspended: bool,
 
     // ---- recording-scoped: reset by `begin_recording` ------------------- //
     vad_policy: VadPolicy,
@@ -883,6 +904,7 @@ impl CaptureProcessor {
             frame_resampler,
             max_drain_samples,
             first_chunk_logged: false,
+            capture_suspended: false,
             vad_policy: VadPolicy::Offline,
             target: None,
             awaiting_first_captured_chunk: None,
@@ -899,6 +921,7 @@ impl CaptureProcessor {
         ready_tx: mpsc::Sender<()>,
         writer: Option<WavWriter<std::io::BufWriter<std::fs::File>>>,
     ) {
+        self.capture_suspended = false;
         self.awaiting_first_captured_chunk = Some(Instant::now());
         self.capture_ready_tx = Some(ready_tx);
         self.total_dropped_samples = 0;
@@ -952,6 +975,14 @@ impl CaptureProcessor {
         }
 
         if disposition == ChunkDisposition::Discard {
+            return;
+        }
+
+        if self.capture_suspended {
+            // readiness probes the live microphone, but cue audio is never saved or streamed
+            if let Some(ready_tx) = self.capture_ready_tx.take() {
+                let _ = ready_tx.send(());
+            }
             return;
         }
 
@@ -1074,7 +1105,7 @@ fn run_consumer(
         loop {
             if let Some(cmd) = command.take() {
                 match cmd {
-                    Cmd::Start(policy, sent_at, ready_tx, writer) => {
+                    Cmd::Start(policy, sent_at, ready_tx, writer, suspend_for_feedback) => {
                         log::debug!(
                             "Cmd::Start processed {:?} after send; capture begins with {} samples",
                             sent_at.elapsed(),
@@ -1088,7 +1119,17 @@ fn run_consumer(
                         // was idle; only active-capture loss is relevant.
                         transport.overrun_samples.store(0, Ordering::Release);
                         processor.begin_recording(policy, ready_tx, writer);
+                        processor.capture_suspended = suspend_for_feedback;
                         recording = true;
+                    }
+                    Cmd::ResumeAfterFeedback(reply_tx) => {
+                        if recording && processor.capture_suspended {
+                            // discard queued cue audio before opening the recording boundary
+                            let pending = sample_consumer.slots();
+                            let _ = drain_available_samples(&mut sample_consumer, pending, |_| {});
+                            processor.capture_suspended = false;
+                            let _ = reply_tx.send(());
+                        }
                     }
                     Cmd::Stop(reply_tx) => {
                         processor

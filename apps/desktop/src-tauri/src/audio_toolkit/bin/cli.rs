@@ -113,7 +113,7 @@ impl RecorderState {
                     self.current_device_index = device_index;
                     println!("Opened recorder in Always-On mode");
                 }
-                self.recorder.start(VadPolicy::Offline)?;
+                self.recorder.start(VadPolicy::Offline, false)?;
             }
             RecorderMode::OnDemand => {
                 // In on-demand mode, open for each recording
@@ -123,7 +123,7 @@ impl RecorderState {
                 self.recorder.open(device)?;
                 self.is_open = true;
                 self.current_device_index = device_index;
-                self.recorder.start(VadPolicy::Offline)?;
+                self.recorder.start(VadPolicy::Offline, false)?;
                 println!("Opened and started recorder in On-Demand mode");
             }
         }

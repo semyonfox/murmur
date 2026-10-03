@@ -74,7 +74,7 @@ python3 scripts/verify_workspace.py --write-report
 
 Fetching preserves the locked revisions and refuses to overwrite modified reference checkouts. Verification checks reference revisions, clean trees, source paths, document links, JSON fixtures and calculator tests. It does not run the desktop or upstream applications. Its latest saved report is [verification.json](research/verification.json).
 
-[product.example.json](config/product.example.json) contains proposed product settings and separate stage policies. It does not configure the desktop. The [cleanup fixtures](evals/README.md) contain 23 synthetic cases; the [benchmark](docs/cleanup-benchmark.md) records 230 OpenRouter requests across five models and two prompt versions.
+[product.example.json](config/product.example.json) contains proposed product settings and separate stage policies. It does not configure the desktop. The [cleanup fixtures](evals/README.md) contain 35 synthetic cases; the [benchmark](docs/cleanup-benchmark.md) records 230 OpenRouter requests across five models and two prompt versions.
 
 ## Cost calculator
 
