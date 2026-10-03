@@ -107,6 +107,12 @@ For cloud cleanup, select the provider, enter its key in the cleanup settings an
 
 Cloud cleanup sends the transcript and cleanup prompt to that provider, even when speech recognition runs locally. It has separate credentials and charges from the speech endpoint. If cleanup fails, the pipeline retains the raw transcription as its output. Raw and processed text remain available in history while the entry is retained.
 
+Cleanup treats ellipses caused by thinking pauses as recognition artifacts and chooses ordinary punctuation from the sentence meaning. Explicitly dictated ellipses and clear trailing-off intent remain allowed. Responses marked as truncated by the provider fall back to raw text rather than inserting an incomplete cleanup result.
+
+The cleanup policy asks the model to apply clear spoken corrections to the final stated wording. For example, "send it Tuesday, oh no Thursday, before lunch" becomes "Send it Thursday before lunch." It preserves genuine alternatives, uncertainty and quoted wording.
+
+Before the model runs, cleanup locally resolves an immediately preceding word followed by "spelled" or "spelt" and clear hyphenated ASCII letters or uppercase spaced letters. For example, "my name is Simion, spelt S-E-M-Y-O-N" becomes "my name is Semyon" before sentence cleanup. A comma or dash marks an explicit replacement; without one, the guess must resemble the spelled word. This keeps ordinary phrases such as "John spelled C-A-T for the class" intact for the model. If the model drops or changes an explicit spelling, cleanup returns this prepared text. Quoted or literal transcripts, partial letter sequences and ambiguous spaced endings are left to the model. Semantic corrections still depend on the selected model. The original transcript remains available under the history retention setting; a provider failure retains that original text.
+
 ## Record and insert
 
 The default shortcut behaviour supports both holding and toggling. Hold the shortcut while speaking and release to finish, or tap once to begin and again to finish. Settings also offer dedicated push-to-talk and toggle modes.
@@ -119,6 +125,8 @@ The default shortcut behaviour supports both holding and toggling. Hold the shor
 The dictation shortcut is customisable. Turn cleanup on or off in Transcript cleanup; the same shortcut handles both modes. Older saved cleanup shortcuts are removed on upgrade without changing the main dictation binding. The legacy `--toggle-post-process` CLI flag now acts like `--toggle-transcription` and follows the cleanup setting.
 
 Choose the microphone and insertion behaviour in settings. Allow the operating system's microphone access and any required accessibility/input permissions. Verify insertion in an ordinary text field before depending on it in your daily applications. History provides recovery and copying when automatic insertion fails.
+
+With recording sounds enabled, Murmur warms the microphone while discarding its input, then plays the start cue. Capture opens after playback and a 60 ms settling interval; the ready indicator appears at that point. The stop cue waits until capture, including any configured extra recording buffer, has fully drained. Neither cue is included in saved audio or live recognition input.
 
 ### Linux and Hyprland
 

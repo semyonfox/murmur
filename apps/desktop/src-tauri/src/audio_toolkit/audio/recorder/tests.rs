@@ -119,6 +119,72 @@ fn idle_chunks_are_discarded_without_reaching_the_recording() {
 }
 
 #[test]
+fn start_after_feedback_discards_queued_cue_from_recording_and_stream() {
+    let (mut producer, consumer) = RingBuffer::<f32>::new(16_000);
+    let transport = Arc::new(CaptureTransportState::default());
+    let streamed = Arc::new(Mutex::new(Vec::new()));
+    let streamed_cb = Arc::clone(&streamed);
+    let (cmd_tx, cmd_rx) = mpsc::channel();
+    let (ready_tx, ready_rx) = mpsc::channel();
+    AudioRecorder::write_input_to_ring(&[99.0f32; 480], 1, None, &mut producer, &transport);
+    cmd_tx
+        .send(Cmd::Start(
+            VadPolicy::Disabled,
+            Instant::now(),
+            ready_tx,
+            None,
+            true,
+        ))
+        .unwrap();
+
+    let worker_transport = Arc::clone(&transport);
+    let worker = thread::spawn(move || {
+        run_consumer(
+            CaptureProcessor::new(
+                16_000,
+                None,
+                None,
+                Some(Arc::new(move |samples| {
+                    streamed_cb.lock().unwrap().extend_from_slice(samples);
+                })),
+                Instant::now(),
+            ),
+            consumer,
+            cmd_rx,
+            worker_transport,
+            Arc::new(AtomicBool::new(false)),
+        );
+    });
+
+    ready_rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("microphone warmup");
+    assert!(streamed.lock().unwrap().is_empty());
+    AudioRecorder::write_input_to_ring(&[99.0f32; 480], 1, None, &mut producer, &transport);
+    let (resumed_tx, resumed_rx) = mpsc::channel();
+    cmd_tx.send(Cmd::ResumeAfterFeedback(resumed_tx)).unwrap();
+    resumed_rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("capture after cue");
+    AudioRecorder::write_input_to_ring(&[0.25f32; 480], 1, None, &mut producer, &transport);
+    let (reply_tx, reply_rx) = mpsc::channel();
+    cmd_tx.send(Cmd::Stop(reply_tx)).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while !transport.pause_requested.load(Ordering::Acquire) {
+        assert!(Instant::now() < deadline);
+        thread::sleep(Duration::from_millis(1));
+    }
+    AudioRecorder::write_input_to_ring(&[0.5f32; 480], 1, None, &mut producer, &transport);
+    let samples = memory_samples(reply_rx.recv_timeout(Duration::from_secs(1)).unwrap());
+    assert_eq!(&samples[..480], &[0.25f32; 480]);
+    assert_eq!(&samples[480..960], &[0.5f32; 480]);
+    assert!(!samples.contains(&99.0));
+    assert_eq!(*streamed.lock().unwrap(), samples);
+    cmd_tx.send(Cmd::Shutdown).unwrap();
+    worker.join().unwrap();
+}
+
+#[test]
 fn shutdown_is_processed_without_audio_samples() {
     let (_producer, consumer) = RingBuffer::<f32>::new(48_000);
     let (cmd_tx, cmd_rx) = mpsc::channel();
@@ -316,6 +382,7 @@ fn repeated_start_stop_cycles_resume_capture_without_leaking_samples() {
             Instant::now(),
             ready_tx,
             None,
+            false,
         ))
         .expect("first start");
     AudioRecorder::write_input_to_ring(&first_input, 1, None, &mut producer, &transport);
@@ -357,6 +424,7 @@ fn repeated_start_stop_cycles_resume_capture_without_leaking_samples() {
             Instant::now(),
             ready_tx,
             None,
+            false,
         ))
         .expect("second start");
     AudioRecorder::write_input_to_ring(&second_input, 1, None, &mut producer, &transport);
@@ -424,6 +492,7 @@ fn missing_callback_at_stop_marks_stream_for_rebuild_and_returns_samples() {
             Instant::now(),
             ready_tx,
             None,
+            false,
         ))
         .expect("start");
     let (reply_tx, reply_rx) = mpsc::channel();
