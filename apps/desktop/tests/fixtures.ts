@@ -3,6 +3,7 @@ import type { AppSettings, HistoryEntry, ModelInfo } from "../src/bindings";
 
 declare global {
   interface Window {
+    __murmurEmitEvent: (event: string, payload: unknown) => void;
     __murmurTestCalls: Array<{
       command: string;
       args: Record<string, unknown>;
@@ -55,6 +56,8 @@ interface FixtureOptions {
   confirmDelete?: boolean;
   platform?: "linux" | "windows";
   permissionPollingFailure?: boolean;
+  recordingFailure?: boolean;
+  credentialFailure?: boolean;
 }
 
 export async function installFixture(page: Page, options: FixtureOptions = {}) {
@@ -76,12 +79,17 @@ export async function installFixture(page: Page, options: FixtureOptions = {}) {
     };
     const calls: Array<{ command: string; args: Record<string, unknown> }> = [];
     const callbacks = new Map<number, (event: unknown) => void>();
+    const listeners = new Map<string, Set<number>>();
     let nextCallbackId = 1;
     let openedPrivacySettings = false;
     let history = fixture.history ?? [];
 
     Object.assign(window, {
       __murmurTestCalls: calls,
+      __murmurEmitEvent: (event: string, payload: unknown) => {
+        for (const id of listeners.get(event) ?? [])
+          callbacks.get(id)?.({ event, id, payload });
+      },
       __TAURI_OS_PLUGIN_INTERNALS__: {
         platform: fixture.platform ?? "linux",
         os_type: fixture.platform ?? "linux",
@@ -108,8 +116,17 @@ export async function installFixture(page: Page, options: FixtureOptions = {}) {
         invoke: async (command: string, args: Record<string, unknown> = {}) => {
           calls.push({ command, args });
           switch (command) {
-            case "plugin:event|listen":
+            case "plugin:event|listen": {
+              if (
+                typeof args.event === "string" &&
+                typeof args.handler === "number"
+              ) {
+                const handlers = listeners.get(args.event) ?? new Set<number>();
+                handlers.add(args.handler);
+                listeners.set(args.event, handlers);
+              }
               return args.handler;
+            }
             case "plugin:os|locale":
               return "en-US";
             case "plugin:app|version":
@@ -142,9 +159,14 @@ export async function installFixture(page: Page, options: FixtureOptions = {}) {
             case "check_custom_sounds":
               return { start: false, stop: false };
             case "is_recording":
+              if (fixture.recordingFailure)
+                throw new Error("Synthetic capture unavailable");
+              return false;
             case "is_update_checks_locked":
             case "is_stt_api_key_configured":
             case "is_post_process_api_key_configured":
+              if (fixture.credentialFailure)
+                throw new Error("Synthetic credential unavailable");
               return false;
             case "get_windows_microphone_permission_status":
               if (fixture.permissionPollingFailure && openedPrivacySettings)

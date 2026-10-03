@@ -68,14 +68,16 @@ test.describe("Murmur settings", () => {
     page,
   }) => {
     await expect(
-      page.getByRole("button", { name: "Marimba", exact: true }),
+      page.getByRole("button", { name: /: Marimba$/, exact: false }),
     ).toBeVisible();
     await expect(page.getByText("Play sounds on", { exact: true })).toHaveCount(
       0,
     );
     await expect(page.getByText("Volume", { exact: true })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Marimba", exact: true }).click();
+    await page
+      .getByRole("button", { name: /: Marimba$/, exact: false })
+      .click();
     await page.getByRole("button", { name: "Pop", exact: true }).click();
 
     await expect(page.getByText("Play sounds on", { exact: true })).toHaveCount(
@@ -99,7 +101,7 @@ test.describe("Murmur settings", () => {
       )
       .toEqual(["pop"]);
 
-    await page.getByRole("button", { name: "Pop", exact: true }).click();
+    await page.getByRole("button", { name: /: Pop$/ }).click();
     await page.getByRole("button", { name: "Marimba", exact: true }).click();
 
     await expect(page.getByText("Play sounds on", { exact: true })).toHaveCount(

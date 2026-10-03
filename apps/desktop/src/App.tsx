@@ -29,6 +29,7 @@ import { SettingsNavigationContext } from "./components/settings/navigation";
 import { useSettings } from "./hooks/useSettings";
 import { useSettingsStore } from "./stores/settingsStore";
 import { commands } from "@/bindings";
+import { anonymousTelemetry } from "./lib/anonymousTelemetry";
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
 
 type OnboardingStep = "accessibility" | "model" | "done";
@@ -70,7 +71,9 @@ function App() {
     (state) => state.refreshOutputDevices,
   );
   const hasCompletedPostOnboardingInit = useRef(false);
-  const settingsScrollRef = useRef<HTMLDivElement>(null);
+  const settingsScrollRef = useRef<HTMLElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const countedOpen = useRef(false);
   const isShowingOnboarding =
     onboardingPreview !== null ||
     onboardingStep === "accessibility" ||
@@ -88,7 +91,17 @@ function App() {
   // Reset the scroll position whenever the active section changes.
   useLayoutEffect(() => {
     settingsScrollRef.current?.scrollTo({ top: 0 });
-  }, [currentSection]);
+    if (!document.activeElement?.closest("nav")) headingRef.current?.focus();
+  }, [currentSection, onboardingStep]);
+
+  useEffect(() => {
+    if (onboardingStep !== "done") return;
+    if (!countedOpen.current) {
+      anonymousTelemetry.count("app_open", "app");
+      countedOpen.current = true;
+    }
+    anonymousTelemetry.count("screen_view", "settings");
+  }, [currentSection, onboardingStep]);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -337,7 +350,11 @@ function App() {
 
   // Still checking onboarding status
   if (onboardingStep === null) {
-    return null;
+    return (
+      <main role="status">
+        {t("murmur.app.loading", { defaultValue: "Loading Murmur…" })}
+      </main>
+    );
   }
 
   // Select the content for the current step. The Toaster is rendered once, in a
@@ -373,6 +390,12 @@ function App() {
   } else {
     content = (
       <div dir={direction} className="h-screen flex flex-col cursor-default">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-background focus:p-3"
+        >
+          {t("murmur.app.skip", { defaultValue: "Skip to settings" })}
+        </a>
         {/* Main content area that takes remaining space */}
         <div className="flex-1 flex min-h-0 overflow-hidden max-sm:flex-col">
           <Sidebar
@@ -381,10 +404,21 @@ function App() {
           />
           {/* Scrollable content area */}
           <div className="flex-1 flex min-w-0 flex-col overflow-hidden">
-            <div ref={settingsScrollRef} className="flex-1 overflow-y-auto">
+            <main
+              id="main-content"
+              aria-labelledby="page-heading"
+              tabIndex={-1}
+              ref={settingsScrollRef}
+              className="flex-1 overflow-y-auto"
+            >
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 pt-5 pb-8">
                 <header>
-                  <h1 className="text-lg font-semibold tracking-tight text-text">
+                  <h1
+                    id="page-heading"
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-lg font-semibold tracking-tight text-text"
+                  >
                     {t(SECTIONS_CONFIG[currentSection].labelKey, {
                       defaultValue: SECTIONS_CONFIG[currentSection].label,
                     })}
@@ -401,7 +435,7 @@ function App() {
                   {renderSettingsContent(currentSection, setOnboardingPreview)}
                 </SettingsNavigationContext.Provider>
               </div>
-            </div>
+            </main>
           </div>
         </div>
         {/* Fixed footer at bottom */}

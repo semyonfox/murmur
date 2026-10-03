@@ -50,6 +50,8 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
       >
         <div className="flex items-center space-x-1">
           <Dropdown
+            className="min-w-0 flex-1"
+            label={t("settings.sound.microphone.title")}
             options={microphoneOptions}
             selectedValue={selectedMicrophone}
             onSelect={handleMicrophoneSelect}
@@ -66,6 +68,9 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
             onRefresh={refreshAudioDevices}
           />
           <ResetButton
+            ariaLabel={t("murmur.dictation.resetMicrophone", {
+              defaultValue: "Reset microphone to default",
+            })}
             onClick={handleReset}
             disabled={isUpdating("selected_microphone") || isLoading}
           />

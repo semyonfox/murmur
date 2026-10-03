@@ -305,7 +305,7 @@ test("denied permission keeps system settings reachable while polling", async ({
     platform: "windows",
   });
   await page.goto("/");
-  const settingsButton = page.getByRole("button", { name: /Open.*Settings/ });
+  const settingsButton = page.getByRole("button", { name: /Open.*settings/i });
   await settingsButton.click();
   await expect(
     page.getByText(/Enable microphone access in system settings/),

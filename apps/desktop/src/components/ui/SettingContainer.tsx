@@ -54,7 +54,12 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
   if (layout === "stacked") {
     if (descriptionMode === "tooltip") {
       return (
-        <div className={containerClasses}>
+        <div
+          role="group"
+          aria-label={title}
+          aria-description={description}
+          className={containerClasses}
+        >
           <div className="flex items-center gap-2 mb-2">
             <h3
               className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}
@@ -69,11 +74,11 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
               onClick={toggleTooltip}
             >
               <svg
-                className="w-4 h-4 text-mid-gray cursor-help hover:text-logo-primary transition-colors duration-200 select-none"
+                className="min-w-6 min-h-6 text-mid-gray cursor-help hover:text-logo-primary transition-colors duration-200 select-none"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                aria-label="More information"
+                aria-label={`More information: ${title}`}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
@@ -105,7 +110,12 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
     }
 
     return (
-      <div className={containerClasses}>
+      <div
+        role="group"
+        aria-label={title}
+        aria-description={description}
+        className={containerClasses}
+      >
         <div className="mb-2">
           <h3 className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}>
             {title}
@@ -126,8 +136,13 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
 
   if (descriptionMode === "tooltip") {
     return (
-      <div className={horizontalContainerClasses}>
-        <div className="max-w-2/3 max-sm:max-w-full">
+      <div
+        role="group"
+        aria-label={title}
+        aria-description={description}
+        className={horizontalContainerClasses}
+      >
+        <div className="min-w-0 max-w-2/3 max-sm:max-w-full break-words">
           <div className="flex items-center gap-2">
             <h3
               className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}
@@ -142,11 +157,11 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
               onClick={toggleTooltip}
             >
               <svg
-                className="w-4 h-4 text-mid-gray cursor-help hover:text-logo-primary transition-colors duration-200 select-none"
+                className="min-w-6 min-h-6 text-mid-gray cursor-help hover:text-logo-primary transition-colors duration-200 select-none"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                aria-label="More information"
+                aria-label={`More information: ${title}`}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
@@ -173,14 +188,19 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
             </div>
           </div>
         </div>
-        <div className="relative">{children}</div>
+        <div className="relative min-w-0">{children}</div>
       </div>
     );
   }
 
   return (
-    <div className={horizontalContainerClasses}>
-      <div className="max-w-2/3 max-sm:max-w-full">
+    <div
+      role="group"
+      aria-label={title}
+      aria-description={description}
+      className={horizontalContainerClasses}
+    >
+      <div className="min-w-0 max-w-2/3 max-sm:max-w-full break-words">
         <h3 className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}>
           {title}
         </h3>
@@ -188,7 +208,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
           {description}
         </p>
       </div>
-      <div className="relative">{children}</div>
+      <div className="relative min-w-0">{children}</div>
     </div>
   );
 };

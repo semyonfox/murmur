@@ -13,6 +13,7 @@ import {
 import { ask, save } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { anonymousTelemetry } from "@/lib/anonymousTelemetry";
 import {
   commands,
   events,
@@ -96,7 +97,8 @@ export const HistorySettings: React.FC = () => {
     const isFirstPage = cursor === undefined;
     if (loadingRef.current) return;
     loadingRef.current = true;
-    setLoadError(false);
+    const restoringFocus =
+      document.activeElement?.hasAttribute("data-history-retry");
 
     if (isFirstPage) setLoading(true);
 
@@ -111,12 +113,19 @@ export const HistorySettings: React.FC = () => {
           isFirstPage ? newEntries : [...prev, ...newEntries],
         );
         setHasMore(has_more);
+        setLoadError(false);
+        if (restoringFocus)
+          requestAnimationFrame(() =>
+            document.getElementById("page-heading")?.focus(),
+          );
       } else {
         setLoadError(true);
+        anonymousTelemetry.error("storage_failed", "settings");
       }
     } catch (error) {
       console.error("Failed to load history entries:", error);
       setLoadError(true);
+      anonymousTelemetry.error("storage_failed", "settings");
     } finally {
       setLoading(false);
       loadingRef.current = false;
@@ -180,6 +189,12 @@ export const HistorySettings: React.FC = () => {
     try {
       const result = await commands.toggleHistoryEntrySaved(id);
       if (result.status !== "ok") {
+        toast.error(
+          t("murmur.history.saveError", {
+            defaultValue:
+              "Could not change whether this dictation is kept. Try again.",
+          }),
+        );
         // Revert on failure
         setEntries((prev) =>
           prev.map((e) => (e.id === id ? { ...e, saved: !e.saved } : e)),
@@ -187,6 +202,12 @@ export const HistorySettings: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to toggle saved status:", error);
+      toast.error(
+        t("murmur.history.saveError", {
+          defaultValue:
+            "Could not change whether this dictation is kept. Try again.",
+        }),
+      );
       // Revert on failure
       setEntries((prev) =>
         prev.map((e) => (e.id === id ? { ...e, saved: !e.saved } : e)),
@@ -236,6 +257,12 @@ export const HistorySettings: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to open recordings folder:", error);
+      toast.error(
+        t("murmur.history.folderError", {
+          defaultValue:
+            "Could not open the recordings folder. Your transcripts are still available here.",
+        }),
+      );
     }
   };
 
@@ -346,6 +373,8 @@ export const HistorySettings: React.FC = () => {
               <Button
                 variant="secondary"
                 size="sm"
+                data-history-retry
+                aria-busy={loading}
                 onClick={() =>
                   void loadPage(
                     entries.length ? entries[entries.length - 1].id : undefined,
@@ -442,6 +471,9 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
     [getAudioUrl, entry.file_name],
   );
 
+  const [actionStatus, setActionStatus] = useState("");
+  const confirmationPending = useRef(false);
+
   const handleCopyText = async () => {
     if (!hasTranscription) {
       return;
@@ -453,13 +485,23 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
       return;
     }
 
+    setActionStatus(
+      t("murmur.history.copied", {
+        defaultValue: "Copied displayed transcript.",
+      }),
+    );
     setShowCopied(true);
     setTimeout(() => setShowCopied(false), 2000);
   };
 
   const handleDeleteEntry = async () => {
+    if (confirmationPending.current) return;
+    confirmationPending.current = true;
+    const previousFocus =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     try {
-      setDeleting(true);
       const confirmed = await ask(
         t("murmur.history.deleteMessage", {
           defaultValue:
@@ -475,21 +517,40 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         },
       );
       if (!confirmed) return;
+      setDeleting(true);
       await deleteAudio(entry.id);
     } catch (error) {
       console.error("Failed to delete entry:", error);
       toast.error(t("settings.history.deleteError"));
     } finally {
       setDeleting(false);
+      confirmationPending.current = false;
+      requestAnimationFrame(() => {
+        if (previousFocus?.isConnected) previousFocus.focus();
+        else
+          (
+            document.querySelector<HTMLButtonElement>(
+              "[data-history-entry] button",
+            ) ?? document.getElementById("page-heading")
+          )?.focus();
+      });
     }
   };
 
   const handleRetranscribe = async () => {
     try {
       setRetrying(true);
+      setActionStatus(t("settings.history.transcribing"));
       await retryTranscription(entry.id);
+      setActionStatus(
+        t("murmur.history.retryFinished", {
+          defaultValue:
+            "Transcription request finished. Check this entry for the result.",
+        }),
+      );
     } catch (error) {
       console.error("Failed to re-transcribe:", error);
+      setActionStatus(t("settings.history.retranscribeError"));
       toast.error(t("settings.history.retranscribeError"));
     } finally {
       setRetrying(false);
@@ -499,7 +560,10 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const formattedDate = formatDateTime(String(entry.timestamp), i18n.language);
 
   return (
-    <div className="px-4 py-2 pb-5 flex flex-col gap-3">
+    <div data-history-entry className="px-4 py-2 pb-5 flex flex-col gap-3">
+      <p role="status" className="sr-only">
+        {actionStatus}
+      </p>
       <div className="flex flex-wrap gap-2 justify-between items-center">
         <p className="text-sm font-medium">{formattedDate}</p>
         <div className="flex items-center">
