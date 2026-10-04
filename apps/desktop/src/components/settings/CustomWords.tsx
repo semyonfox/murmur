@@ -20,8 +20,12 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
     const { getSetting, isLoading, isUpdating, refreshSettings } =
       useSettings();
     const [newWord, setNewWord] = useState("");
+    const [search, setSearch] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const customWords = getSetting("custom_words") || [];
+    const visibleWords = customWords.filter((word) =>
+      word.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
+    );
     const normalizedWord = normalizeCustomWord(newWord);
     const isDictionaryUpdating =
       isLoading || isSaving || isUpdating("custom_words");
@@ -121,41 +125,64 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
         </SettingContainer>
         {customWords.length > 0 && (
           <div
-            className={`px-4 p-2 ${grouped ? "" : "rounded-lg border border-mid-gray/20"} flex flex-wrap gap-1`}
+            className={`px-4 p-3 ${grouped ? "" : "rounded-lg border border-mid-gray/20"} space-y-3`}
           >
-            <p className="w-full pb-1 text-xs text-mid-gray">
+            <Input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t("murmur.dictionary.search", {
+                defaultValue: "Search saved words",
+              })}
+              aria-label={t("murmur.dictionary.search", {
+                defaultValue: "Search saved words",
+              })}
+              variant="compact"
+            />
+            <p className="text-xs text-mid-gray">
               {t("murmur.dictionary.count", {
                 count: customWords.length,
                 defaultValue: "{{count}} terms saved",
               })}
             </p>
-            {customWords.map((word) => (
-              <Button
-                key={word}
-                onClick={() => void handleRemoveWord(word)}
-                disabled={isDictionaryUpdating}
-                variant="secondary"
-                size="sm"
-                className="inline-flex items-center gap-1 cursor-pointer"
-                aria-label={t("settings.advanced.customWords.remove", { word })}
-              >
-                <span>{word}</span>
-                <svg
-                  className="w-3 h-3"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
+            <div className="flex flex-wrap gap-1.5">
+              {visibleWords.map((word) => (
+                <Button
+                  key={word}
+                  onClick={() => void handleRemoveWord(word)}
+                  disabled={isDictionaryUpdating}
+                  variant="secondary"
+                  size="sm"
+                  className="inline-flex items-center gap-1 cursor-pointer"
+                  aria-label={t("settings.advanced.customWords.remove", {
+                    word,
+                  })}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </Button>
-            ))}
+                  <span>{word}</span>
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </Button>
+              ))}
+              {visibleWords.length === 0 && (
+                <p className="py-2 text-sm text-mid-gray">
+                  {t("murmur.dictionary.noMatches", {
+                    defaultValue: "No matching words.",
+                  })}
+                </p>
+              )}
+            </div>
           </div>
         )}
       </>

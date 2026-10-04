@@ -10,16 +10,19 @@ import { useModelStore } from "../../stores/modelStore";
 
 interface OnboardingProps {
   onModelSelected: () => void;
+  onConfigureEndpoint: () => void;
   preview?: boolean;
 }
 
 const Onboarding: React.FC<OnboardingProps> = ({
   onModelSelected,
+  onConfigureEndpoint,
   preview = false,
 }) => {
   const { t } = useTranslation();
   const {
     models,
+    initialized,
     downloadModel,
     selectModel,
     downloadingModels,
@@ -168,8 +171,36 @@ const Onboarding: React.FC<OnboardingProps> = ({
         </p>
       </div>
 
+      <button
+        type="button"
+        disabled={isBusy}
+        onClick={() => {
+          if (!preview) onConfigureEndpoint();
+        }}
+        className="w-full max-w-[600px] mx-auto rounded-xl border border-mid-gray/30 px-4 py-3 text-left hover:bg-mid-gray/10 disabled:opacity-50 cursor-pointer"
+      >
+        <span className="block text-sm font-medium text-text">
+          {t("onboarding.configureEndpoint", {
+            defaultValue: "Use a speech endpoint",
+          })}
+        </span>
+        <span className="block text-xs text-mid-gray mt-1">
+          {t("onboarding.configureEndpointDescription", {
+            defaultValue:
+              "Configure an online provider or a server you run in Models.",
+          })}
+        </span>
+      </button>
+
       <div className="max-w-[600px] w-full mx-auto text-center flex-1 flex flex-col min-h-0">
         <div className="space-y-6 pb-6">
+          {initialized && models.length === 0 && (
+            <p className="rounded-xl border border-mid-gray/20 px-4 py-6 text-sm text-mid-gray">
+              {t("onboarding.noModels", {
+                defaultValue: "No downloadable models are listed right now.",
+              })}
+            </p>
+          )}
           {models.some((m: ModelInfo) => m.is_downloaded) && (
             <div className="space-y-3">
               <div className="text-left">

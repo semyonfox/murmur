@@ -316,13 +316,15 @@ function App() {
         return;
       }
     }
-    // The main app offers local models and existing speech endpoints. Requiring
-    // a download here would block users who already run a speech server.
-    setOnboardingStep("done");
+    setOnboardingStep(isReturningUser ? "done" : "model");
   };
 
   const handleModelSelected = () => {
-    // Transition to main app - user has started a download
+    setOnboardingStep("done");
+  };
+
+  const handleEndpointSelected = () => {
+    setCurrentSection("models");
     setOnboardingStep("done");
   };
 
@@ -370,7 +372,11 @@ function App() {
         {onboardingPreview === "accessibility" ? (
           <AccessibilityOnboarding onComplete={NOOP} preview />
         ) : (
-          <Onboarding onModelSelected={NOOP} preview />
+          <Onboarding
+            onModelSelected={NOOP}
+            onConfigureEndpoint={NOOP}
+            preview
+          />
         )}
         <button
           type="button"
@@ -386,7 +392,12 @@ function App() {
       <AccessibilityOnboarding onComplete={handleAccessibilityComplete} />
     );
   } else if (onboardingStep === "model") {
-    content = <Onboarding onModelSelected={handleModelSelected} />;
+    content = (
+      <Onboarding
+        onModelSelected={handleModelSelected}
+        onConfigureEndpoint={handleEndpointSelected}
+      />
+    );
   } else {
     content = (
       <div dir={direction} className="h-screen flex flex-col cursor-default">

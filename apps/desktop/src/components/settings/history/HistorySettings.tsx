@@ -21,7 +21,7 @@ import {
   type HistoryUpdatePayload,
 } from "@/bindings";
 import { useOsType } from "@/hooks/useOsType";
-import { formatDateTime } from "@/utils/dateFormat";
+import { formatDate, formatDateTime } from "@/utils/dateFormat";
 import { AudioPlayer, AudioPlayerGroup } from "../../ui/AudioPlayer";
 import { Button } from "../../ui/Button";
 import { copyToClipboard } from "./clipboard";
@@ -76,7 +76,7 @@ const OpenRecordingsButton: React.FC<OpenRecordingsButtonProps> = ({
 );
 
 export const HistorySettings: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { getSetting } = useSettings();
   const osType = useOsType();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
@@ -326,18 +326,33 @@ export const HistorySettings: React.FC = () => {
     content = (
       <>
         <AudioPlayerGroup>
-          <div className="divide-y divide-mid-gray/20">
-            {entries.map((entry) => (
-              <HistoryEntryComponent
-                key={entry.id}
-                entry={entry}
-                onToggleSaved={() => toggleSaved(entry.id)}
-                onCopyText={copyToClipboard}
-                getAudioUrl={getAudioUrl}
-                deleteAudio={deleteAudioEntry}
-                retryTranscription={retryHistoryEntry}
-              />
-            ))}
+          <div>
+            {entries.map((entry, index) => {
+              const day = new Date(entry.timestamp * 1000).toDateString();
+              const previousDay =
+                index > 0
+                  ? new Date(entries[index - 1].timestamp * 1000).toDateString()
+                  : null;
+              return (
+                <React.Fragment key={entry.id}>
+                  {day !== previousDay && (
+                    <h3 className="border-y border-mid-gray/15 bg-mid-gray/5 px-4 py-2 text-sm font-semibold text-text first:border-t-0">
+                      {formatDate(String(entry.timestamp), i18n.language)}
+                    </h3>
+                  )}
+                  <div className="border-b border-mid-gray/15 last:border-b-0">
+                    <HistoryEntryComponent
+                      entry={entry}
+                      onToggleSaved={() => toggleSaved(entry.id)}
+                      onCopyText={copyToClipboard}
+                      getAudioUrl={getAudioUrl}
+                      deleteAudio={deleteAudioEntry}
+                      retryTranscription={retryHistoryEntry}
+                    />
+                  </div>
+                </React.Fragment>
+              );
+            })}
           </div>
         </AudioPlayerGroup>
         {/* Sentinel for infinite scroll */}

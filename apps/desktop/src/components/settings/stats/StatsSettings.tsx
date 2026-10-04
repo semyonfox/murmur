@@ -68,6 +68,14 @@ export const StatsSettings: React.FC = () => {
   const [error, setError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const statsRequestRef = useRef(0);
+  const metricTrackRef = useRef<HTMLDivElement>(null);
+  const metricDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    scrollLeft: number;
+  } | null>(null);
+  const [activeMetric, setActiveMetric] = useState(0);
+  const [isDraggingMetric, setIsDraggingMetric] = useState(false);
 
   const loadStats = useCallback(async () => {
     const request = ++statsRequestRef.current;
@@ -131,6 +139,105 @@ export const StatsSettings: React.FC = () => {
           maximumFractionDigits: 0,
           signDisplay: trend === 0 ? "auto" : "always",
         }).format(trend / 100);
+  const metricCards = stats
+    ? [
+        {
+          label: t("murmur.history.stats.totalWords", {
+            defaultValue: "Retained words",
+          }),
+          value: number.format(stats.total_words),
+          description: t("murmur.stats.totalWordsDescription", {
+            defaultValue: "Words in saved dictations",
+          }),
+        },
+        {
+          label: t("murmur.history.stats.thisWeek", {
+            defaultValue: "This week",
+          }),
+          value: number.format(stats.this_week_words),
+          description: t("murmur.stats.thisWeekDescription", {
+            defaultValue: "Words saved since Monday",
+          }),
+        },
+        {
+          label: t("murmur.history.stats.recordedPace", {
+            defaultValue: "Recorded pace",
+          }),
+          value:
+            stats.recorded_wpm == null
+              ? "—"
+              : `${number.format(Math.round(stats.recorded_wpm))} ${t("murmur.history.stats.wpm", { defaultValue: "wpm" })}`,
+          description: t("murmur.stats.recordedDescription", {
+            defaultValue: "From recordings with duration",
+          }),
+          unavailable: !hasAudio,
+        },
+        {
+          label: t("murmur.stats.recordedMinutes", {
+            defaultValue: "Recorded minutes",
+          }),
+          value: hasAudio
+            ? `${new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format(stats.recording_seconds / 60)} ${t("murmur.history.stats.minutes", { defaultValue: "min" })}`
+            : "—",
+          description: t("murmur.stats.recordedDescription", {
+            defaultValue: "From recordings with duration",
+          }),
+          unavailable: !hasAudio,
+        },
+      ]
+    : [];
+
+  const selectMetric = (index: number) => {
+    const next = Math.max(0, Math.min(metricCards.length - 1, index));
+    const track = metricTrackRef.current;
+    const card = track?.children.item(next);
+    if (!track || !(card instanceof HTMLElement)) return;
+    const inset = Number.parseFloat(getComputedStyle(track).paddingLeft);
+    track.scrollTo({
+      left:
+        track.scrollLeft +
+        card.getBoundingClientRect().left -
+        track.getBoundingClientRect().left -
+        inset,
+      behavior: "instant",
+    });
+    setActiveMetric(next);
+  };
+
+  const syncMetric = () => {
+    const track = metricTrackRef.current;
+    if (!track) return;
+    const center = track.getBoundingClientRect().left + track.clientWidth / 2;
+    const cards = Array.from(track.children).filter(
+      (child): child is HTMLElement => child instanceof HTMLElement,
+    );
+    if (cards.length === 0) return;
+    const closest = cards.reduce(
+      (best, card, index) =>
+        Math.abs(
+          card.getBoundingClientRect().left + card.clientWidth / 2 - center,
+        ) <
+        Math.abs(
+          cards[best].getBoundingClientRect().left +
+            cards[best].clientWidth / 2 -
+            center,
+        )
+          ? index
+          : best,
+      0,
+    );
+    setActiveMetric(closest);
+  };
+
+  const finishMetricDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (metricDragRef.current?.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    event.currentTarget.style.scrollSnapType = "";
+    metricDragRef.current = null;
+    setIsDraggingMetric(false);
+  };
 
   return (
     <div className="w-full space-y-6">
@@ -219,50 +326,88 @@ export const StatsSettings: React.FC = () => {
 
         {stats && (
           <>
-            <div className="grid grid-cols-2 divide-x divide-y divide-mid-gray/15 sm:grid-cols-4 sm:divide-y-0">
-              <StatCard
-                label={t("murmur.history.stats.totalWords", {
-                  defaultValue: "Retained words",
+            <div className="border-b border-mid-gray/20 py-4">
+              <div className="px-4 pb-3 sm:px-5">
+                <p aria-live="polite" className="sr-only">
+                  {t("murmur.stats.position", {
+                    current: activeMetric + 1,
+                    total: metricCards.length,
+                    defaultValue: "Stat {{current}} of {{total}}",
+                  })}
+                </p>
+                <p className="text-xs text-mid-gray">
+                  {t("murmur.stats.swipeHint", {
+                    defaultValue: "Drag or swipe to browse",
+                  })}
+                </p>
+              </div>
+              <div
+                ref={metricTrackRef}
+                role="region"
+                aria-roledescription="carousel"
+                onScroll={syncMetric}
+                onPointerDown={(event) => {
+                  if (event.pointerType !== "mouse" || event.button !== 0)
+                    return;
+                  metricDragRef.current = {
+                    pointerId: event.pointerId,
+                    startX: event.clientX,
+                    scrollLeft: event.currentTarget.scrollLeft,
+                  };
+                  event.currentTarget.style.scrollSnapType = "none";
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                }}
+                onPointerMove={(event) => {
+                  const drag = metricDragRef.current;
+                  if (drag?.pointerId !== event.pointerId) return;
+                  if (Math.abs(event.clientX - drag.startX) > 3) {
+                    setIsDraggingMetric(true);
+                  }
+                  event.currentTarget.scrollLeft =
+                    drag.scrollLeft + drag.startX - event.clientX;
+                }}
+                onPointerUp={finishMetricDrag}
+                onPointerCancel={finishMetricDrag}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    selectMetric(
+                      activeMetric + (event.key === "ArrowRight" ? 1 : -1),
+                    );
+                  }
+                }}
+                tabIndex={0}
+                aria-label={t("murmur.stats.metricCards", {
+                  defaultValue: "Dictation stat cards",
                 })}
-                value={number.format(stats.total_words)}
-              />
-              <StatCard
-                label={t("murmur.history.stats.thisWeek", {
-                  defaultValue: "This week",
-                })}
-                value={number.format(stats.this_week_words)}
-              />
-              <StatCard
-                label={t("murmur.history.stats.recordedPace", {
-                  defaultValue: "Recorded pace",
-                })}
-                value={
-                  stats.recorded_wpm == null
-                    ? "—"
-                    : `${number.format(Math.round(stats.recorded_wpm))} ${t("murmur.history.stats.wpm", { defaultValue: "wpm" })}`
-                }
-                unavailable={!hasAudio}
-                unavailableLabel={t("murmur.stats.noAudioShort", {
-                  defaultValue: "No retained audio",
-                })}
-              />
-              <StatCard
-                label={t("murmur.stats.recordedMinutes", {
-                  defaultValue: "Recorded minutes",
-                })}
-                value={
-                  hasAudio
-                    ? `${new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format(stats.recording_seconds / 60)} ${t("murmur.history.stats.minutes", { defaultValue: "min" })}`
-                    : "—"
-                }
-                unavailable={!hasAudio}
-                unavailableLabel={t("murmur.stats.noAudioShort", {
-                  defaultValue: "No retained audio",
-                })}
-              />
+                className={`flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 select-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-logo-primary [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:scroll-px-5 sm:px-5 ${isDraggingMetric ? "cursor-grabbing" : "cursor-grab"}`}
+              >
+                {metricCards.map((metric) => (
+                  <StatCard
+                    key={metric.label}
+                    {...metric}
+                    unavailableLabel={t("murmur.stats.noAudioShort", {
+                      defaultValue: "No retained audio",
+                    })}
+                  />
+                ))}
+              </div>
+              <div
+                className="mt-3 flex items-center justify-center gap-2"
+                aria-hidden="true"
+              >
+                {metricCards.map((metric, index) => (
+                  <span
+                    key={metric.label}
+                    data-stat-dot={index}
+                    data-active={index === activeMetric}
+                    className={`size-2 rounded-full transition-colors ${index === activeMetric ? "bg-logo-primary" : "bg-mid-gray/45"}`}
+                  />
+                ))}
+              </div>
             </div>
 
-            <div className="border-t border-mid-gray/20 px-4 pb-4 pt-4 sm:px-5">
+            <div className="px-4 pb-4 pt-4 sm:px-5">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h3 className="text-sm font-medium text-text">
                   {t("murmur.history.stats.weeklyWords", {
@@ -388,6 +533,7 @@ export const StatsSettings: React.FC = () => {
 interface StatCardProps {
   label: string;
   value: string;
+  description: string;
   unavailable?: boolean;
   unavailableLabel?: string;
 }
@@ -395,14 +541,16 @@ interface StatCardProps {
 const StatCard: React.FC<StatCardProps> = ({
   label,
   value,
+  description,
   unavailable,
   unavailableLabel,
 }) => (
-  <div className="px-4 py-4 sm:px-5">
-    <p className="text-xs text-mid-gray">{label}</p>
-    <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-text">
+  <div className="flex min-h-36 w-[78%] shrink-0 snap-start flex-col rounded-2xl border border-mid-gray/20 bg-mid-gray/5 px-5 py-4">
+    <p className="text-xs font-semibold text-logo-primary">{label}</p>
+    <p className="mt-3 font-serif text-3xl tracking-tight tabular-nums text-text">
       {value}
     </p>
+    <p className="mt-2 text-xs text-mid-gray">{description}</p>
     {unavailable && unavailableLabel && (
       <p className="mt-1 text-[11px] leading-tight text-mid-gray">
         {unavailableLabel}
