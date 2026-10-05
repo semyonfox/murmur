@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export interface DropdownOption {
@@ -17,6 +17,7 @@ interface DropdownProps {
   placeholder?: string;
   disabled?: boolean;
   onRefresh?: () => void;
+  label?: string;
 }
 
 export const Dropdown: React.FC<DropdownProps> = ({
@@ -28,10 +29,13 @@ export const Dropdown: React.FC<DropdownProps> = ({
   placeholder = "Select an option...",
   disabled = false,
   onRefresh,
+  label,
 }) => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -53,6 +57,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
   const handleSelect = (value: string) => {
     onSelect(value);
     setIsOpen(false);
+    triggerRef.current?.focus();
   };
 
   const handleToggle = () => {
@@ -62,10 +67,33 @@ export const Dropdown: React.FC<DropdownProps> = ({
   };
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
+    <div
+      className={`relative ${className}`}
+      ref={dropdownRef}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && isOpen) {
+          event.preventDefault();
+          event.stopPropagation();
+          setIsOpen(false);
+          triggerRef.current?.focus();
+        }
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setIsOpen(false);
+      }}
+    >
       <button
         type="button"
-        className={`px-2.5 py-[5px] text-sm bg-background border border-mid-gray/30 rounded-lg min-w-[200px] w-full text-start grid grid-cols-[1fr_auto] gap-2 items-center transition-all duration-150 ${
+        ref={triggerRef}
+        aria-label={
+          label
+            ? `${label}: ${selectedOption?.label || placeholder}`
+            : undefined
+        }
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? menuId : undefined}
+        className={`px-2.5 py-[5px] text-sm bg-background border border-mid-gray/30 rounded-lg min-w-[200px] max-sm:min-w-0 w-full text-start grid grid-cols-[1fr_auto] gap-2 items-center transition-all duration-150 ${
           disabled
             ? "opacity-50 cursor-not-allowed"
             : "cursor-pointer hover:border-mid-gray/50"
@@ -90,6 +118,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
       </button>
       {isOpen && !disabled && (
         <div
+          id={menuId}
           className={`absolute top-full mt-1 bg-surface border border-mid-gray/25 rounded-lg shadow-lg z-50 py-1 max-h-60 overflow-y-auto ${
             menuClassName ?? "left-0 right-0"
           }`}
@@ -112,6 +141,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
                 } ${option.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
                 onClick={() => handleSelect(option.value)}
                 disabled={option.disabled}
+                aria-pressed={selectedValue === option.value}
               >
                 <span
                   className={`block whitespace-normal break-words ${

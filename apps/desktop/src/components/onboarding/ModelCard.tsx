@@ -98,7 +98,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
   const isFeatured = variant === "featured";
   // The active model is already loaded — re-selecting it just reloads it for no
   // gain, so it is deliberately not clickable.
-  const isClickable = status === "available" || status === "downloadable";
+  const isClickable = status === "available";
 
   // Get translated model name and description
   const displayName = getTranslatedModelName(model, t);
@@ -132,11 +132,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
 
   const handleClick = () => {
     if (!isClickable || disabled) return;
-    if (status === "downloadable" && onDownload) {
-      onDownload(model.id);
-    } else {
-      onSelect(model.id);
-    }
+    onSelect(model.id);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -148,9 +144,17 @@ const ModelCard: React.FC<ModelCardProps> = ({
     <div
       onClick={handleClick}
       onKeyDown={(e) => {
-        if (e.key === "Enter" && isClickable) handleClick();
+        if (
+          e.target === e.currentTarget &&
+          (e.key === "Enter" || e.key === " ") &&
+          isClickable
+        ) {
+          e.preventDefault();
+          handleClick();
+        }
       }}
       role={isClickable ? "button" : undefined}
+      aria-disabled={isClickable ? disabled : undefined}
       tabIndex={isClickable ? 0 : undefined}
       className={[
         baseClasses,
@@ -273,6 +277,22 @@ const ModelCard: React.FC<ModelCardProps> = ({
               <span className="text-text/40">{quantLabel}</span>
             )}
           </span>
+        )}
+        {status === "downloadable" && onDownload && (
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={disabled}
+            aria-label={t("murmur.models.downloadNamed", {
+              model: displayName,
+              defaultValue: "Download {{model}}",
+            })}
+            onClick={() => onDownload(model.id)}
+            className="inline-flex items-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" aria-hidden="true" />
+            {t("common.download", { defaultValue: "Download" })}
+          </Button>
         )}
         {onDelete && (status === "available" || status === "active") && (
           <Button

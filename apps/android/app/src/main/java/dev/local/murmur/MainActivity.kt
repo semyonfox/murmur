@@ -9,6 +9,7 @@ import android.content.ComponentName
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.core.view.ViewCompat
 import android.content.Intent
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
@@ -51,6 +52,7 @@ import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.core.content.ContextCompat
 import android.util.JsonWriter
@@ -111,6 +113,7 @@ class MainActivity : Activity() {
     private lateinit var feedbackView: TextView
     private lateinit var statusTitle: TextView
     private lateinit var statusDetail: TextView
+    private lateinit var readyFeedback: TextView
     private lateinit var heroButton: Button
     private lateinit var updateStatus: TextView
     private lateinit var updateButton: Button
@@ -194,6 +197,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settings = AppSettings(this)
+        AnonymousTelemetry.open(this)
         currentPage = savedInstanceState?.getString("page")?.let { saved ->
             Page.entries.firstOrNull { it.name == saved }
         } ?: Page.HOME
@@ -259,7 +263,7 @@ class MainActivity : Activity() {
         scroll.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> scheduleDockBlur() }
         pageContent.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> scheduleDockBlur() }
 
-        pageTitle = text("", 28f, R.color.murmur_text, bold = true)
+        pageTitle = text("", 28f, R.color.murmur_text, bold = true).apply { ViewCompat.setAccessibilityHeading(this, true) }
         pageDescription = text("", 13f, R.color.murmur_muted).apply { setPadding(0, dp(2), 0, dp(16)) }
         pageContent.addView(pageTitle)
         pageContent.addView(pageDescription)
@@ -272,6 +276,7 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 minimumHeight = dp(56)
+                isFocusable = true
                 contentDescription = "${page.label} section"
                 setOnClickListener { showPage(page) }
             }
@@ -422,6 +427,12 @@ class MainActivity : Activity() {
         status.addView(statusTitle)
         status.addView(statusDetail)
         status.addView(heroButton)
+        readyFeedback = text("", 13f, R.color.murmur_muted).apply {
+            setPadding(0, dp(8), 0, 0)
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            visibility = View.GONE
+        }
+        status.addView(readyFeedback)
         home.addView(status, 1)
 
         home.addView(groupTitle("Activity"))
@@ -497,6 +508,16 @@ class MainActivity : Activity() {
         speechLanguageInput = input(settings.speechLanguage, "auto, en, fr…", InputType.TYPE_CLASS_TEXT)
         speechCard.addView(speechLanguageInput)
         speechCard.addView(text("Use auto to detect the language. A language code also applies to the selected online service when supported.", 12f, R.color.murmur_muted))
+        speechCard.addView(button("Save language", primary = false) {
+            try {
+                settings.speechLanguage = speechLanguageInput.text.toString()
+                speechLanguageInput.setText(settings.speechLanguage)
+                speechLanguageInput.error = null
+                Toast.makeText(this, "Recognition language saved.", Toast.LENGTH_SHORT).show()
+            } catch (error: IllegalArgumentException) {
+                speechLanguageInput.error = error.message
+            }
+        })
         translateSwitch = Switch(this).apply {
             text = "Translate speech to English"
             textSize = 15f
@@ -532,7 +553,7 @@ class MainActivity : Activity() {
                 setPadding(dp(14), 0, dp(14), 0)
             }
             presetButtons += chip to preset
-            presets.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)).apply {
+            presets.addView(chip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)).apply {
                 bottomMargin = dp(6)
             })
         }
@@ -561,7 +582,7 @@ class MainActivity : Activity() {
         keyLine.addView(removeKeyButton)
         onlineSettings.addView(keyLine)
         onlineSettings.addView(button("Save", primary = true) { save() })
-        feedbackView = text("", 13f, R.color.murmur_muted).apply { setPadding(0, dp(8), 0, 0) }
+        feedbackView = text("", 13f, R.color.murmur_muted).apply { accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE; setPadding(0, dp(8), 0, 0) }
         onlineSettings.addView(feedbackView)
         onlineSettings.addView(text("HTTPS is required, except for a server on this phone. The key is encrypted with Android Keystore.", 12f, R.color.murmur_muted).apply {
             setPadding(0, dp(4), 0, 0)
@@ -674,7 +695,7 @@ class MainActivity : Activity() {
             refreshStatus()
         }
         cleanupCard.addView(cleanupRemoveKeyButton)
-        cleanupFeedback = text("", 13f, R.color.murmur_muted).apply { setPadding(0, dp(8), 0, 0) }
+        cleanupFeedback = text("", 13f, R.color.murmur_muted).apply { accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE; setPadding(0, dp(8), 0, 0) }
         cleanupCard.addView(cleanupFeedback)
         cleanupCard.addView(text("An online cleanup service may charge separately. A local server must run on this phone; localhost is not your computer.", 12f, R.color.murmur_muted).apply {
             setPadding(0, dp(8), 0, 0)
@@ -705,7 +726,7 @@ class MainActivity : Activity() {
         lectureCard.addView(text("Record a lecture or import audio. Murmur transcribes it with your selected downloaded model or endpoint. An online endpoint may charge for each part.", 12f, R.color.murmur_muted).apply {
             setPadding(0, dp(6), 0, dp(8))
         })
-        lectureStatus = text("", 13f, R.color.murmur_muted)
+        lectureStatus = text("", 13f, R.color.murmur_muted).apply { accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
         lectureCard.addView(lectureStatus)
         val lectureActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         lectureRecordButton = button("Record lecture", primary = true) { onLectureRecord() }
@@ -758,7 +779,7 @@ class MainActivity : Activity() {
                 putExtra(Intent.EXTRA_TITLE, "murmur-history.json")
             }, HISTORY_EXPORT_REQUEST)
         })
-        historyFeedback = text("", 12f, R.color.murmur_muted)
+        historyFeedback = text("", 12f, R.color.murmur_muted).apply { accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
         transcript.addView(historyFeedback)
         transcript.addView(groupTitle("Past dictations"))
         historyList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -812,6 +833,24 @@ class MainActivity : Activity() {
             12f, R.color.murmur_muted,
         ))
         inputPage.addView(noiseCard)
+        inputPage.addView(groupTitle("Anonymous usage and errors"))
+        val reporting = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        reporting.addView(Switch(this).apply {
+            text = "Share anonymous usage and errors"
+            textSize = 15f
+            setTextColor(color(R.color.murmur_text))
+            isEnabled = AnonymousTelemetry.configured()
+            isChecked = isEnabled && AnonymousTelemetry.enabled(this@MainActivity)
+            setOnCheckedChangeListener { _, checked ->
+                if (!AnonymousTelemetry.setEnabled(this@MainActivity, checked)) {
+                    isChecked = false
+                    Toast.makeText(this@MainActivity, "Could not save reporting preference. Reporting stays off.", Toast.LENGTH_LONG).show()
+                }
+            }
+        })
+        reporting.addView(text("Self-hosted screen counts and fixed error categories only. No visitor tracking, recordings, transcripts, words or keys. Off until an owner endpoint is configured. Counts expire after 30 days, errors after 14 days.", 13f, R.color.murmur_muted))
+        if (!AnonymousTelemetry.configured()) reporting.addView(text("Reporting is not configured in this build. Nothing is sent.", 13f, R.color.murmur_muted))
+        inputPage.addView(reporting)
         inputPage.addView(groupTitle("Murmur keyboard"))
         inputPage.addView(text("A fallback for phones older than Android 13, or if you prefer a keyboard with a mic key.", 13f, R.color.murmur_muted).apply {
             setPadding(dp(4), 0, dp(4), dp(8))
@@ -825,6 +864,7 @@ class MainActivity : Activity() {
             (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
         }
         inputPage.addView(keyboard)
+        bindFieldLabels(shell)
         showPage(currentPage)
         refreshHistory()
         if (BuildConfig.UPDATE_MANIFEST_URL.isNotBlank()) checkForUpdates(automatic = true)
@@ -837,8 +877,14 @@ class MainActivity : Activity() {
 
     private fun showPage(page: Page) {
         currentPage = page
+        AnonymousTelemetry.screen(this, when (page) {
+            Page.HOME -> TelemetryRoute.HOME
+            Page.HISTORY, Page.LECTURES -> TelemetryRoute.LIBRARY
+            else -> TelemetryRoute.SETTINGS
+        })
         pageTitle.text = if (page == Page.HOME) "Murmur" else page.label
         pageDescription.text = page.description
+        ViewCompat.setAccessibilityPaneTitle(pageContent, pageTitle.text)
         pages.forEach { (section, view) -> view.visibility = if (section == page) View.VISIBLE else View.GONE }
         val selectedTab = when (page) {
             Page.RECOGNITION, Page.CLEANUP -> Page.SPEECH
@@ -932,30 +978,31 @@ class MainActivity : Activity() {
         dockProgress = progress
         val screenWidth = resources.configuration.screenWidthDp
         val expandedWidth = dp(minOf(screenWidth - 28, 420))
-        val compactWidth = dp(maxOf(228, minOf(screenWidth - 80, 350)))
+        val compactWidth = dp(maxOf(248, minOf(screenWidth - 80, 350)))
+        val expandedHeight = maxOf(dp(64), (navigationLabels.values.maxOfOrNull { kotlin.math.ceil(it.paint.fontSpacing).toInt() + it.paddingTop + it.paddingBottom } ?: 0) + dp(32))
         navigation.layoutParams = (navigation.layoutParams as FrameLayout.LayoutParams).apply {
             width = compactWidth + ((expandedWidth - compactWidth) * progress).toInt()
-            height = dp(52) + (dp(12) * progress).toInt()
+            height = dp(56) + ((expandedHeight - dp(56)) * progress).toInt()
         }
         dockBlur?.let { blur ->
             blur.layoutParams = (blur.layoutParams as FrameLayout.LayoutParams).apply {
                 width = compactWidth + ((expandedWidth - compactWidth) * progress).toInt()
-                height = dp(52) + (dp(12) * progress).toInt()
+                height = dp(56) + ((expandedHeight - dp(56)) * progress).toInt()
             }
         }
         dockTint.layoutParams = (dockTint.layoutParams as FrameLayout.LayoutParams).apply {
             width = compactWidth + ((expandedWidth - compactWidth) * progress).toInt()
-            height = dp(52) + (dp(12) * progress).toInt()
+            height = dp(56) + ((expandedHeight - dp(56)) * progress).toInt()
         }
         navigationItems.values.forEach { item ->
             item.layoutParams = (item.layoutParams as LinearLayout.LayoutParams).apply {
-                height = dp(44) + (dp(12) * progress).toInt()
+                height = dp(48) + ((expandedHeight - dp(56)) * progress).toInt()
             }
         }
         navigationLabels.values.forEach { label ->
             label.alpha = progress
             label.layoutParams = (label.layoutParams as LinearLayout.LayoutParams).apply {
-                height = (dp(16) * progress).toInt()
+                height = if (progress == 0f) 0 else ViewGroup.LayoutParams.WRAP_CONTENT
             }
         }
         scheduleDockBlur()
@@ -1219,10 +1266,14 @@ class MainActivity : Activity() {
     }
 
     private fun beginVoiceReady() {
+        readyFeedback.text = ""
+        readyFeedback.visibility = View.GONE
         try {
             MurmurReadyService.start(this)
         } catch (_: Exception) {
-            feedbackView.text = "Voice ready could not start. Open Murmur and try again."
+            AnonymousTelemetry.error(this, TelemetryError.PERMISSION_FAILED, TelemetryRoute.HOME)
+            readyFeedback.text = "Voice bubble could not start. Tap Turn on voice bubble to retry."
+            readyFeedback.visibility = View.VISIBLE
         }
         window.decorView.postDelayed({ refreshStatus() }, 400)
     }
@@ -1258,6 +1309,8 @@ class MainActivity : Activity() {
         refreshLocalModels()
     }
 
+    private var modelLayoutKey = ""
+
     private fun refreshLocalModels() {
         if (!::localModelsList.isInitialized) return
         scheduleDockBlur()
@@ -1267,6 +1320,9 @@ class MainActivity : Activity() {
             "Downloading $label · ${LocalSpeechModels.downloadPercent}%"
         } else LocalSpeechModels.downloadMessage.orEmpty()
         modelDownloadStatus.visibility = if (modelDownloadStatus.text.isEmpty()) View.GONE else View.VISIBLE
+        val layoutKey = LocalSpeechModels.catalog.joinToString { model -> "${model.id}:${LocalSpeechModels.isInstalled(this, model)}:${LocalSpeechModels.canRun(this, model)}:${if (downloadingId == model.id) false else File(LocalSpeechModels.file(this, model).absolutePath + ".part").length() > 0}" } + ":$downloadingId:${settings.localModelId}:${settings.useOnDeviceRecognition}"
+        if (layoutKey == modelLayoutKey) return
+        modelLayoutKey = layoutKey
         localModelsList.removeAllViews()
         LocalSpeechModels.catalog.forEach { model ->
             val installed = LocalSpeechModels.isInstalled(this, model)
@@ -1296,7 +1352,10 @@ class MainActivity : Activity() {
                     window.decorView.removeCallbacks(modelProgressRefresh)
                     window.decorView.postDelayed(modelProgressRefresh, 1_000)
                 }
-            }.apply { isEnabled = downloading || (downloadingId == null && !active && supported) })
+            }.apply {
+                contentDescription = "$text: ${model.label}"
+                isEnabled = downloading || (downloadingId == null && !active && supported)
+            })
             if (installed) row.addView(button("Delete model", primary = false) {
                 AlertDialog.Builder(this).setTitle("Delete ${model.label}?")
                     .setMessage("The model will need to be downloaded again before it can transcribe audio.")
@@ -1307,7 +1366,7 @@ class MainActivity : Activity() {
                         refreshLocalModels()
                         refreshStatus()
                     }.show()
-            })
+            }.apply { contentDescription = "Delete model: ${model.label}" })
             localModelsList.addView(row)
         }
         if (::onlineSettings.isInitialized) {
@@ -1448,7 +1507,7 @@ class MainActivity : Activity() {
             row.addView(button("Remove", primary = false) {
                 settings.removeDictionaryTerm(term)
                 refreshDictionary()
-            })
+            }.apply { contentDescription = "Remove word: $term" })
             dictionaryList.addView(row)
         }
     }
@@ -1471,7 +1530,9 @@ class MainActivity : Activity() {
             homeLatestDateView.visibility = View.GONE
             homeLatestLinkView.text = "Open history  ↗"
             homeRecentCard.contentDescription = "Open history"
-            historyList.addView(text("History could not be loaded.", 14f, R.color.murmur_muted))
+            AnonymousTelemetry.error(this, TelemetryError.STORAGE_FAILED, TelemetryRoute.LIBRARY)
+            historyList.addView(text("History could not be loaded.", 14f, R.color.murmur_muted).apply { accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE })
+            historyList.addView(button("Retry loading history", primary = false) { refreshHistory() })
             return
         }
         val latest = records.firstOrNull()
@@ -1498,12 +1559,20 @@ class MainActivity : Activity() {
                 maxLines = 3
                 ellipsize = TextUtils.TruncateAt.END
             })
-            val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            val actions = LinearLayout(this).apply { orientation = if (resources.configuration.fontScale >= 1.3f || resources.configuration.screenWidthDp < 360) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL }
             actions.addView(button("View", primary = false) {
                 val detail = if (record.raw == record.finalText) record.finalText
                     else "${record.finalText}\n\nRaw transcript\n${record.raw}"
-                AlertDialog.Builder(this).setTitle("Dictation").setMessage(detail)
-                    .setPositiveButton("Close", null).show()
+                val dialog = AlertDialog.Builder(this).setTitle("Dictation").setMessage(detail)
+                    .setPositiveButton("Close", null)
+                if (record.raw != record.finalText) {
+                    dialog.setNeutralButton("Copy raw") { _, _ ->
+                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Murmur raw transcript", record.raw))
+                        historyFeedback.text = "Raw transcript copied."
+                    }
+                }
+                dialog.show().findViewById<TextView>(android.R.id.message)?.setTextIsSelectable(true)
             })
             actions.addView(button("Copy", primary = false) {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -1937,11 +2006,12 @@ class MainActivity : Activity() {
         (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(keyInput, 0)
     }
 
-    private inner class SetupRow(val detail: TextView, val action: Button) {
+    private inner class SetupRow(val detail: TextView, val action: Button, val title: String) {
         fun update(done: Boolean, detailText: String, actionText: String, hidden: Boolean = false, neutral: Boolean = false) {
             detail.text = if (done && !neutral) "✓  $detailText" else detailText
             detail.setTextColor(color(if (done && !neutral) R.color.murmur_accent else R.color.murmur_muted))
             action.text = actionText
+            action.contentDescription = "$actionText: $title"
             action.visibility = if (done || hidden) View.GONE else View.VISIBLE
         }
     }
@@ -1954,10 +2024,10 @@ class MainActivity : Activity() {
         labels.addView(detail)
         row.addView(labels, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         // secondary on purpose: the status card carries the one primary action
-        val action = button("", primary = false, onAction)
+        val action = button("", primary = false, onAction).apply { contentDescription = "Enable $title" }
         row.addView(action)
         parent.addView(row)
-        return SetupRow(detail, action)
+        return SetupRow(detail, action, title)
     }
 
     private fun destinationRow(parent: LinearLayout, title: String, onOpen: () -> Unit): TextView {
@@ -1984,6 +2054,7 @@ class MainActivity : Activity() {
     private fun addSpeechBackLink(page: LinearLayout) {
         page.addView(text("‹  Models", 14f, R.color.murmur_accent, bold = true).apply {
             setPadding(dp(4), 0, dp(4), dp(15))
+            minimumHeight = dp(48)
             isClickable = true
             isFocusable = true
             setOnClickListener { showPage(Page.SPEECH) }
@@ -2031,6 +2102,7 @@ class MainActivity : Activity() {
     }
 
     private fun groupTitle(value: String): TextView = text(value.uppercase(), 12f, R.color.murmur_muted).apply {
+        ViewCompat.setAccessibilityHeading(this, true)
         letterSpacing = 0.06f
         setPadding(dp(4), dp(24), dp(4), dp(8))
     }
@@ -2046,7 +2118,20 @@ class MainActivity : Activity() {
         if (bold) typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
 
+    private fun bindFieldLabels(parent: ViewGroup) {
+        for (index in 0 until parent.childCount) {
+            val child = parent.getChildAt(index)
+            if ((child is EditText || child is Spinner) && index > 0) {
+                if (child.id == View.NO_ID) child.id = View.generateViewId()
+                val label = parent.getChildAt(index - 1)
+                if (label is TextView && label !is Button && label.text.length < 100) label.labelFor = child.id
+            }
+            if (child is ViewGroup) bindFieldLabels(child)
+        }
+    }
+
     private fun input(value: String, hint: String, type: Int): EditText = EditText(this).apply {
+        id = View.generateViewId()
         setText(value)
         this.hint = hint
         inputType = type
@@ -2064,10 +2149,10 @@ class MainActivity : Activity() {
         isAllCaps = false
         textSize = 14f
         stateListAnimator = null
-        minHeight = dp(40)
-        minimumHeight = dp(40)
-        minWidth = 0
-        minimumWidth = 0
+        minHeight = dp(48)
+        minimumHeight = dp(48)
+        minWidth = dp(48)
+        minimumWidth = dp(48)
         setPadding(dp(16), 0, dp(16), 0)
         styleButton(this, primary)
         setOnClickListener { action() }

@@ -17,9 +17,11 @@ type SavedKey =
   | { kind: "cleanup"; id: string; label: string };
 
 // null while the credential store is being checked
-export const useSavedApiKeys = (): SavedKey[] | null => {
+export const useSavedApiKeys = () => {
   const { settings } = useSettings();
   const apiKeysVersion = useSettingsStore((state) => state.apiKeysVersion);
+  const [failed, setFailed] = useState(false);
+  const [retryVersion, setRetryVersion] = useState(0);
   const [savedKeys, setSavedKeys] = useState<SavedKey[] | null>(null);
 
   const sttBaseUrl = settings?.stt_base_url ?? "";
@@ -31,6 +33,8 @@ export const useSavedApiKeys = (): SavedKey[] | null => {
     if (!settings) return;
     let active = true;
 
+    setSavedKeys(null);
+    setFailed(false);
     const check = async () => {
       const found: SavedKey[] = [];
       // the speech key is stored per endpoint URL, so only the active one can
@@ -70,8 +74,7 @@ export const useSavedApiKeys = (): SavedKey[] | null => {
 
     check().catch((error) => {
       if (active) {
-        setSavedKeys([]);
-        toast.error(String(error));
+        setFailed(true);
       }
     });
     return () => {
@@ -85,14 +88,19 @@ export const useSavedApiKeys = (): SavedKey[] | null => {
     sttBaseUrl,
     providerKey,
     apiKeysVersion,
+    retryVersion,
   ]);
 
-  return savedKeys;
+  return {
+    savedKeys,
+    failed,
+    retry: () => setRetryVersion((value) => value + 1),
+  };
 };
 
 export const SavedApiKeys: React.FC = () => {
   const { t } = useTranslation();
-  const savedKeys = useSavedApiKeys();
+  const { savedKeys, failed, retry } = useSavedApiKeys();
   const bumpApiKeysVersion = useSettingsStore(
     (state) => state.bumpApiKeysVersion,
   );
@@ -131,7 +139,19 @@ export const SavedApiKeys: React.FC = () => {
           "Keys are kept in your system credential store, never in Murmur's settings file.",
       })}
     >
-      {savedKeys === null ? (
+      {failed ? (
+        <div className="px-4 py-3">
+          <p role="alert">
+            {t("murmur.keys.unavailable", {
+              defaultValue:
+                "Credential-store status is unavailable. Saved keys have not been removed.",
+            })}
+          </p>
+          <Button onClick={retry}>
+            {t("common.retry", { defaultValue: "Retry" })}
+          </Button>
+        </div>
+      ) : savedKeys === null ? (
         <p className="px-4 py-3 text-sm text-mid-gray">
           {t("murmur.keys.loading", {
             defaultValue: "Checking the credential store…",

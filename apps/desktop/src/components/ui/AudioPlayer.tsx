@@ -8,6 +8,7 @@ import React, {
   useState,
 } from "react";
 import { Play, Pause } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface AudioPlayerProps {
   /** Audio source URL. If not provided, onLoadRequest must be provided. */
@@ -56,6 +57,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   className = "",
   autoPlay = false,
 }) => {
+  const { t } = useTranslation();
   const group = useContext(AudioPlayerGroupContext);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -63,6 +65,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(initialSrc ?? null);
   const [isLoading, setIsLoading] = useState(false);
+  const [playbackError, setPlaybackError] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const src = loadedSrc;
@@ -166,12 +169,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (loadedSrc && !prevLoadedSrc.current && onLoadRequest) {
       audio.play().catch((error) => {
         console.error("Auto-play failed:", error);
+        setPlaybackError(true);
       });
     }
     // Or when autoPlay is set with initial src
     else if (autoPlay && initialSrc && !prevLoadedSrc.current) {
       audio.play().catch((error) => {
         console.error("Auto-play failed:", error);
+        setPlaybackError(true);
       });
     }
 
@@ -215,6 +220,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (!audio) return;
     if (isLoading) return;
 
+    setPlaybackError(false);
     try {
       if (isPlaying) {
         audio.pause();
@@ -224,6 +230,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           setIsLoading(true);
           const newSrc = await onLoadRequest();
           setIsLoading(false);
+          if (!newSrc) setPlaybackError(true);
           if (newSrc) {
             setLoadedSrc(newSrc);
             // Playback will be triggered by the useEffect watching loadedSrc
@@ -234,6 +241,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
     } catch (error) {
       console.error("Playback failed:", error);
+      setPlaybackError(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -277,46 +287,66 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const progressPercent = getProgressPercent();
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
-      <audio ref={audioRef} src={src ?? undefined} preload="metadata" />
-
-      <button
-        onClick={togglePlay}
-        disabled={isLoading}
-        className="transition-colors cursor-pointer text-text hover:text-logo-primary disabled:opacity-50"
-        aria-label={isPlaying ? "Pause" : "Play"}
-      >
-        {isPlaying ? (
-          <Pause width={20} height={20} fill="currentColor" />
-        ) : (
-          <Play width={20} height={20} fill="currentColor" />
-        )}
-      </button>
-
-      <div className="flex-1 flex items-center gap-2">
-        <span className="text-xs text-text/60 min-w-[30px] tabular-nums">
-          {formatTime(currentTime)}
-        </span>
-
-        <input
-          type="range"
-          min="0"
-          max={duration || 0}
-          step="0.01"
-          value={currentTime}
-          onChange={handleSeek}
-          onMouseDown={handleSliderMouseDown}
-          onTouchStart={handleSliderTouchStart}
-          className={`flex-1 h-1 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-logo-primary ${progressPercent >= 99.5 ? "[&::-webkit-slider-thumb]:translate-x-0.5 [&::-moz-range-thumb]:translate-x-0.5" : ""}`}
-          style={{
-            background: `linear-gradient(to right, #FAA2CA 0%, #FAA2CA ${progressPercent}%, rgba(128, 128, 128, 0.2) ${progressPercent}%, rgba(128, 128, 128, 0.2) 100%)`,
-          }}
+    <div className={className}>
+      <div className="flex items-center gap-3">
+        <audio
+          ref={audioRef}
+          src={src ?? undefined}
+          preload="metadata"
+          onError={() => setPlaybackError(true)}
         />
 
-        <span className="text-xs text-text/60 min-w-[30px] tabular-nums">
-          {formatTime(duration)}
-        </span>
+        <button
+          onClick={togglePlay}
+          disabled={isLoading}
+          className="min-h-11 min-w-11 inline-flex items-center justify-center transition-colors cursor-pointer text-text hover:text-logo-primary disabled:opacity-50"
+          aria-label={isPlaying ? "Pause" : "Play"}
+        >
+          {isPlaying ? (
+            <Pause width={20} height={20} fill="currentColor" />
+          ) : (
+            <Play width={20} height={20} fill="currentColor" />
+          )}
+        </button>
+
+        <div className="flex-1 flex items-center gap-2">
+          <span className="text-xs text-text/60 min-w-[30px] tabular-nums">
+            {formatTime(currentTime)}
+          </span>
+
+          <input
+            type="range"
+            aria-label="Recording playback position"
+            aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+            min="0"
+            max={duration || 0}
+            step="0.01"
+            value={currentTime}
+            onChange={handleSeek}
+            onMouseDown={handleSliderMouseDown}
+            onTouchStart={handleSliderTouchStart}
+            className={`flex-1 min-w-0 h-6 max-sm:h-11 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-logo-primary ${progressPercent >= 99.5 ? "[&::-webkit-slider-thumb]:translate-x-0.5 [&::-moz-range-thumb]:translate-x-0.5" : ""}`}
+            style={{
+              backgroundSize: "100% 4px",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "center",
+              backgroundImage: `linear-gradient(to right, #FAA2CA 0%, #FAA2CA ${progressPercent}%, rgba(128, 128, 128, 0.2) ${progressPercent}%, rgba(128, 128, 128, 0.2) 100%)`,
+            }}
+          />
+
+          <span className="text-xs text-text/60 min-w-[30px] tabular-nums">
+            {formatTime(duration)}
+          </span>
+        </div>
       </div>
+      {playbackError && (
+        <p role="alert" className="text-sm">
+          {t("murmur.history.playbackError", {
+            defaultValue:
+              "Recording playback is unavailable. Try Play again or recover the transcript above.",
+          })}
+        </p>
+      )}
     </div>
   );
 };

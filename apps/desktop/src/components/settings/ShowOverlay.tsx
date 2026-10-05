@@ -32,21 +32,51 @@ export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(
       getSetting("overlay_position") === "top" ? "top" : "bottom";
 
     return (
-      <SettingContainer
-        title={t("settings.advanced.overlay.position.title")}
-        description={t("settings.advanced.overlay.position.description")}
-        descriptionMode={descriptionMode}
-        grouped={grouped}
-      >
-        <Dropdown
-          options={positionOptions}
-          selectedValue={selectedPosition}
-          onSelect={(value) =>
-            updateSetting("overlay_position", value as OverlayPosition)
-          }
-          disabled={isUpdating("overlay_position")}
-        />
-      </SettingContainer>
+      <>
+        <SettingContainer
+          title={t("murmur.dictation.indicator.visibility", {
+            defaultValue: "Show recording indicator",
+          })}
+          description={t("murmur.dictation.indicator.description", {
+            defaultValue:
+              "A visible alternative to sound cues. Availability depends on the desktop and its permissions.",
+          })}
+          descriptionMode="inline"
+          grouped={grouped}
+        >
+          <input
+            type="checkbox"
+            aria-label={t("murmur.dictation.indicator.visibility", {
+              defaultValue: "Show recording indicator",
+            })}
+            checked={getSetting("overlay_style") !== "none"}
+            disabled={isUpdating("overlay_style")}
+            onChange={(event) =>
+              updateSetting(
+                "overlay_style",
+                event.target.checked ? "minimal" : "none",
+              )
+            }
+            className="size-6 accent-logo-primary"
+          />
+        </SettingContainer>
+        <SettingContainer
+          title={t("settings.advanced.overlay.position.title")}
+          description={t("settings.advanced.overlay.position.description")}
+          descriptionMode={descriptionMode}
+          grouped={grouped}
+        >
+          <Dropdown
+            label={t("settings.advanced.overlay.position.title")}
+            options={positionOptions}
+            selectedValue={selectedPosition}
+            onSelect={(value) =>
+              updateSetting("overlay_position", value as OverlayPosition)
+            }
+            disabled={isUpdating("overlay_position")}
+          />
+        </SettingContainer>
+      </>
     );
   },
 );

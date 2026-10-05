@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { type } from "@tauri-apps/plugin-os";
 import { Cloud, HardDrive } from "lucide-react";
 import { commands } from "@/bindings";
 import { useOsType } from "@/hooks/useOsType";
-import { hostOf } from "@/lib/utils/format";
+import { hostOf, isLoopbackEndpoint } from "@/lib/utils/format";
 import { formatKeyCombination } from "@/lib/utils/keyboard";
 import { useModelStore } from "@/stores/modelStore";
 import { useSettings } from "../../../hooks/useSettings";
@@ -24,6 +24,9 @@ import { SpokenLanguage } from "./SpokenLanguage";
 const useIsRecording = () => {
   const [isRecording, setIsRecording] = useState<boolean | null>(null);
 
+  const [statusError, setStatusError] = useState(false);
+  const retryRef = useRef<() => Promise<void>>();
+
   useEffect(() => {
     let active = true;
 
@@ -31,12 +34,19 @@ const useIsRecording = () => {
       if (document.visibilityState !== "visible") return;
       try {
         const recording = await commands.isRecording();
-        if (active) setIsRecording(recording);
+        if (active) {
+          setIsRecording(recording);
+          setStatusError(false);
+        }
       } catch {
-        if (active) setIsRecording(null);
+        if (active) {
+          setIsRecording(null);
+          setStatusError(true);
+        }
       }
     };
 
+    retryRef.current = refreshRecording;
     void refreshRecording();
     const timer = window.setInterval(refreshRecording, 1000);
     document.addEventListener("visibilitychange", refreshRecording);
@@ -48,17 +58,23 @@ const useIsRecording = () => {
     };
   }, []);
 
-  return isRecording;
+  return {
+    isRecording,
+    statusError,
+    retry: () => {
+      void retryRef.current?.();
+    },
+  };
 };
 
 // one glance answers "is it ready" and "where does my voice go"
 const StatusCard: React.FC = () => {
   const { t } = useTranslation();
   const { settings } = useSettings();
-  const { currentModel, models } = useModelStore();
+  const { currentModel, models, loading: modelsLoading } = useModelStore();
   const osType = useOsType();
   const navigate = useSettingsNavigation();
-  const isRecording = useIsRecording();
+  const { isRecording, statusError, retry } = useIsRecording();
 
   const shortcut = settings?.bindings?.transcribe?.current_binding;
   const modelName =
@@ -68,8 +84,27 @@ const StatusCard: React.FC = () => {
     (provider) => provider.id === settings.post_process_provider_id,
   );
   const cleanupIsLocal =
-    cleanupProvider?.id === "ollama" ||
-    cleanupProvider?.id === "apple_intelligence";
+    cleanupProvider?.id === "apple_intelligence" ||
+    isLoopbackEndpoint(cleanupProvider?.base_url ?? "");
+  const needsModel = !usesEndpoint && !currentModel && !modelsLoading;
+  const shortcutLabel = shortcut ? formatKeyCombination(shortcut, osType) : "";
+  const activation = settings?.shortcut_activation ?? "hold_or_toggle";
+  const startInstruction =
+    activation === "push_to_talk"
+      ? t("murmur.dictation.status.hold", {
+          shortcut: shortcutLabel,
+          defaultValue: "Hold {{shortcut}} to dictate; release to finish",
+        })
+      : activation === "toggle"
+        ? t("murmur.dictation.status.toggle", {
+            shortcut: shortcutLabel,
+            defaultValue: "Press {{shortcut}} to start; press again to finish",
+          })
+        : t("murmur.dictation.status.holdOrToggle", {
+            shortcut: shortcutLabel,
+            defaultValue:
+              "Hold {{shortcut}}, or tap to start and tap again to finish",
+          });
 
   const speechLine = usesEndpoint
     ? t("murmur.dictation.status.speechCloud", {
@@ -77,7 +112,11 @@ const StatusCard: React.FC = () => {
         defaultValue: "Audio is sent to {{host}} for transcription",
       })
     : t("murmur.dictation.status.speechLocal", {
-        model: modelName || "—",
+        model:
+          modelName ||
+          t("murmur.dictation.status.noModel", {
+            defaultValue: "no model selected",
+          }),
         defaultValue: "Audio stays on this device ({{model}})",
       });
 
@@ -87,11 +126,17 @@ const StatusCard: React.FC = () => {
       })
     : cleanupIsLocal
       ? t("murmur.dictation.status.cleanupLocal", {
-          provider: cleanupProvider?.label ?? "",
+          provider:
+            hostOf(cleanupProvider?.base_url ?? "") ||
+            cleanupProvider?.label ||
+            "",
           defaultValue: "AI cleanup runs locally with {{provider}}",
         })
       : t("murmur.dictation.status.cleanupCloud", {
-          provider: cleanupProvider?.label ?? "",
+          provider:
+            hostOf(cleanupProvider?.base_url ?? "") ||
+            cleanupProvider?.label ||
+            "",
           defaultValue: "Transcript text is sent to {{provider}} for cleanup",
         });
 
@@ -107,29 +152,71 @@ const StatusCard: React.FC = () => {
             className={`h-2 w-2 rounded-full ${isRecording ? "bg-logo-primary animate-pulse" : "bg-mid-gray/60"}`}
             aria-hidden="true"
           />
-          {isRecording
-            ? t("murmur.general.status.recording", {
-                defaultValue: "Recording now",
+          {statusError
+            ? t("murmur.dictation.status.unavailable", {
+                defaultValue: "Microphone status unavailable",
               })
-            : shortcut
-              ? t("murmur.dictation.status.ready", {
-                  shortcut: formatKeyCombination(shortcut, osType),
-                  defaultValue: "Press {{shortcut}} to dictate",
+            : isRecording
+              ? t("murmur.general.status.recording", {
+                  defaultValue: "Recording now",
                 })
-              : t("murmur.general.status.idle", {
-                  defaultValue: "Not recording",
-                })}
+              : needsModel
+                ? t("murmur.dictation.status.chooseModel", {
+                    defaultValue: "Choose a recognition model to start",
+                  })
+                : modelsLoading || !settings || isRecording === null
+                  ? t("murmur.dictation.status.checking", {
+                      defaultValue: "Checking dictation status…",
+                    })
+                  : shortcut
+                    ? startInstruction
+                    : t("murmur.general.status.idle", {
+                        defaultValue: "Not recording",
+                      })}
         </div>
         <button
           type="button"
           onClick={() => navigate("models")}
-          className="cursor-pointer rounded-md px-1.5 py-0.5 text-xs font-medium text-logo-primary hover:bg-mid-gray/10"
+          className="cursor-pointer rounded-md px-1.5 py-0.5 text-xs font-medium text-logo-primary hover:bg-mid-gray/10 max-sm:min-h-11"
         >
           {t("murmur.dictation.status.change", {
             defaultValue: "Change models",
           })}
         </button>
       </div>
+      {statusError && (
+        <button
+          type="button"
+          onClick={retry}
+          className="min-h-11 text-sm text-logo-primary"
+        >
+          {t("common.retry", { defaultValue: "Retry" })}
+        </button>
+      )}
+      {isRecording === false && !needsModel && (
+        <p className="mt-1 text-xs text-mid-gray">
+          {t("murmur.dictation.status.captureOnly", {
+            defaultValue:
+              "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
+          })}
+        </p>
+      )}
+      {isRecording && shortcut && (
+        <p className="mt-1 text-xs text-mid-gray">
+          {activation === "push_to_talk"
+            ? t("murmur.dictation.status.release", {
+                defaultValue: "Release the shortcut to finish.",
+              })
+            : activation === "toggle"
+              ? t("murmur.dictation.status.pressAgain", {
+                  defaultValue: "Press the shortcut again to finish.",
+                })
+              : t("murmur.dictation.status.releaseOrPress", {
+                  defaultValue:
+                    "Release if holding, or tap the shortcut again to finish.",
+                })}
+        </p>
+      )}
       <ul className="mt-2 space-y-1 text-xs text-mid-gray">
         <li className="flex items-center gap-2">
           {usesEndpoint ? (

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "../ui/Button";
 import { Dropdown, DropdownOption } from "../ui/Dropdown";
 import { PlayIcon } from "lucide-react";
@@ -15,6 +16,7 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
   label,
   description,
 }) => {
+  const { t } = useTranslation();
   const { getSetting, updateSetting } = useSettings();
   const playTestSound = useSettingsStore((state) => state.playTestSound);
   const customSounds = useSettingsStore((state) => state.customSounds);
@@ -45,6 +47,8 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
     >
       <div className="flex items-center gap-2">
         <Dropdown
+          className="min-w-0 flex-1"
+          label={label}
           selectedValue={selectedTheme}
           onSelect={(value) =>
             updateSetting("sound_theme", value as "marimba" | "pop" | "custom")
@@ -55,6 +59,9 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
           variant="ghost"
           size="sm"
           onClick={handlePlayBothSounds}
+          aria-label={t("murmur.dictation.previewSounds", {
+            defaultValue: "Preview sound theme: start then stop",
+          })}
           title="Preview sound theme (plays start then stop)"
         >
           <PlayIcon className="h-4 w-4" />

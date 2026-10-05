@@ -1,14 +1,20 @@
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, Cloud, HardDrive } from "lucide-react";
 import type { RecordingRetentionPeriod } from "@/bindings";
-import { hostOf } from "@/lib/utils/format";
+import { hostOf, isLoopbackEndpoint } from "@/lib/utils/format";
 import { useSettings } from "../../../hooks/useSettings";
 import type { SidebarSection } from "../../Sidebar";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AppDataDirectory } from "../AppDataDirectory";
 import { useSavedApiKeys } from "../models/SavedApiKeys";
 import { useSettingsNavigation } from "../navigation";
+import { ToggleSwitch } from "../../ui/ToggleSwitch";
+import {
+  telemetryConfigured,
+  telemetryPreference,
+  setTelemetryPreference,
+} from "@/lib/anonymousTelemetry";
 
 const RETENTION_KEYS: Record<RecordingRetentionPeriod, string> = {
   never: "never",
@@ -38,20 +44,21 @@ const SummaryRow: React.FC<SummaryRowProps> = ({
   const Icon = leavesDevice ? Cloud : HardDrive;
 
   return (
-    <div className="flex min-h-14 items-center gap-3 px-4 py-2.5">
+    <div className="flex min-h-14 flex-wrap items-center gap-3 px-4 py-2.5">
       <Icon
         size={16}
         className={`shrink-0 ${leavesDevice ? "text-warning" : "text-mid-gray"}`}
         aria-hidden="true"
       />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 break-words">
         <p className="text-sm font-medium">{title}</p>
         <p className="text-xs leading-relaxed text-mid-gray">{detail}</p>
       </div>
       <button
         type="button"
+        aria-label={`${actionLabel}: ${title}`}
         onClick={() => navigate(target)}
-        className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-logo-primary hover:bg-mid-gray/10"
+        className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-logo-primary hover:bg-mid-gray/10 max-sm:basis-full"
       >
         {actionLabel}
         <ArrowRight size={12} aria-hidden="true" />
@@ -62,8 +69,29 @@ const SummaryRow: React.FC<SummaryRowProps> = ({
 
 export const PrivacySettings: React.FC = () => {
   const { t } = useTranslation();
-  const { settings } = useSettings();
-  const savedKeys = useSavedApiKeys();
+  const { settings, refreshSettings } = useSettings();
+  const { savedKeys, failed: keysFailed, retry: retryKeys } = useSavedApiKeys();
+  const [telemetryEnabled, setTelemetryEnabled] = useState(telemetryPreference);
+  const [preferenceError, setPreferenceError] = useState(false);
+
+  if (!settings)
+    return (
+      <div>
+        <p role="status">
+          {t("murmur.privacy.loading", {
+            defaultValue:
+              "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
+          })}
+        </p>
+        <button
+          type="button"
+          className="min-h-11 text-logo-primary"
+          onClick={() => void refreshSettings()}
+        >
+          {t("common.retry", { defaultValue: "Retry" })}
+        </button>
+      </div>
+    );
 
   const usesEndpoint = settings?.stt_source === "endpoint";
   const cleanupOn = settings?.post_process_enabled ?? false;
@@ -71,13 +99,53 @@ export const PrivacySettings: React.FC = () => {
     (candidate) => candidate.id === settings.post_process_provider_id,
   );
   const cleanupIsLocal =
-    provider?.id === "ollama" || provider?.id === "apple_intelligence";
+    provider?.id === "apple_intelligence" ||
+    isLoopbackEndpoint(provider?.base_url ?? "");
   const cleanupLeaves = cleanupOn && !cleanupIsLocal;
   const retention = settings?.recording_retention_period ?? "never";
   const change = t("murmur.privacy.change", { defaultValue: "Change" });
 
   return (
     <div className="w-full space-y-6">
+      <SettingsGroup
+        title={t("murmur.privacy.reporting", {
+          defaultValue: "Anonymous usage and errors",
+        })}
+      >
+        <ToggleSwitch
+          label={t("murmur.privacy.reportingSwitch", {
+            defaultValue: "Share anonymous usage and errors",
+          })}
+          checked={telemetryConfigured && telemetryEnabled}
+          disabled={!telemetryConfigured}
+          onChange={(enabled) => {
+            const saved = setTelemetryPreference(enabled);
+            setPreferenceError(!saved);
+            if (saved) setTelemetryEnabled(enabled);
+          }}
+          descriptionMode="inline"
+          description={t("murmur.privacy.reportingNotice", {
+            defaultValue:
+              "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
+          })}
+        />
+        {!telemetryConfigured && (
+          <p className="px-4 pb-3 text-sm text-mid-gray">
+            {t("murmur.privacy.reportingUnconfigured", {
+              defaultValue:
+                "Reporting is not configured in this build. Nothing is sent.",
+            })}
+          </p>
+        )}
+        {preferenceError && (
+          <p role="alert" className="px-4 pb-3">
+            {t("murmur.privacy.reportingSaveError", {
+              defaultValue:
+                "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+            })}
+          </p>
+        )}
+      </SettingsGroup>
       <SettingsGroup
         title={t("murmur.privacy.leaves.title", {
           defaultValue: "What leaves this computer",
@@ -119,12 +187,14 @@ export const PrivacySettings: React.FC = () => {
                 })
               : cleanupIsLocal
                 ? t("murmur.privacy.cleanup.local", {
-                    provider: provider?.label ?? "",
+                    provider:
+                      hostOf(provider?.base_url ?? "") || provider?.label || "",
                     defaultValue:
                       "Cleaned up on this computer by {{provider}}.",
                   })
                 : t("murmur.privacy.cleanup.cloud", {
-                    provider: provider?.label ?? "",
+                    provider:
+                      hostOf(provider?.base_url ?? "") || provider?.label || "",
                     defaultValue:
                       "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not.",
                   })
@@ -159,19 +229,41 @@ export const PrivacySettings: React.FC = () => {
           leavesDevice={false}
           title={t("murmur.privacy.keys.title", { defaultValue: "API keys" })}
           detail={
-            savedKeys === null
-              ? t("murmur.keys.loading", {
-                  defaultValue: "Checking the credential store…",
-                })
-              : t("murmur.privacy.keys.detail", {
-                  count: savedKeys.length,
+            keysFailed
+              ? t("murmur.keys.unavailable", {
                   defaultValue:
-                    "{{count}} saved in your system credential store, never in Murmur's settings file.",
+                    "Credential-store status is unavailable. Saved keys have not been removed.",
                 })
+              : savedKeys === null
+                ? t("murmur.keys.loading", {
+                    defaultValue: "Checking the credential store…",
+                  })
+                : t("murmur.privacy.keys.detail", {
+                    count: savedKeys.length,
+                    defaultValue:
+                      "{{count}} saved in your system credential store, never in Murmur's settings file.",
+                  })
           }
           target="models"
           actionLabel={t("murmur.privacy.manage", { defaultValue: "Manage" })}
         />
+        {keysFailed && (
+          <div className="px-4 py-3">
+            <p role="alert">
+              {t("murmur.keys.unavailable", {
+                defaultValue:
+                  "Credential-store status is unavailable. Saved keys have not been removed.",
+              })}
+            </p>
+            <button
+              type="button"
+              className="min-h-11 text-logo-primary"
+              onClick={retryKeys}
+            >
+              {t("common.retry", { defaultValue: "Retry" })}
+            </button>
+          </div>
+        )}
         <AppDataDirectory descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
     </div>

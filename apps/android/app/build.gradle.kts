@@ -56,6 +56,15 @@ android {
             "murmurUpdateManifestUrl must use HTTPS"
         }
         buildConfigField("String", "UPDATE_MANIFEST_URL", "\"${updateManifestUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+        val telemetryEndpoint = providers.gradleProperty("murmurTelemetryEndpoint").orNull ?: ""
+        require(telemetryEndpoint.isEmpty() || runCatching {
+            val uri = java.net.URI(telemetryEndpoint)
+            uri.scheme == "https" && !uri.host.isNullOrBlank() && uri.path == "/v1/events" &&
+                uri.userInfo == null && uri.query == null && uri.fragment == null
+        }.getOrDefault(false)) { "murmurTelemetryEndpoint must be an HTTPS /v1/events URL without credentials or query" }
+        val telemetryEnabled = providers.gradleProperty("murmurTelemetryEnabled").orNull == "true"
+        buildConfigField("boolean", "TELEMETRY_ENABLED", telemetryEnabled.toString())
+        buildConfigField("String", "TELEMETRY_ENDPOINT", "\"$telemetryEndpoint\"")
     }
 
     compileOptions {

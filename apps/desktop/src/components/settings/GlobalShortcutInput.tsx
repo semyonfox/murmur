@@ -25,6 +25,9 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
   shortcutId,
   disabled = false,
 }) => {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(false);
+  const activationTarget = useRef<EventTarget | null>(null);
   const { t } = useTranslation();
   const { getSetting, updateBinding, resetBinding, isUpdating, isLoading } =
     useSettings();
@@ -49,6 +52,16 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (cleanup) return;
       if (e.repeat) return; // ignore auto-repeat
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cleanup = true;
+        setEditingShortcutId(null);
+        setKeyPressed([]);
+        setRecordedKeys([]);
+        setOriginalBinding("");
+        await commands.resumeAllBindings().catch(console.error);
+        return;
+      }
       e.preventDefault();
 
       // Get the key with OS-specific naming and normalize it
@@ -140,6 +153,10 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
     // Add click outside handler
     const handleClickOutside = async (e: MouseEvent) => {
       if (cleanup) return;
+      if (e.target === activationTarget.current) {
+        activationTarget.current = null;
+        return;
+      }
       const activeElement = shortcutRefs.current.get(editingShortcutId);
       if (activeElement && !activeElement.contains(e.target as Node)) {
         // Cancel shortcut recording and restore original binding
@@ -209,6 +226,12 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
   };
 
   // If still loading, show loading state
+  useEffect(() => {
+    const editing = editingShortcutId === shortcutId;
+    if (wasEditing.current && !editing) triggerRef.current?.focus();
+    wasEditing.current = editing;
+  }, [editingShortcutId, shortcutId]);
+
   if (isLoading) {
     return (
       <SettingContainer
@@ -284,14 +307,22 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
             {formatCurrentKeys()}
           </div>
         ) : (
-          <div
-            className="px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 hover:bg-logo-primary/10 rounded-md cursor-pointer hover:border-logo-primary"
-            onClick={() => startRecording(shortcutId)}
+          <button
+            ref={triggerRef}
+            type="button"
+            aria-label={`Change ${translatedName}: ${formatKeyCombination(binding.current_binding, osType)}`}
+            disabled={disabled}
+            className="min-h-11 px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 hover:bg-logo-primary/10 rounded-md cursor-pointer hover:border-logo-primary"
+            onClick={(event) => {
+              activationTarget.current = event.currentTarget;
+              void startRecording(shortcutId);
+            }}
           >
             {formatKeyCombination(binding.current_binding, osType)}
-          </div>
+          </button>
         )}
         <ResetButton
+          ariaLabel={`Reset ${translatedName} to default`}
           onClick={() => resetBinding(shortcutId)}
           disabled={isUpdating(`binding_${shortcutId}`)}
         />

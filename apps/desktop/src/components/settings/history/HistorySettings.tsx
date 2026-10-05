@@ -10,9 +10,10 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
-import { save } from "@tauri-apps/plugin-dialog";
+import { ask, save } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { anonymousTelemetry } from "@/lib/anonymousTelemetry";
 import {
   commands,
   events,
@@ -39,12 +40,13 @@ const IconButton: React.FC<{
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`p-1.5 rounded-md flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:text-text/20 ${
+    className={`p-1.5 rounded-md flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:text-text/20 focus-visible:ring-2 focus-visible:ring-logo-primary max-sm:min-h-11 max-sm:min-w-11 ${
       active
         ? "text-logo-primary hover:text-logo-primary/80"
         : "text-text/50 hover:text-logo-primary"
     }`}
     title={title}
+    aria-label={title}
   >
     {children}
   </button>
@@ -81,6 +83,7 @@ export const HistorySettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const entriesRef = useRef<HistoryEntry[]>([]);
   const loadingRef = useRef(false);
@@ -92,8 +95,10 @@ export const HistorySettings: React.FC = () => {
 
   const loadPage = useCallback(async (cursor?: number) => {
     const isFirstPage = cursor === undefined;
-    if (!isFirstPage && loadingRef.current) return;
+    if (loadingRef.current) return;
     loadingRef.current = true;
+    const restoringFocus =
+      document.activeElement?.hasAttribute("data-history-retry");
 
     if (isFirstPage) setLoading(true);
 
@@ -108,9 +113,19 @@ export const HistorySettings: React.FC = () => {
           isFirstPage ? newEntries : [...prev, ...newEntries],
         );
         setHasMore(has_more);
+        setLoadError(false);
+        if (restoringFocus)
+          requestAnimationFrame(() =>
+            document.getElementById("page-heading")?.focus(),
+          );
+      } else {
+        setLoadError(true);
+        anonymousTelemetry.error("storage_failed", "settings");
       }
     } catch (error) {
       console.error("Failed to load history entries:", error);
+      setLoadError(true);
+      anonymousTelemetry.error("storage_failed", "settings");
     } finally {
       setLoading(false);
       loadingRef.current = false;
@@ -124,7 +139,7 @@ export const HistorySettings: React.FC = () => {
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
-    if (loading) return;
+    if (loading || loadError) return;
 
     const sentinel = sentinelRef.current;
     if (!sentinel || !hasMore) return;
@@ -144,7 +159,7 @@ export const HistorySettings: React.FC = () => {
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [loading, hasMore, loadPage]);
+  }, [loading, loadError, hasMore, loadPage]);
 
   // Listen for new entries added from the transcription pipeline
   useEffect(() => {
@@ -174,6 +189,12 @@ export const HistorySettings: React.FC = () => {
     try {
       const result = await commands.toggleHistoryEntrySaved(id);
       if (result.status !== "ok") {
+        toast.error(
+          t("murmur.history.saveError", {
+            defaultValue:
+              "Could not change whether this dictation is kept. Try again.",
+          }),
+        );
         // Revert on failure
         setEntries((prev) =>
           prev.map((e) => (e.id === id ? { ...e, saved: !e.saved } : e)),
@@ -181,6 +202,12 @@ export const HistorySettings: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to toggle saved status:", error);
+      toast.error(
+        t("murmur.history.saveError", {
+          defaultValue:
+            "Could not change whether this dictation is kept. Try again.",
+        }),
+      );
       // Revert on failure
       setEntries((prev) =>
         prev.map((e) => (e.id === id ? { ...e, saved: !e.saved } : e)),
@@ -210,18 +237,9 @@ export const HistorySettings: React.FC = () => {
   );
 
   const deleteAudioEntry = async (id: number) => {
-    // Optimistically remove
+    const result = await commands.deleteHistoryEntry(id);
+    if (result.status !== "ok") throw new Error(String(result.error));
     setEntries((prev) => prev.filter((e) => e.id !== id));
-    try {
-      const result = await commands.deleteHistoryEntry(id);
-      if (result.status !== "ok") {
-        // Reload on failure
-        loadPage();
-      }
-    } catch (error) {
-      console.error("Failed to delete entry:", error);
-      loadPage();
-    }
   };
 
   const retryHistoryEntry = async (id: number) => {
@@ -239,6 +257,12 @@ export const HistorySettings: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to open recordings folder:", error);
+      toast.error(
+        t("murmur.history.folderError", {
+          defaultValue:
+            "Could not open the recordings folder. Your transcripts are still available here.",
+        }),
+      );
     }
   };
 
@@ -288,11 +312,11 @@ export const HistorySettings: React.FC = () => {
 
   if (loading) {
     content = (
-      <div className="px-4 py-3 text-center text-text/60">
+      <div role="status" className="px-4 py-3 text-center text-text/60">
         {t("settings.history.loading")}
       </div>
     );
-  } else if (entries.length === 0) {
+  } else if (entries.length === 0 && !loadError) {
     content = (
       <div className="px-4 py-3 text-center text-text/60">
         {t("settings.history.empty")}
@@ -308,7 +332,7 @@ export const HistorySettings: React.FC = () => {
                 key={entry.id}
                 entry={entry}
                 onToggleSaved={() => toggleSaved(entry.id)}
-                onCopyText={() => copyToClipboard(entry.transcription_text)}
+                onCopyText={copyToClipboard}
                 getAudioUrl={getAudioUrl}
                 deleteAudio={deleteAudioEntry}
                 retryTranscription={retryHistoryEntry}
@@ -325,7 +349,7 @@ export const HistorySettings: React.FC = () => {
   return (
     <div className="w-full space-y-6">
       <div className="space-y-2">
-        <div className="px-4 flex items-center justify-between">
+        <div className="px-4 flex flex-wrap gap-2 items-center justify-between">
           <div>
             <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
               {t("settings.history.title")}
@@ -338,6 +362,31 @@ export const HistorySettings: React.FC = () => {
         </div>
         <div className="bg-surface border border-mid-gray/15 rounded-xl overflow-visible">
           {content}
+          {loadError && (
+            <div className="px-4 py-3">
+              <p role="alert" className="mb-2 text-sm text-text">
+                {t("murmur.history.loadError", {
+                  defaultValue:
+                    "Could not load history. Your saved dictations have not been removed.",
+                })}
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                data-history-retry
+                aria-busy={loading}
+                onClick={() =>
+                  void loadPage(
+                    entries.length ? entries[entries.length - 1].id : undefined,
+                  )
+                }
+              >
+                {t("murmur.history.retryLoad", {
+                  defaultValue: "Retry loading",
+                })}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -388,7 +437,7 @@ export const HistorySettings: React.FC = () => {
 interface HistoryEntryProps {
   entry: HistoryEntry;
   onToggleSaved: () => void;
-  onCopyText: () => Promise<boolean>;
+  onCopyText: (text: string) => Promise<boolean>;
   getAudioUrl: (fileName: string) => Promise<string | null>;
   deleteAudio: (id: number) => Promise<void>;
   retryTranscription: (id: number) => Promise<void>;
@@ -405,44 +454,103 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const { t, i18n } = useTranslation();
   const [showCopied, setShowCopied] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
 
-  const hasTranscription = entry.transcription_text.trim().length > 0;
+  const cleanedText = entry.post_processed_text?.trim()
+    ? entry.post_processed_text
+    : null;
+  const displayText = showRaw
+    ? entry.transcription_text
+    : (cleanedText ?? entry.transcription_text);
+  const hasTranscription = displayText.trim().length > 0;
+  const busy = retrying || deleting;
 
   const handleLoadAudio = useCallback(
     () => getAudioUrl(entry.file_name),
     [getAudioUrl, entry.file_name],
   );
 
+  const [actionStatus, setActionStatus] = useState("");
+  const confirmationPending = useRef(false);
+
   const handleCopyText = async () => {
     if (!hasTranscription) {
       return;
     }
 
-    const copied = await onCopyText();
+    const copied = await onCopyText(displayText);
     if (!copied) {
       toast.error(t("settings.history.copyError"));
       return;
     }
 
+    setActionStatus(
+      t("murmur.history.copied", {
+        defaultValue: "Copied displayed transcript.",
+      }),
+    );
     setShowCopied(true);
     setTimeout(() => setShowCopied(false), 2000);
   };
 
   const handleDeleteEntry = async () => {
+    if (confirmationPending.current) return;
+    confirmationPending.current = true;
+    const previousFocus =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     try {
+      const confirmed = await ask(
+        t("murmur.history.deleteMessage", {
+          defaultValue:
+            "This permanently removes the raw and cleaned text and its recording.",
+        }),
+        {
+          title: t("murmur.history.deleteTitle", {
+            defaultValue: "Delete dictation?",
+          }),
+          kind: "warning",
+          okLabel: t("common.delete", { defaultValue: "Delete" }),
+          cancelLabel: t("common.cancel", { defaultValue: "Cancel" }),
+        },
+      );
+      if (!confirmed) return;
+      setDeleting(true);
       await deleteAudio(entry.id);
     } catch (error) {
       console.error("Failed to delete entry:", error);
       toast.error(t("settings.history.deleteError"));
+    } finally {
+      setDeleting(false);
+      confirmationPending.current = false;
+      requestAnimationFrame(() => {
+        if (previousFocus?.isConnected) previousFocus.focus();
+        else
+          (
+            document.querySelector<HTMLButtonElement>(
+              "[data-history-entry] button",
+            ) ?? document.getElementById("page-heading")
+          )?.focus();
+      });
     }
   };
 
   const handleRetranscribe = async () => {
     try {
       setRetrying(true);
+      setActionStatus(t("settings.history.transcribing"));
       await retryTranscription(entry.id);
+      setActionStatus(
+        t("murmur.history.retryFinished", {
+          defaultValue:
+            "Transcription request finished. Check this entry for the result.",
+        }),
+      );
     } catch (error) {
       console.error("Failed to re-transcribe:", error);
+      setActionStatus(t("settings.history.retranscribeError"));
       toast.error(t("settings.history.retranscribeError"));
     } finally {
       setRetrying(false);
@@ -452,13 +560,16 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const formattedDate = formatDateTime(String(entry.timestamp), i18n.language);
 
   return (
-    <div className="px-4 py-2 pb-5 flex flex-col gap-3">
-      <div className="flex justify-between items-center">
+    <div data-history-entry className="px-4 py-2 pb-5 flex flex-col gap-3">
+      <p role="status" className="sr-only">
+        {actionStatus}
+      </p>
+      <div className="flex flex-wrap gap-2 justify-between items-center">
         <p className="text-sm font-medium">{formattedDate}</p>
         <div className="flex items-center">
           <IconButton
             onClick={handleCopyText}
-            disabled={!hasTranscription || retrying}
+            disabled={!hasTranscription || busy}
             title={t("settings.history.copyToClipboard")}
           >
             {showCopied ? (
@@ -469,7 +580,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </IconButton>
           <IconButton
             onClick={onToggleSaved}
-            disabled={retrying}
+            disabled={busy}
             active={entry.saved}
             title={
               entry.saved
@@ -485,7 +596,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </IconButton>
           <IconButton
             onClick={handleRetranscribe}
-            disabled={retrying}
+            disabled={busy}
             title={t("settings.history.retranscribe")}
           >
             <RotateCcw
@@ -500,13 +611,48 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </IconButton>
           <IconButton
             onClick={handleDeleteEntry}
-            disabled={retrying}
+            disabled={busy}
             title={t("settings.history.delete")}
           >
             <Trash2 width={16} height={16} />
           </IconButton>
         </div>
       </div>
+
+      {cleanedText ? (
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-mid-gray">
+            {showRaw
+              ? t("murmur.history.raw", { defaultValue: "Raw transcript" })
+              : t("murmur.history.cleaned", {
+                  defaultValue: "Cleaned transcript",
+                })}
+          </span>
+          <button
+            type="button"
+            disabled={busy}
+            aria-pressed={showRaw}
+            onClick={() => {
+              setShowRaw((raw) => !raw);
+              setShowCopied(false);
+            }}
+            className="rounded-md px-2 py-1 text-logo-primary hover:bg-mid-gray/10 cursor-pointer focus-visible:ring-2 focus-visible:ring-logo-primary max-sm:min-h-11"
+          >
+            {showRaw
+              ? t("murmur.history.showCleaned", {
+                  defaultValue: "Show cleaned text",
+                })
+              : t("murmur.history.showRaw", { defaultValue: "Show raw text" })}
+          </button>
+        </div>
+      ) : entry.post_process_requested && hasTranscription ? (
+        <p className="text-xs text-mid-gray">
+          {t("murmur.history.rawFallback", {
+            defaultValue:
+              "Cleanup is unavailable for this entry. The raw transcript is preserved below.",
+          })}
+        </p>
+      ) : null}
 
       <p
         className={`italic text-sm pb-2 ${
@@ -533,7 +679,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         {retrying
           ? t("settings.history.transcribing")
           : hasTranscription
-            ? entry.transcription_text
+            ? displayText
             : t("settings.history.transcriptionFailed")}
       </p>
 
