@@ -35,9 +35,9 @@ test("fresh local setup directs users to Models without a download", async ({
   });
   await page.goto("/");
   await expect(
-    page.getByText("Choose a recognition model to start"),
+    page.getByRole("button", { name: "Use a speech endpoint" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Change models" }).click();
+  await page.getByRole("button", { name: "Use a speech endpoint" }).click();
   await expect(
     page.getByRole("heading", { name: "Models", exact: true }),
   ).toBeVisible();

@@ -19,7 +19,7 @@
     "about": "About"
   },
   "onboarding": {
-    "subtitle": "To get started, choose a transcription model",
+    "subtitle": "Choose a downloaded model or set up a speech endpoint",
     "existingModelsTitle": "Compatible Models",
     "downloadModelsTitle": "Available to Download",
     "showAllModels": "Show all {{total}} models",

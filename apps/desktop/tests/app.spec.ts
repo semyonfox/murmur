@@ -136,6 +136,47 @@ test.describe("Murmur settings", () => {
     await expect(stats.getByText("1,250", { exact: true })).toBeVisible();
     await expect(stats.getByText("125 wpm", { exact: true })).toBeVisible();
     await expect(stats.getByText("2 min", { exact: true })).toBeVisible();
+    const position = stats.locator('[aria-live="polite"]');
+    await expect(position).toHaveText("Stat 1 of 4");
+    await expect(stats.locator('[data-stat-dot="0"]')).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expect(stats.getByRole("button", { name: "Next stat" })).toHaveCount(
+      0,
+    );
+    const carousel = stats.getByRole("region", {
+      name: "Dictation stat cards",
+    });
+    const bounds = await carousel.boundingBox();
+    expect(bounds).not.toBeNull();
+    if (!bounds) return;
+    await page.mouse.move(
+      bounds.x + bounds.width * 0.8,
+      bounds.y + bounds.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      bounds.x + bounds.width * 0.1,
+      bounds.y + bounds.height / 2,
+      { steps: 10 },
+    );
+    await page.mouse.up();
+    await expect(position).toHaveText("Stat 2 of 4");
+    await expect(stats.locator('[data-stat-dot="1"]')).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await carousel.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(position).toHaveText("Stat 3 of 4");
+    await page.keyboard.press("ArrowRight");
+    await expect(position).toHaveText("Stat 4 of 4");
+    await page.keyboard.press("ArrowLeft");
+    await expect(position).toHaveText("Stat 3 of 4");
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("ArrowLeft");
+    await expect(position).toHaveText("Stat 1 of 4");
 
     const usage = page.locator(
       'section[aria-labelledby="openrouter-usage-heading"]',
@@ -162,4 +203,29 @@ test.describe("Murmur settings", () => {
       )
       .toBeGreaterThanOrEqual(2);
   });
+});
+
+test("first launch offers an endpoint after permissions", async ({ page }) => {
+  await installFixture(page, {
+    settings: { onboarding_completed: false },
+  });
+
+  await page.setViewportSize({ width: 680, height: 570 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "Use a speech endpoint" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Use a speech endpoint" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Models", exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.__murmurTestCalls.some(
+          (call) => call.command === "complete_onboarding",
+        ),
+      ),
+    )
+    .toBe(true);
 });
