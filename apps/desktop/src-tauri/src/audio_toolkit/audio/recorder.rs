@@ -110,6 +110,11 @@ const AUDIO_RING_SECONDS: usize = 2;
 const CONSUMER_POLL_INTERVAL: Duration = Duration::from_millis(10);
 const MAX_DRAIN_CHUNK: Duration = Duration::from_millis(50);
 const PAUSE_ACK_TIMEOUT: Duration = Duration::from_secs(2);
+/// A Bluetooth headset delivers exact digital silence while it switches to its
+/// call profile (about 1.5s measured on a Bose QC Ultra). Readiness waits for
+/// real samples, but a muted or gated mic that only ever sends zeros must not
+/// hold the recording forever.
+const LIVE_AUDIO_WAIT_CAP: Duration = Duration::from_secs(3);
 
 /// Atomics shared by the callback and consumer; audio uses a wait-free SPSC ring.
 /// The callback must remain allocation-, lock-, logging-, and blocking-free.
@@ -850,6 +855,9 @@ struct CaptureProcessor {
     frame_resampler: FrameResampler,
     max_drain_samples: usize,
     first_chunk_logged: bool,
+    /// Set once the stream delivers any non-zero sample. Stream-scoped, so a
+    /// warm stream is ready immediately on the next recording.
+    live_audio_seen: bool,
     capture_suspended: bool,
 
     // ---- recording-scoped: reset by `begin_recording` ------------------- //
@@ -857,6 +865,7 @@ struct CaptureProcessor {
     target: Option<CaptureTarget>,
     awaiting_first_captured_chunk: Option<Instant>,
     capture_ready_tx: Option<mpsc::Sender<()>>,
+    ready_armed_at: Instant,
     total_dropped_samples: u64,
     overrun_warning_logged: bool,
 }
@@ -904,11 +913,13 @@ impl CaptureProcessor {
             frame_resampler,
             max_drain_samples,
             first_chunk_logged: false,
+            live_audio_seen: false,
             capture_suspended: false,
             vad_policy: VadPolicy::Offline,
             target: None,
             awaiting_first_captured_chunk: None,
             capture_ready_tx: None,
+            ready_armed_at: stream_running_at,
             total_dropped_samples: 0,
             overrun_warning_logged: false,
         }
@@ -924,6 +935,7 @@ impl CaptureProcessor {
         self.capture_suspended = false;
         self.awaiting_first_captured_chunk = Some(Instant::now());
         self.capture_ready_tx = Some(ready_tx);
+        self.ready_armed_at = Instant::now();
         self.total_dropped_samples = 0;
         self.overrun_warning_logged = false;
         self.vad_policy = policy;
@@ -974,15 +986,21 @@ impl CaptureProcessor {
             );
         }
 
+        if !self.live_audio_seen && raw.iter().any(|sample| *sample != 0.0) {
+            self.live_audio_seen = true;
+            log::debug!(
+                "first live microphone audio {:?} after stream start",
+                self.stream_running_at.elapsed()
+            );
+        }
+
         if disposition == ChunkDisposition::Discard {
             return;
         }
 
         if self.capture_suspended {
             // readiness probes the live microphone, but cue audio is never saved or streamed
-            if let Some(ready_tx) = self.capture_ready_tx.take() {
-                let _ = ready_tx.send(());
-            }
+            self.signal_ready_once_live();
             return;
         }
 
@@ -1008,9 +1026,26 @@ impl CaptureProcessor {
                 started.elapsed()
             );
         }
+        // samples are captured from the start, readiness only gates the UI and cue
+        self.signal_ready_once_live();
+    }
+
+    /// Ready means the microphone carries real audio, not that VAD heard
+    /// speech: quiet room noise counts, exact zeros from a device that is
+    /// still switching profile do not.
+    fn signal_ready_once_live(&mut self) {
+        if self.capture_ready_tx.is_none() {
+            return;
+        }
+        let waited = self.ready_armed_at.elapsed();
+        if !self.live_audio_seen {
+            if waited < LIVE_AUDIO_WAIT_CAP {
+                return;
+            }
+            log::warn!("Microphone sent only digital silence for {waited:?}; treating it as ready");
+        }
         if let Some(ready_tx) = self.capture_ready_tx.take() {
-            // Silence still counts: readiness means the host is delivering samples,
-            // not that VAD has detected speech.
+            log::debug!("microphone ready {waited:?} after Cmd::Start");
             let _ = ready_tx.send(());
         }
     }

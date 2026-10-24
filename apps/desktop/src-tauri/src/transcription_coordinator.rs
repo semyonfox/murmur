@@ -88,9 +88,8 @@ enum BusyAction {
     Ignore,
     /// Remember the press; start recording when the pipeline finishes.
     Remember,
-    /// This press cancels a previously remembered press: two presses during
-    /// one busy window net to no-op, exactly as a press stops a locked
-    /// session once recording.
+    /// Toggle only: this press cancels a previously remembered press, so two
+    /// presses during one busy window net to no-op and edge parity holds.
     Forget,
 }
 
@@ -107,10 +106,11 @@ fn classify_busy_input(
         // Toggle mode ignores releases.
         (Toggle, false, _) => BusyAction::Ignore,
         // Hold modes: a press while busy means the user is holding the key —
-        // start as soon as the pipeline drains. A press on a queued tap stops
-        // it (parity); a press while the key is already down is a repeat.
-        (PushToTalk | HoldOrToggle, true, None) => BusyAction::Remember,
-        (PushToTalk | HoldOrToggle, true, Some(Remembered::Locked)) => BusyAction::Forget,
+        // start as soon as the pipeline drains. Nothing is recording yet, so a
+        // press on a queued tap means "I still want to talk": it re-arms the
+        // queue as a hold rather than cancelling it. A press while the key is
+        // already down is a repeat.
+        (PushToTalk | HoldOrToggle, true, None | Some(Remembered::Locked)) => BusyAction::Remember,
         (PushToTalk | HoldOrToggle, true, Some(Remembered::Held)) => BusyAction::Ignore,
         // Releases of a held pending press are deferred by the grace window
         // before reaching here and resolved by `finish_pending_hold`; any
@@ -818,7 +818,7 @@ mod tests {
         let cases = [
             (true, None, BusyAction::Remember),
             (true, Some(Remembered::Held), BusyAction::Ignore),
-            (true, Some(Remembered::Locked), BusyAction::Forget),
+            (true, Some(Remembered::Locked), BusyAction::Remember),
             (false, None, BusyAction::Ignore),
             (false, Some(Remembered::Held), BusyAction::Ignore),
             (false, Some(Remembered::Locked), BusyAction::Ignore),
@@ -1515,7 +1515,7 @@ mod tests {
     }
 
     #[test]
-    fn hold_or_toggle_two_taps_during_processing_net_noop() {
+    fn hold_or_toggle_second_tap_during_processing_keeps_queued_start() {
         let mode = ShortcutActivation::HoldOrToggle;
         let mut state = CoordinatorState::new();
         let t0 = Instant::now();
@@ -1527,15 +1527,41 @@ mod tests {
         assert!(state.is_locked());
 
         assert!(state.on_input(input(mode, true), t0 + ms(1500)).is_none());
-        assert!(
-            !state.is_locked(),
-            "the second tap's press forgets the queued tap"
-        );
         assert!(state.on_input(input(mode, false), t0 + ms(1600)).is_none());
-        assert!(state.grace_deadline().is_none());
+        assert!(state.on_grace_expired().is_none());
+        assert!(state.is_locked(), "a repeated busy tap still wants to talk");
 
-        assert!(state.on_processing_finished().is_none());
-        assert_eq!(state.stage, Stage::Idle);
+        assert!(matches!(
+            state.on_processing_finished(),
+            Some(Effect::Start { .. })
+        ));
+    }
+
+    /// The laptop log sequence: a busy tap nothing visibly acknowledged, then
+    /// a press held across the drain. Recording must start at the drain and
+    /// stop on the real release.
+    #[test]
+    fn hold_or_toggle_tap_then_hold_across_drain_records_the_hold() {
+        let mode = ShortcutActivation::HoldOrToggle;
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        hold_or_toggle_into_processing(&mut state, t0);
+
+        assert!(state.on_input(input(mode, true), t0 + ms(1000)).is_none());
+        assert!(state.on_input(input(mode, false), t0 + ms(1140)).is_none());
+        assert!(state.on_grace_expired().is_none());
+        assert!(state.on_input(input(mode, true), t0 + ms(1300)).is_none());
+        assert!(!state.is_locked(), "the new press is a hold in progress");
+
+        assert!(matches!(
+            state.on_processing_finished(),
+            Some(Effect::Start { .. })
+        ));
+        assert!(state.on_input(input(mode, false), t0 + ms(3300)).is_none());
+        assert!(matches!(
+            state.on_grace_expired(),
+            Some(Effect::Stop { .. })
+        ));
     }
 
     #[test]

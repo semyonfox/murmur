@@ -1,6 +1,6 @@
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use crate::apple_intelligence;
-use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
+use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_bounded, SoundType};
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error, VadPolicy};
 #[cfg(target_os = "linux")]
 use crate::linux_modifier_guard::ModifierReadiness;
@@ -31,6 +31,8 @@ use tauri::Manager;
 use tauri::{AppHandle, Emitter};
 
 const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
+/// The bundled start cues run about 0.6s, plus player startup and output latency.
+const START_CUE_MAX_WAIT: Duration = Duration::from_millis(1000);
 static NEXT_RECORDING_FILE_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, serde::Serialize)]
@@ -806,9 +808,21 @@ impl ShortcutAction for TranscribeAction {
                         return;
                     }
 
+                    // pausing media before the cue keeps the cue audible, a
+                    // system mute would swallow it so that waits until after
+                    if cfg!(target_os = "linux") {
+                        rm_clone.quiet_other_audio(generation);
+                    }
+
                     if audio_feedback {
-                        // warm the microphone without saving audio while the cue plays
-                        play_feedback_sound_blocking(&app_clone, SoundType::Start);
+                        // warm the microphone without saving audio while the cue plays.
+                        // the wait is bounded: a Bluetooth output switching profile
+                        // can stall playback for seconds and must not hold capture
+                        play_feedback_sound_bounded(
+                            &app_clone,
+                            SoundType::Start,
+                            START_CUE_MAX_WAIT,
+                        );
                         std::thread::sleep(Duration::from_millis(60));
                         let Some(resumed) = rm_clone.resume_recording_after_feedback(generation)
                         else {
@@ -825,8 +839,8 @@ impl ShortcutAction for TranscribeAction {
                     debug!("Microphone is receiving samples; recording is ready");
                     utils::emit_recording_ready(&app_clone);
 
-                    if rm_clone.is_recording_readiness_current(generation) {
-                        rm_clone.apply_mute();
+                    if !cfg!(target_os = "linux") {
+                        rm_clone.quiet_other_audio(generation);
                     }
                 });
             }
@@ -922,7 +936,8 @@ impl ShortcutAction for TranscribeAction {
 
             let stop_recording_time = Instant::now();
             let samples = rm.stop_recording(&binding_id, cancel_generation);
-            rm.remove_mute();
+            // other audio resumes as soon as capture ends, not after transcription
+            rm.restore_other_audio();
             if let Some(samples) = samples {
                 debug!(
                     "Recording stopped and samples retrieved in {:?}, sample count: {}",

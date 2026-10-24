@@ -546,8 +546,8 @@
         "description": "Enable AI-powered text refinement after transcription"
       },
       "muteWhileRecording": {
-        "label": "Mute other audio while recording",
-        "description": "Mute system audio during recording"
+        "label": "Pause other audio while recording",
+        "description": "Pause playing media while you dictate and resume it when you stop. Windows and macOS mute system audio instead"
       },
       "appendTrailingSpace": {
         "label": "Add a space after the text",
