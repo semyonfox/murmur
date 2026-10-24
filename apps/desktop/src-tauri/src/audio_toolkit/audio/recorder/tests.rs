@@ -1,7 +1,7 @@
 use super::{
     is_microphone_access_denied, is_no_input_device_error, run_consumer, AudioRecorder,
     CaptureOutput, CaptureProcessor, CaptureTarget, CaptureTransportState, ChunkDisposition, Cmd,
-    VadConfig, VadPolicy,
+    VadConfig, VadPolicy, LIVE_AUDIO_WAIT_CAP,
 };
 
 fn memory_samples(result: Result<CaptureOutput, String>) -> Vec<f32> {
@@ -543,4 +543,33 @@ fn detects_coreaudio_config_error() {
 fn does_not_match_other_errors_for_no_device() {
     assert!(!is_no_input_device_error("permission denied"));
     assert!(!is_no_input_device_error("device not found"));
+}
+
+#[test]
+fn readiness_waits_for_live_audio_while_a_bluetooth_mic_switches_profile() {
+    let mut processor = CaptureProcessor::new(16_000, None, None, None, Instant::now());
+    let (ready_tx, ready_rx) = mpsc::channel();
+    processor.begin_recording(VadPolicy::Disabled, ready_tx, None);
+    processor.capture_suspended = true;
+
+    processor.process_raw_chunk(&[0.0; 480], ChunkDisposition::Capture);
+    assert!(
+        ready_rx.try_recv().is_err(),
+        "digital silence is not a live mic"
+    );
+
+    processor.process_raw_chunk(&[0.0, 0.0001, 0.0], ChunkDisposition::Capture);
+    assert!(ready_rx.try_recv().is_ok(), "quiet room noise is live");
+}
+
+#[test]
+fn readiness_gives_up_on_a_mic_that_only_sends_zeros() {
+    let mut processor = CaptureProcessor::new(16_000, None, None, None, Instant::now());
+    let (ready_tx, ready_rx) = mpsc::channel();
+    processor.begin_recording(VadPolicy::Disabled, ready_tx, None);
+    processor.ready_armed_at = Instant::now() - LIVE_AUDIO_WAIT_CAP;
+
+    processor.process_raw_chunk(&[0.0; 480], ChunkDisposition::Capture);
+    assert!(ready_rx.try_recv().is_ok());
+    assert_eq!(memory_samples(processor.finish_recording()).len(), 480);
 }

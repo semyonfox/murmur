@@ -21,11 +21,11 @@ const STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 const SILERO_VAD_THRESHOLD: f32 = 0.3;
 const EARSHOT_VAD_THRESHOLD: f32 = 0.5;
 
+// linux pauses MPRIS players instead of muting, see `pause_playing_media`
+#[cfg(not(target_os = "linux"))]
 fn set_mute(mute: bool) {
     // Expected behavior:
     // - Windows: works on most systems using standard audio drivers.
-    // - Linux: works on many systems (PipeWire, PulseAudio, ALSA),
-    //   but some distros may lack the tools used.
     // - macOS: works on most standard setups via AppleScript.
     // If unsupported, fails silently.
 
@@ -63,40 +63,6 @@ fn set_mute(mute: bool) {
 
             let _ = volume_interface.SetMute(mute, std::ptr::null());
         }
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        use std::process::Command;
-
-        let mute_val = if mute { "1" } else { "0" };
-        let amixer_state = if mute { "mute" } else { "unmute" };
-
-        // Try multiple backends to increase compatibility
-        // 1. PipeWire (wpctl)
-        if Command::new("wpctl")
-            .args(["set-mute", "@DEFAULT_AUDIO_SINK@", mute_val])
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false)
-        {
-            return;
-        }
-
-        // 2. PulseAudio (pactl)
-        if Command::new("pactl")
-            .args(["set-sink-mute", "@DEFAULT_SINK@", mute_val])
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false)
-        {
-            return;
-        }
-
-        // 3. ALSA (amixer)
-        let _ = Command::new("amixer")
-            .args(["set", "Master", amixer_state])
-            .output();
     }
 
     #[cfg(target_os = "macos")]
@@ -143,60 +109,6 @@ fn get_mute() -> Option<bool> {
     }
 }
 
-#[cfg(target_os = "linux")]
-fn get_mute() -> Option<bool> {
-    use std::process::Command;
-
-    // 1. PipeWire (wpctl): prints "[MUTED]" in the volume line when muted.
-    if let Ok(out) = Command::new("wpctl")
-        .args(["get-volume", "@DEFAULT_AUDIO_SINK@"])
-        .output()
-    {
-        if out.status.success() {
-            return Some(String::from_utf8_lossy(&out.stdout).contains("[MUTED]"));
-        }
-    }
-
-    // 2. PulseAudio (pactl): prints "Mute: yes" / "Mute: no".
-    // Force LC_ALL=C so a localized system still emits the parseable English
-    // "yes"/"no" instead of e.g. "ja"/"nein".
-    if let Ok(out) = Command::new("pactl")
-        .env("LC_ALL", "C")
-        .args(["get-sink-mute", "@DEFAULT_SINK@"])
-        .output()
-    {
-        if out.status.success() {
-            let s = String::from_utf8_lossy(&out.stdout).to_lowercase();
-            if s.contains("yes") {
-                return Some(true);
-            }
-            if s.contains("no") {
-                return Some(false);
-            }
-        }
-    }
-
-    // 3. ALSA (amixer): prints "[off]" for muted channels, "[on]" otherwise.
-    // LC_ALL=C keeps the "[on]"/"[off]" tokens stable across locales.
-    if let Ok(out) = Command::new("amixer")
-        .env("LC_ALL", "C")
-        .args(["get", "Master"])
-        .output()
-    {
-        if out.status.success() {
-            let s = String::from_utf8_lossy(&out.stdout);
-            if s.contains("[off]") {
-                return Some(true);
-            }
-            if s.contains("[on]") {
-                return Some(false);
-            }
-        }
-    }
-
-    None
-}
-
 #[cfg(target_os = "macos")]
 fn get_mute() -> Option<bool> {
     use std::process::Command;
@@ -225,9 +137,63 @@ fn get_mute() -> Option<bool> {
 /// the system was NOT already muted beforehand. If the prior state was muted,
 /// we leave it muted (the user's own state). If it's unknown (`None`), we
 /// default to unmuting so audio is never left stranded muted by us.
+#[cfg(not(target_os = "linux"))]
 fn restore_mute(prev_muted: Option<bool>) {
     if prev_muted != Some(true) {
         set_mute(false);
+    }
+}
+
+/// Pauses every MPRIS player that is currently playing and returns their
+/// names, so stop resumes exactly those. Players the user had already paused
+/// stay paused. Without playerctl nothing is paused and audio is left alone.
+#[cfg(target_os = "linux")]
+fn pause_playing_media() -> Vec<String> {
+    use std::process::Command;
+
+    let output = match Command::new("playerctl")
+        .args([
+            "--all-players",
+            "--format",
+            "{{playerInstance}}\t{{status}}",
+            "status",
+        ])
+        .output()
+    {
+        Ok(output) => output,
+        Err(error) => {
+            debug!("Not pausing media: playerctl unavailable ({error})");
+            return Vec::new();
+        }
+    };
+    let playing = playing_players(&String::from_utf8_lossy(&output.stdout));
+    for player in &playing {
+        let _ = Command::new("playerctl")
+            .args(["--player", player, "pause"])
+            .status();
+    }
+    playing
+}
+
+#[cfg(target_os = "linux")]
+fn playing_players(status_lines: &str) -> Vec<String> {
+    status_lines
+        .lines()
+        .filter_map(|line| {
+            let (player, status) = line.split_once('\t')?;
+            (status.trim() == "Playing").then(|| player.to_string())
+        })
+        .collect()
+}
+
+#[cfg(target_os = "linux")]
+fn resume_media(players: &[String]) {
+    use std::process::Command;
+
+    for player in players {
+        let _ = Command::new("playerctl")
+            .args(["--player", player, "play"])
+            .status();
     }
 }
 
@@ -248,14 +214,43 @@ pub enum MicrophoneMode {
     OnDemand,
 }
 
-/// Tracks our forced "mute while recording" so we can restore the user's audio
-/// exactly as it was. `did_mute` is true while our mute is active; `prev_muted`
-/// is the system mute state captured just before we muted, used to decide
-/// whether to unmute on stop (so a system that was already muted stays muted).
-#[derive(Debug, Default, Clone, Copy)]
-struct MuteState {
-    did_mute: bool,
-    prev_muted: Option<bool>,
+/// What "quiet other audio while recording" did for the current recording,
+/// so stop undoes exactly that. Linux pauses the players that were playing.
+/// Elsewhere the system output is muted, and `prev_muted` keeps a system the
+/// user had already muted muted after stop.
+#[derive(Debug, Default)]
+enum QuietedAudio {
+    #[default]
+    Untouched,
+    #[cfg(target_os = "linux")]
+    Paused(Vec<String>),
+    #[cfg(not(target_os = "linux"))]
+    Muted { prev_muted: Option<bool> },
+}
+
+impl QuietedAudio {
+    fn quiet() -> Self {
+        #[cfg(target_os = "linux")]
+        {
+            QuietedAudio::Paused(pause_playing_media())
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let prev_muted = get_mute();
+            set_mute(true);
+            QuietedAudio::Muted { prev_muted }
+        }
+    }
+
+    fn restore(self) {
+        match self {
+            QuietedAudio::Untouched => {}
+            #[cfg(target_os = "linux")]
+            QuietedAudio::Paused(players) => resume_media(&players),
+            #[cfg(not(target_os = "linux"))]
+            QuietedAudio::Muted { prev_muted } => restore_mute(prev_muted),
+        }
+    }
 }
 
 /// The persisted microphone preference currently in effect. Clamshell and
@@ -382,7 +377,7 @@ pub struct AudioRecordingManager {
     recorder: Arc<Mutex<Option<AudioRecorder>>>,
     is_open: Arc<Mutex<bool>>,
     is_recording: Arc<Mutex<bool>>,
-    mute_state: Arc<Mutex<MuteState>>,
+    quieted_audio: Arc<Mutex<QuietedAudio>>,
     close_generation: Arc<AtomicU64>,
     cancel_generation: Arc<AtomicU64>,
     stream_router: Arc<StreamRouter>,
@@ -427,7 +422,7 @@ impl AudioRecordingManager {
             recorder: Arc::new(Mutex::new(None)),
             is_open: Arc::new(Mutex::new(false)),
             is_recording: Arc::new(Mutex::new(false)),
-            mute_state: Arc::new(Mutex::new(MuteState::default())),
+            quieted_audio: Arc::new(Mutex::new(QuietedAudio::default())),
             close_generation: Arc::new(AtomicU64::new(0)),
             cancel_generation: Arc::new(AtomicU64::new(0)),
             stream_router,
@@ -581,43 +576,33 @@ impl AudioRecordingManager {
 
     /* ---------- microphone life-cycle -------------------------------------- */
 
-    /// Applies mute if mute_while_recording is enabled and stream is open.
-    /// Snapshots the system's prior mute state first so `remove_mute` can
-    /// restore it instead of unconditionally unmuting.
-    pub fn apply_mute(&self) {
-        let settings = get_settings(&self.app_handle);
-        if !settings.mute_while_recording {
+    /// Pauses (Linux) or mutes other audio when mute_while_recording is on.
+    /// Checked against the recording generation under the lock, so a stop that
+    /// already ran `restore_other_audio` can't be followed by a stranded pause.
+    pub fn quiet_other_audio(&self, generation: u64) {
+        if !get_settings(&self.app_handle).mute_while_recording {
             return;
         }
 
-        // Lock order: is_open before mute_state (matches stop_microphone_stream).
-        let is_open = self.is_open.lock().unwrap();
-        let mut mute_guard = self.mute_state.lock().unwrap();
-        // Already muted this session — don't re-snapshot, or a duplicate/late
-        // apply would overwrite prev_muted with our own forced-muted state and
-        // strand audio muted on stop.
-        if mute_guard.did_mute {
+        let mut quieted = self.quieted_audio.lock().unwrap();
+        // already quieted this session: re-snapshotting would record our own
+        // pause or mute as the user's state and strand audio on stop
+        if !matches!(*quieted, QuietedAudio::Untouched)
+            || !self.is_recording_readiness_current(generation)
+        {
             return;
         }
-        if *is_open {
-            mute_guard.prev_muted = get_mute();
-            set_mute(true);
-            mute_guard.did_mute = true;
-            debug!("Mute applied (prev_muted={:?})", mute_guard.prev_muted);
-        }
+        *quieted = QuietedAudio::quiet();
+        debug!("Other audio quieted for recording: {:?}", *quieted);
     }
 
-    /// Removes mute if it was applied, restoring the system's prior mute state
-    /// (a system already muted before recording stays muted).
-    pub fn remove_mute(&self) {
-        let mut mute_guard = self.mute_state.lock().unwrap();
-        if mute_guard.did_mute {
-            restore_mute(mute_guard.prev_muted);
-            mute_guard.did_mute = false;
-            debug!(
-                "Mute removed (restored prev_muted={:?})",
-                mute_guard.prev_muted
-            );
+    /// Undoes `quiet_other_audio`, resuming paused players or restoring the
+    /// prior mute state.
+    pub fn restore_other_audio(&self) {
+        let quieted = std::mem::take(&mut *self.quieted_audio.lock().unwrap());
+        if !matches!(quieted, QuietedAudio::Untouched) {
+            debug!("Restoring other audio: {:?}", quieted);
+            quieted.restore();
         }
     }
 
@@ -661,13 +646,7 @@ impl AudioRecordingManager {
 
             // Torn down inline rather than via stop_microphone_stream(), which
             // takes the `is_open` lock we are already holding.
-            {
-                let mut mute_guard = self.mute_state.lock().unwrap();
-                if mute_guard.did_mute {
-                    restore_mute(mute_guard.prev_muted);
-                    mute_guard.did_mute = false;
-                }
-            }
+            self.restore_other_audio();
             if let Some(rec) = self.recorder.lock().unwrap().as_mut() {
                 let _ = rec.close();
             }
@@ -680,17 +659,10 @@ impl AudioRecordingManager {
 
         let start_time = Instant::now();
 
-        // Don't mute immediately - caller will handle muting after audio feedback.
-        // The previous stream restored audio on close, so did_mute should already
-        // be false here; if it somehow isn't, restore rather than just clearing the
-        // flag, which would strand system audio muted.
-        {
-            let mut mute_guard = self.mute_state.lock().unwrap();
-            if mute_guard.did_mute {
-                restore_mute(mute_guard.prev_muted);
-                mute_guard.did_mute = false;
-            }
-        }
+        // The caller quiets other audio once the microphone is ready. The
+        // previous stream restored it on close, so this is only a safety net
+        // against stranding paused or muted audio.
+        self.restore_other_audio();
 
         // Get the selected device from settings, considering clamshell mode.
         // No pre-flight enumeration here: when nothing is configured the
@@ -753,13 +725,7 @@ impl AudioRecordingManager {
             return;
         }
 
-        {
-            let mut mute_guard = self.mute_state.lock().unwrap();
-            if mute_guard.did_mute {
-                restore_mute(mute_guard.prev_muted);
-            }
-            mute_guard.did_mute = false;
-        }
+        self.restore_other_audio();
 
         if let Some(rec) = self.recorder.lock().unwrap().as_mut() {
             // If still recording, stop first.
@@ -1157,6 +1123,8 @@ impl AudioRecordingManager {
                 }
 
                 *self.is_recording.lock().unwrap() = false;
+                // a lazy or always-on stream stays open, so restore here too
+                self.restore_other_audio();
 
                 // In on-demand mode, close the mic (lazily if the setting is enabled)
                 if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
@@ -1172,5 +1140,19 @@ impl AudioRecordingManager {
             }
             RecordingState::Idle => {}
         }
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::playing_players;
+
+    #[test]
+    fn only_playing_players_are_paused_and_resumed() {
+        let status = "spotify\tPlaying\nfirefox.instance_1_42\tPaused\nchromium.instance9\tPlaying\nvlc\tStopped\n";
+        assert_eq!(
+            playing_players(status),
+            vec!["spotify".to_string(), "chromium.instance9".to_string()]
+        );
     }
 }

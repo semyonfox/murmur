@@ -2,7 +2,9 @@ use crate::settings::SoundTheme;
 use crate::settings::{self, AppSettings};
 use log::warn;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 use std::thread;
+use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 pub enum SoundType {
@@ -52,14 +54,23 @@ pub fn play_feedback_sound(app: &AppHandle, sound_type: SoundType) {
     }
 }
 
-pub fn play_feedback_sound_blocking(app: &AppHandle, sound_type: SoundType) {
+/// Plays the cue and waits for it to finish, but for at most `max_wait`. The
+/// player keeps running in the background if the wait gives up.
+pub fn play_feedback_sound_bounded(app: &AppHandle, sound_type: SoundType, max_wait: Duration) {
     let settings = settings::get_settings(app);
     if !settings.audio_feedback {
         return;
     }
 
     if let Some(path) = resolve_sound_path(app, &settings, sound_type) {
-        play_sound_blocking(&path);
+        let (done_tx, done_rx) = mpsc::channel();
+        thread::spawn(move || {
+            play_sound_blocking(&path);
+            let _ = done_tx.send(());
+        });
+        if done_rx.recv_timeout(max_wait).is_err() {
+            warn!("Feedback cue still playing after {max_wait:?}; not waiting any longer");
+        }
     }
 }
 
