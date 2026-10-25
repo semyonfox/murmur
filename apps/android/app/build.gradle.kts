@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.net.URI
 
 val releaseKeystore = providers.environmentVariable("MURMUR_ANDROID_KEYSTORE").orNull
 val releaseStorePassword = providers.environmentVariable("MURMUR_ANDROID_STORE_PASSWORD").orNull
@@ -58,7 +59,7 @@ android {
         buildConfigField("String", "UPDATE_MANIFEST_URL", "\"${updateManifestUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
         val telemetryEndpoint = providers.gradleProperty("murmurTelemetryEndpoint").orNull ?: ""
         require(telemetryEndpoint.isEmpty() || runCatching {
-            val uri = java.net.URI(telemetryEndpoint)
+            val uri = URI(telemetryEndpoint)
             uri.scheme == "https" && !uri.host.isNullOrBlank() && uri.path == "/v1/events" &&
                 uri.userInfo == null && uri.query == null && uri.fragment == null
         }.getOrDefault(false)) { "murmurTelemetryEndpoint must be an HTTPS /v1/events URL without credentials or query" }
