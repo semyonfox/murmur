@@ -9,9 +9,16 @@ fn main() {
 
     #[cfg(target_os = "linux")]
     {
-        // DMABUF renderer causes crashes on various GPU/display server configurations
-        // See: https://github.com/tauri-apps/tauri/issues/9394
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        // the DMABUF renderer crashes on the proprietary nvidia driver
+        // (https://github.com/tauri-apps/tauri/issues/9394), but WebKitGTK 2.54's
+        // fallback only repaints animated regions of a transparent window, which
+        // strips the overlay card. so only disable it where it is known to crash,
+        // and leave an explicit user setting alone
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
+            && std::path::Path::new("/sys/module/nvidia").exists()
+        {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
     }
 
     #[cfg(target_os = "windows")]
