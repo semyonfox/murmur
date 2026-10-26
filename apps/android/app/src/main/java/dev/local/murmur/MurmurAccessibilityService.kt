@@ -101,7 +101,22 @@ class MurmurAccessibilityService : AccessibilityService() {
             )
             readyReceiverRegistered = true
         }
+        restoreReady()
         syncBubble()
+    }
+
+    // android rebinds this service after the process is killed, but the ready
+    // service and its in-memory flag are gone, which used to hide the bubble
+    // until the user toggled it off and on again
+    private fun restoreReady() {
+        if (MurmurReadyService.isActive || !MurmurReadyService.isWanted(this) ||
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+        ) return
+        try {
+            MurmurReadyService.start(this)
+        } catch (_: Exception) {
+            // background start was refused; the next bubble tap retries while it is on screen
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -149,7 +164,7 @@ class MurmurAccessibilityService : AccessibilityService() {
 
     private fun bubbleAllowed(): Boolean =
         getSharedPreferences("murmur", Context.MODE_PRIVATE).getBoolean("bubble_disclosure_accepted", false) &&
-            MurmurReadyService.isActive
+            (MurmurReadyService.isActive || MurmurReadyService.isWanted(this))
 
     private fun focusedEditable(): FocusTarget? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
@@ -201,6 +216,7 @@ class MurmurAccessibilityService : AccessibilityService() {
             hideBubble()
             return
         }
+        restoreReady()
         val target = focusedEditable() ?: run {
             showMessage("Tap a text field first")
             return

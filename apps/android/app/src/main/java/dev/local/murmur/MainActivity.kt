@@ -1189,6 +1189,9 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (::statusTitle.isInitialized) {
+            if (MurmurReadyService.isWanted(this) && !MurmurReadyService.isActive && !LectureService.isActive &&
+                isBubbleEnabled() && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            ) beginVoiceReady()
             refreshStatus()
             refreshHistory()
             refreshLectures()
@@ -1573,14 +1576,78 @@ class MainActivity : Activity() {
                 result.onSuccess { models ->
                     if (models.isEmpty()) cleanupFeedback.text = "No models returned. You can enter a model ID manually."
                     else {
-                        cleanupFeedback.text = "Choose a model."
-                        AlertDialog.Builder(this).setTitle("Cleanup models")
-                            .setItems(models.toTypedArray()) { _, index -> cleanupModelInput.setText(models[index]) }
-                            .setNegativeButton("Cancel", null).show()
+                        cleanupFeedback.text = ""
+                        showCleanupModelPicker(models)
                     }
                 }.onFailure { error -> cleanupFeedback.text = error.message ?: "Could not load models. Enter an ID manually." }
             }
         }, "murmur-cleanup-models").start()
+    }
+
+    // big catalogues like OpenRouter list hundreds of niche models, so until the
+    // user searches only the current choice and mainstream providers are shown
+    private fun showCleanupModelPicker(models: List<String>) {
+        val current = cleanupModelInput.text.toString().trim()
+        val suggested = models.filter { model ->
+            model == current || (SUGGESTED_MODEL_PROVIDERS.any { model.startsWith("$it/") } &&
+                MODEL_NOISE.none { model.contains(it, ignoreCase = true) } && !Regex("""\d{4}""").containsMatchIn(model))
+        }.sortedBy { if (it == current) 0 else 1 }.ifEmpty { models.take(MODEL_PICKER_ROWS) }
+        var dialog: AlertDialog? = null
+        val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val summary = text("", 12f, R.color.murmur_muted).apply { setPadding(dp(4), dp(10), dp(4), dp(6)) }
+        val search = input("", "Search ${models.size} models", InputType.TYPE_CLASS_TEXT)
+        fun render(query: String) {
+            val terms = query.trim().lowercase(Locale.ROOT).split(' ').filter { it.isNotEmpty() }
+            val matches = if (terms.isEmpty()) suggested
+                else models.filter { model -> terms.all { model.lowercase(Locale.ROOT).contains(it) } }
+            summary.text = when {
+                terms.isEmpty() -> "Popular providers. Search to see all ${models.size}."
+                matches.isEmpty() -> "No matches. You can still type a model ID on the cleanup page."
+                matches.size > MODEL_PICKER_ROWS -> "Showing $MODEL_PICKER_ROWS of ${matches.size}. Keep typing to narrow it down."
+                else -> "${matches.size} ${if (matches.size == 1) "match" else "matches"}"
+            }
+            rows.removeAllViews()
+            matches.take(MODEL_PICKER_ROWS).forEach { model ->
+                val provider = model.substringBefore('/', "")
+                rows.addView(LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(12), dp(10), dp(12), dp(10))
+                    background = if (model == current) rounded(R.color.murmur_background, 10f, stroke = R.color.murmur_accent)
+                        else RippleDrawable(ColorStateList.valueOf(color(R.color.murmur_border)), null, rounded(R.color.murmur_surface, 10f))
+                    addView(text(model.substringAfter('/'), 15f, R.color.murmur_text, bold = model == current).apply {
+                        maxLines = 1
+                        ellipsize = TextUtils.TruncateAt.END
+                    })
+                    if (provider.isNotEmpty()) addView(text(provider + if (model == current) " · selected" else "", 12f, R.color.murmur_muted))
+                    isClickable = true
+                    contentDescription = model
+                    setOnClickListener {
+                        cleanupModelInput.setText(model)
+                        dialog?.dismiss()
+                    }
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                    bottomMargin = dp(4)
+                })
+            }
+        }
+        search.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) = render(s?.toString().orEmpty())
+        })
+        render("")
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(8), dp(18), 0)
+            addView(search)
+            addView(summary)
+            addView(ScrollView(this@MainActivity).apply { addView(rows) },
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(380)))
+        }
+        dialog = AlertDialog.Builder(this).setTitle("Choose a cleanup model")
+            .setView(content).setNegativeButton("Cancel", null).create()
+        dialog.window?.setBackgroundDrawable(rounded(R.color.murmur_surface, 20f))
+        dialog.show()
     }
 
     private fun chooseCleanupPrompt() {
@@ -2418,5 +2485,13 @@ class MainActivity : Activity() {
         private const val NOTIFICATION_REQUEST = 2
         private const val HISTORY_EXPORT_REQUEST = 3
         private const val LECTURE_IMPORT_REQUEST = 4
+        private const val MODEL_PICKER_ROWS = 60
+        private val SUGGESTED_MODEL_PROVIDERS = listOf(
+            "openai", "anthropic", "google", "qwen", "mistralai", "meta-llama", "deepseek", "x-ai",
+        )
+        // snapshots, previews and non-text variants stay reachable through search
+        private val MODEL_NOISE = listOf(
+            ":free", "preview", "exp", "vision", "image", "audio", "embed", "guard", "tts", "search", "coder", "math",
+        )
     }
 }
