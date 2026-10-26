@@ -18,6 +18,7 @@ internal class MurmurReadyService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
+            setWanted(this, false)
             updateReady(false)
             stopSelf()
             return START_NOT_STICKY
@@ -109,13 +110,26 @@ internal class MurmurReadyService : Service() {
         var isActive = false
             private set
 
+        private const val PREF_WANTED = "voice_ready_wanted"
+
+        // the user's choice outlives the process. MIUI kills Murmur on swipe-away
+        // and lock, and the accessibility service uses this to bring ready back
+        fun isWanted(context: Context): Boolean =
+            context.getSharedPreferences("murmur", Context.MODE_PRIVATE).getBoolean(PREF_WANTED, false)
+
+        private fun setWanted(context: Context, wanted: Boolean) {
+            context.getSharedPreferences("murmur", Context.MODE_PRIVATE).edit().putBoolean(PREF_WANTED, wanted).apply()
+        }
+
         fun start(context: Context) {
+            setWanted(context, true)
             context.startForegroundService(
                 Intent(context, MurmurReadyService::class.java).setAction(ACTION_START),
             )
         }
 
         fun stop(context: Context) {
+            setWanted(context, false)
             context.stopService(Intent(context, MurmurReadyService::class.java))
         }
     }
