@@ -2491,7 +2491,7 @@ class MainActivity : Activity() {
         )
         // snapshots, previews and non-text variants stay reachable through search
         private val MODEL_NOISE = listOf(
-            ":free", "preview", "exp", "vision", "image", "audio", "embed", "guard", "tts", "search", "coder", "math",
+            ":free", ":batch", "preview", "exp", "vision", "image", "audio", "embed", "guard", "tts", "search", "coder", "math",
         )
     }
 }
