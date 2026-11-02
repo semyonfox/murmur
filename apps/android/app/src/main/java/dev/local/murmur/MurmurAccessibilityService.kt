@@ -251,7 +251,7 @@ class MurmurAccessibilityService : AccessibilityService() {
         val recordingSession = ++session
         val chunks = ChunkedTranscription(worker, TranscriptionClient(), endpoint)
         try {
-            capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled, onChunk = { piece ->
+            capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled, chunkMinSeconds = chunks.minChunkSeconds, onChunk = { piece ->
                 if (recordingSession == session && chunked === chunks) chunks.add(piece) else piece.delete()
             }) { result ->
                 capture = null

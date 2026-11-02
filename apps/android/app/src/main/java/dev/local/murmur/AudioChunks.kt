@@ -42,10 +42,11 @@ internal fun splitAtPauses(samples: FloatArray, maxSamples: Int, searchSamples: 
 // a pause is a run of frames well below the loudest speech heard in the piece, which
 // adapts to quiet microphones and noise suppression better than a fixed level
 internal class PauseChunker(
-    private val minBytes: Int = 12 * BYTES_PER_SECOND,
+    minSeconds: Int,
     private val maxBytes: Int = 25 * BYTES_PER_SECOND,
-    private val pauseFrames: Int = 15,
+    private val pauseFrames: Int = 20,
 ) {
+    private val minBytes = minSeconds * BYTES_PER_SECOND
     private var data = ByteArray(maxBytes + 64 * 1024)
     private var size = 0
     private val frameLevels = ArrayList<Int>()
@@ -128,6 +129,12 @@ internal class ChunkedTranscription(
 ) {
     private val parts = mutableListOf<Future<String>>()
     val started: Boolean get() = parts.isNotEmpty()
+
+    // most takes are a few seconds, so pieces can be short. local whisper is the
+    // exception because it always encodes a full 30 second window, so every extra
+    // piece costs as much as a long one
+    val minChunkSeconds: Int get() =
+        if (endpoint.localModel?.let(LocalSpeechModels::engineOf) == SpeechEngine.WHISPER) 12 else 3
 
     fun add(file: File) {
         parts += worker.submit(Callable {

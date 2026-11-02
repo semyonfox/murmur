@@ -36,9 +36,21 @@ class AudioChunksTest {
     }
 
     @Test
-    fun cutsInsideTheFirstPauseAfterTheMinimum() {
+    fun cutsAShortTakeAtItsFirstPause() {
+        val audio = pcm(true to 3.5, false to 0.5, true to 2.0)
+        val chunker = PauseChunker(minSeconds = 3)
+        val pieces = feed(chunker, audio)
+
+        assertEquals(1, pieces.size)
+        val seconds = pieces[0].size / 32_000.0
+        assertTrue("cut at $seconds s", seconds in 3.5..4.0)
+        assertEquals(audio.size, pieces[0].size + chunker.finish()!!.size)
+    }
+
+    @Test
+    fun ignoresPausesBeforeTheMinimum() {
         val audio = pcm(true to 8.0, false to 0.5, true to 6.0, false to 0.6, true to 4.0)
-        val chunker = PauseChunker()
+        val chunker = PauseChunker(minSeconds = 12)
         val pieces = feed(chunker, audio)
 
         assertEquals(1, pieces.size)
@@ -52,7 +64,7 @@ class AudioChunksTest {
     @Test
     fun forcesACutAtTheQuietestPointWhenTheSpeakerNeverPauses() {
         val audio = pcm(true to 22.0, false to 0.1, true to 8.0)
-        val pieces = feed(PauseChunker(), audio)
+        val pieces = feed(PauseChunker(minSeconds = 12), audio)
 
         assertEquals(1, pieces.size)
         val seconds = pieces[0].size / 32_000.0
@@ -61,8 +73,8 @@ class AudioChunksTest {
 
     @Test
     fun dropsASilentTailSoWhisperDoesNotInventWords() {
-        val chunker = PauseChunker()
-        feed(chunker, pcm(true to 13.0, false to 1.0, false to 2.0))
+        val chunker = PauseChunker(minSeconds = 3)
+        feed(chunker, pcm(true to 5.0, false to 3.0))
         assertNull(chunker.finish())
     }
 

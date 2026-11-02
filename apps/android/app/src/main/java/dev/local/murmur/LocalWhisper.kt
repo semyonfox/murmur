@@ -68,6 +68,10 @@ internal object LocalSpeechModels {
         DownloadableSpeechModel("parakeet-tdt-0.6b-v3-q8_0", "Parakeet v3 · 669 MB", 668_757_119, "4d64e9e96c2792186d072fde0034df0ad670cf680a2f53069052ead827fd600e", 4, SpeechEngine.PARAKEET),
     )
 
+    fun engineOf(model: File): SpeechEngine =
+        catalog.firstOrNull { it.id == model.name.removePrefix("ggml-").removeSuffix(".bin") }?.engine
+            ?: SpeechEngine.WHISPER
+
     fun file(context: Context, model: DownloadableSpeechModel): File =
         File(File(context.filesDir, "speech-models"), "ggml-${model.id}.bin")
 
@@ -211,7 +215,7 @@ internal object LocalWhisper {
         lastUsedAt = System.nanoTime()
         if (loadedPath == model.absolutePath && context != 0L) return
         release()
-        val engine = engineOf(model)
+        val engine = LocalSpeechModels.engineOf(model)
         context = when (engine) {
             SpeechEngine.WHISPER -> nativeOpen(model.absolutePath)
             SpeechEngine.PARAKEET -> nativeOpenParakeet(model.absolutePath)
@@ -253,7 +257,4 @@ internal object LocalWhisper {
                 ?: throw IOException("On-phone transcription failed.")
         }.replace(Regex(" {2,}"), " ").trim()
 
-    private fun engineOf(model: File): SpeechEngine =
-        LocalSpeechModels.catalog.firstOrNull { it.id == model.name.removePrefix("ggml-").removeSuffix(".bin") }?.engine
-            ?: SpeechEngine.WHISPER
 }
