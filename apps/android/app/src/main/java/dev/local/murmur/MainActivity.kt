@@ -125,8 +125,6 @@ class MainActivity : Activity() {
     private var downloadedUpdate: File? = null
     private var updateBusy = false
     private lateinit var inputBubbleRow: SetupRow
-    private lateinit var keyboardRow: SetupRow
-    private lateinit var selectedRow: SetupRow
     private lateinit var latestView: TextView
     private lateinit var historyList: LinearLayout
     private lateinit var lectureList: LinearLayout
@@ -202,7 +200,7 @@ class MainActivity : Activity() {
         SPEECH("Models", "Choose speech recognition and transcript cleanup.", R.drawable.ic_microphone),
         HISTORY("History", "Past dictations kept on this phone.", R.drawable.ic_document),
         WORDS("Words", "Names and terms Murmur should spell your way.", R.drawable.ic_dictionary),
-        INPUT("Input", "Set up the bubble or use the Murmur keyboard.", R.drawable.ic_keyboard),
+        INPUT("Input", "Set up the voice bubble.", R.drawable.ic_keyboard),
         RECOGNITION("Recognition", "Choose where recordings are transcribed.", R.drawable.ic_microphone),
         CLEANUP("Cleanup", "Tidy transcripts before they are inserted.", R.drawable.ic_microphone),
         LECTURES("Lectures", "Record a lecture or transcribe an audio file.", R.drawable.ic_microphone),
@@ -986,19 +984,6 @@ class MainActivity : Activity() {
         reporting.addView(text("Self-hosted screen counts and fixed error categories only. No visitor tracking, recordings, transcripts, words or keys. Off until an owner endpoint is configured. Counts expire after 30 days, errors after 14 days.", 13f, R.color.murmur_muted))
         if (!AnonymousTelemetry.configured()) reporting.addView(text("Reporting is not configured in this build. Nothing is sent.", 13f, R.color.murmur_muted))
         inputPage.addView(reporting)
-        inputPage.addView(groupTitle("Murmur keyboard"))
-        inputPage.addView(text("A fallback for phones older than Android 13, or if you prefer a keyboard with a mic key.", 13f, R.color.murmur_muted).apply {
-            setPadding(dp(4), 0, dp(4), dp(8))
-        })
-        val keyboard = card()
-        keyboardRow = setupRow(keyboard, "Murmur keyboard") {
-            startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
-        }
-        divider(keyboard)
-        selectedRow = setupRow(keyboard, "Current keyboard") {
-            (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
-        }
-        inputPage.addView(keyboard)
         bindFieldLabels(shell)
         showPage(currentPage)
         refreshHistory()
@@ -1308,7 +1293,7 @@ class MainActivity : Activity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        // the keyboard picker is a dialog, so resume never fires after it
+        // dialogs and system sheets do not trigger resume when they close
         if (hasFocus && ::statusTitle.isInitialized) refreshStatus()
     }
 
@@ -2123,10 +2108,6 @@ class MainActivity : Activity() {
     private fun refreshStatus() {
         scheduleDockBlur()
         val micAllowed = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        val keyboardEnabled = imm.enabledInputMethodList.any { it.packageName == packageName }
-        val keyboardSelected = Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
-            ?.startsWith("$packageName/") == true
         val host = runCatching { URI(settings.endpointUrl).host }.getOrNull() ?: settings.endpointUrl
         val localRecognition = settings.useOnDeviceRecognition && Build.VERSION.SDK_INT >= 31 &&
             SpeechRecognizer.isOnDeviceRecognitionAvailable(this)
@@ -2139,11 +2120,11 @@ class MainActivity : Activity() {
         val bubbleSupported = Build.VERSION.SDK_INT >= 33
         val bubbleEnabled = isBubbleEnabled()
         val voiceReady = MurmurReadyService.isActive
-        val inputReady = if (bubbleSupported) bubbleEnabled else keyboardEnabled && keyboardSelected
+        val inputReady = bubbleSupported && bubbleEnabled
 
         setupMicrophone.text = "${if (micAllowed) "✓" else "○"}  Microphone · ${if (micAllowed) "allowed" else "permission needed"}"
         setupRecognition.text = "${if (recognitionReady) "✓" else "○"}  Recognition · ${if (recognitionReady) "source selected" else "choose a working source"}"
-        setupInput.text = "${if (inputReady) "✓" else "○"}  Input · ${if (bubbleSupported) if (bubbleEnabled) "bubble enabled" else "enable voice bubble" else if (inputReady) "keyboard selected" else "set up keyboard"}"
+        setupInput.text = "${if (inputReady) "✓" else "○"}  Input · ${if (!bubbleSupported) "needs Android 13" else if (bubbleEnabled) "bubble enabled" else "enable voice bubble"}"
         listOf(setupMicrophone to micAllowed, setupRecognition to recognitionReady, setupInput to inputReady).forEach { (view, ready) ->
             view.setTextColor(color(if (ready) R.color.murmur_accent else R.color.murmur_muted))
             view.setPadding(0, 0, 0, dp(5))
@@ -2154,8 +2135,6 @@ class MainActivity : Activity() {
             bubbleEnabled -> "Enabled"
             else -> "Open Accessibility settings to enable"
         }, "Enable", hidden = !bubbleSupported)
-        keyboardRow.update(keyboardEnabled, if (keyboardEnabled) "Enabled" else "Off", "Enable")
-        selectedRow.update(keyboardSelected, if (keyboardSelected) "Murmur keyboard" else "Your usual keyboard", "Switch", neutral = true)
 
         val next: Triple<String, String, () -> Unit> = when {
             !micAllowed -> Triple("Allow the microphone to start", "Allow microphone") {
@@ -2171,13 +2150,7 @@ class MainActivity : Activity() {
                 MurmurReadyService.stop(this)
                 window.decorView.postDelayed({ refreshStatus() }, 400)
             }
-            !keyboardEnabled -> Triple("Enable the Murmur keyboard", "Open keyboard settings") {
-                startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
-            }
-            !keyboardSelected -> Triple("Switch to the Murmur keyboard", "Choose keyboard") {
-                imm.showInputMethodPicker()
-            }
-            else -> Triple("Ready. Tap Mic on the Murmur keyboard", "", {})
+            else -> Triple("The voice bubble needs Android 13 or newer", "", {})
         }
         statusTitle.text = next.first
         heroAction = next.third

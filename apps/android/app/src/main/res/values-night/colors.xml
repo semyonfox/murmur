@@ -10,6 +10,5 @@
     <color name="murmur_on_accent">#0F1B16</color>
     <color name="murmur_recording">#EF6B6B</color>
     <color name="murmur_busy">#E0A04A</color>
-    <color name="murmur_keyboard">#121413</color>
     <color name="murmur_key">#262A28</color>
 </resources>
