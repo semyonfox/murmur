@@ -11,6 +11,10 @@ import java.net.URL
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.MessageDigest
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+
+internal enum class SpeechEngine { WHISPER, PARAKEET }
 
 internal data class DownloadableSpeechModel(
     val id: String,
@@ -18,8 +22,12 @@ internal data class DownloadableSpeechModel(
     val bytes: Long,
     val sha256: String,
     val minimumRamGb: Int,
+    val engine: SpeechEngine = SpeechEngine.WHISPER,
 ) {
-    val url: String get() = "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-$id.bin"
+    val url: String get() = when (engine) {
+        SpeechEngine.WHISPER -> "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-$id.bin"
+        SpeechEngine.PARAKEET -> "https://huggingface.co/ggml-org/parakeet-GGUF/resolve/35156454d1a39de06863303dd209fd2bed6ee079/ggml-$id.bin"
+    }
 }
 
 internal object LocalSpeechModels {
@@ -54,7 +62,15 @@ internal object LocalSpeechModels {
         DownloadableSpeechModel("base-q8_0", "Whisper Base · 82 MB", 81_768_585, "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9", 2),
         DownloadableSpeechModel("small-q8_0", "Whisper Small · 265 MB", 264_464_607, "49c8fb02b65e6049d5fa6c04f81f53b867b5ec9540406812c643f177317f779f", 3),
         DownloadableSpeechModel("large-v3-turbo-q8_0", "Whisper Large v3 Turbo · 874 MB", 874_188_075, "317eb69c11673c9de1e1f0d459b253999804ec71ac4c23c17ecf5fbe24e259a1", 6),
+        // parakeet is much faster than whisper on phone CPUs and punctuates by itself,
+        // but it covers 25 European languages and cannot translate
+        DownloadableSpeechModel("parakeet-tdt-0.6b-v3-q4_0", "Parakeet v3 · 356 MB", 355_615_679, "aa7fe2f5fb47d863ca23e8b1d490632d63a2599f515268b6d6bd656158dad45e", 3, SpeechEngine.PARAKEET),
+        DownloadableSpeechModel("parakeet-tdt-0.6b-v3-q8_0", "Parakeet v3 · 669 MB", 668_757_119, "4d64e9e96c2792186d072fde0034df0ad670cf680a2f53069052ead827fd600e", 4, SpeechEngine.PARAKEET),
     )
+
+    fun engineOf(model: File): SpeechEngine =
+        catalog.firstOrNull { it.id == model.name.removePrefix("ggml-").removeSuffix(".bin") }?.engine
+            ?: SpeechEngine.WHISPER
 
     fun file(context: Context, model: DownloadableSpeechModel): File =
         File(File(context.filesDir, "speech-models"), "ggml-${model.id}.bin")
@@ -153,13 +169,60 @@ internal object LocalWhisper {
     private external fun nativeOpen(path: String): Long
     private external fun nativeClose(context: Long)
     private external fun nativeTranscribe(context: Long, samples: FloatArray, language: String, translate: Boolean): ByteArray?
+    private external fun nativeOpenParakeet(path: String): Long
+    private external fun nativeCloseParakeet(context: Long)
+    private external fun nativeTranscribeParakeet(context: Long, samples: FloatArray): ByteArray?
     private var loadedPath: String? = null
+    private var loadedEngine = SpeechEngine.WHISPER
     private var context: Long = 0
+    private var lastUsedAt = 0L
+    private val idleReleaser = Executors.newSingleThreadScheduledExecutor { task ->
+        Thread(task, "murmur-whisper-idle").apply { isDaemon = true }
+    }
+    private const val IDLE_RELEASE_MS = 120_000L
+    private const val PARAKEET_PIECE_SAMPLES = 20 * 16_000
+    private const val PARAKEET_SEARCH_SAMPLES = 6 * 16_000
 
     @Synchronized fun release() {
-        if (context != 0L) nativeClose(context)
+        if (context != 0L) when (loadedEngine) {
+            SpeechEngine.WHISPER -> nativeClose(context)
+            SpeechEngine.PARAKEET -> nativeCloseParakeet(context)
+        }
         context = 0
         loadedPath = null
+    }
+
+    // loading a model takes seconds, so dictation keeps it warm between takes
+    // and only frees the memory after the user has been idle for a while
+    @Synchronized fun releaseWhenIdle() {
+        lastUsedAt = System.nanoTime()
+        idleReleaser.schedule({ releaseIfIdle() }, IDLE_RELEASE_MS, TimeUnit.MILLISECONDS)
+    }
+
+    @Synchronized private fun releaseIfIdle() {
+        if (System.nanoTime() - lastUsedAt >= TimeUnit.MILLISECONDS.toNanos(IDLE_RELEASE_MS)) release()
+    }
+
+    // called when recording starts so the load overlaps with the user speaking
+    @Synchronized fun preload(model: File) {
+        if (!model.isFile) return
+        runCatching { load(model) }
+        // a cancelled take never reaches transcribe, so schedule the release here too
+        releaseWhenIdle()
+    }
+
+    private fun load(model: File) {
+        lastUsedAt = System.nanoTime()
+        if (loadedPath == model.absolutePath && context != 0L) return
+        release()
+        val engine = LocalSpeechModels.engineOf(model)
+        context = when (engine) {
+            SpeechEngine.WHISPER -> nativeOpen(model.absolutePath)
+            SpeechEngine.PARAKEET -> nativeOpenParakeet(model.absolutePath)
+        }
+        if (context == 0L) throw IOException("Could not load the selected model.")
+        loadedEngine = engine
+        loadedPath = model.absolutePath
     }
 
     @Synchronized fun transcribe(model: File, wav: File, language: String, translate: Boolean): String {
@@ -175,14 +238,23 @@ internal object LocalWhisper {
             throw IOException("Expected mono 16 kHz PCM audio.")
         }
         val samples = FloatArray((bytes.size - 44) / 2) { index -> header.getShort(44 + index * 2) / 32768f }
-        if (loadedPath != model.absolutePath) {
-            release()
-            context = nativeOpen(model.absolutePath)
-            if (context == 0L) throw IOException("Could not load the selected model.")
-            loadedPath = model.absolutePath
+        load(model)
+        return when (loadedEngine) {
+            SpeechEngine.WHISPER -> nativeTranscribe(context, samples, language.substringBefore('-'), translate)
+                ?.toString(Charsets.UTF_8)?.trim()
+                ?: throw IOException("On-phone transcription failed.")
+            SpeechEngine.PARAKEET -> transcribeParakeet(samples)
         }
-        return nativeTranscribe(context, samples, language.substringBefore('-'), translate)
-            ?.toString(Charsets.UTF_8)?.trim()
-            ?: throw IOException("On-phone transcription failed.")
     }
+
+    // parakeet attends over the whole clip, so memory and time grow quadratically.
+    // on a test machine 33 s took 8 s but 8 minutes took 9 minutes and 7 GB,
+    // so lectures and long takes go through in pieces of at most 20 seconds
+    private fun transcribeParakeet(samples: FloatArray): String =
+        splitAtPauses(samples, PARAKEET_PIECE_SAMPLES, PARAKEET_SEARCH_SAMPLES).joinToString(" ") { piece ->
+            nativeTranscribeParakeet(context, samples.copyOfRange(piece.first, piece.last + 1))
+                ?.toString(Charsets.UTF_8)?.trim()
+                ?: throw IOException("On-phone transcription failed.")
+        }.replace(Regex(" {2,}"), " ").trim()
+
 }

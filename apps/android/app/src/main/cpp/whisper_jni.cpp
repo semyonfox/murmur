@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <string>
 #include "whisper.h"
+#include "parakeet.h"
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_dev_local_murmur_LocalWhisper_nativeOpen(JNIEnv *env, jobject, jstring model_path) {
@@ -38,6 +39,9 @@ Java_dev_local_murmur_LocalWhisper_nativeTranscribe(
     full.print_realtime = false;
     full.print_progress = false;
     full.print_timestamps = false;
+    // timestamps cost decoder steps but whisper needs them to advance cleanly
+    // through audio longer than one 30 second window, as in lectures
+    full.no_timestamps = length <= 30 * WHISPER_SAMPLE_RATE;
     full.print_special = false;
     full.n_threads = 4;
     const int status = whisper_full(context, full, data, length);
@@ -51,6 +55,49 @@ Java_dev_local_murmur_LocalWhisper_nativeTranscribe(
         }
     }
     if (status != 0) return nullptr;
+    auto *bytes = env->NewByteArray(static_cast<jsize>(result.size()));
+    if (bytes) env->SetByteArrayRegion(bytes, 0, static_cast<jsize>(result.size()),
+        reinterpret_cast<const jbyte *>(result.data()));
+    return bytes;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_dev_local_murmur_LocalWhisper_nativeOpenParakeet(JNIEnv *env, jobject, jstring model_path) {
+    const char *path = env->GetStringUTFChars(model_path, nullptr);
+    if (!path) return 0;
+    auto params = parakeet_context_default_params();
+    params.use_gpu = false;
+    parakeet_context *context = parakeet_init_from_file_with_params(path, params);
+    env->ReleaseStringUTFChars(model_path, path);
+    return reinterpret_cast<jlong>(context);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_dev_local_murmur_LocalWhisper_nativeCloseParakeet(JNIEnv *, jobject, jlong context_ptr) {
+    if (context_ptr != 0) parakeet_free(reinterpret_cast<parakeet_context *>(context_ptr));
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_dev_local_murmur_LocalWhisper_nativeTranscribeParakeet(JNIEnv *env, jobject, jlong context_ptr, jfloatArray samples) {
+    auto *context = reinterpret_cast<parakeet_context *>(context_ptr);
+    if (!context) return nullptr;
+    jfloat *data = env->GetFloatArrayElements(samples, nullptr);
+    if (!data) return nullptr;
+    const jsize length = env->GetArrayLength(samples);
+    auto full = parakeet_full_default_params(PARAKEET_SAMPLING_GREEDY);
+    full.n_threads = 4;
+    const int status = parakeet_full(context, full, data, length);
+    env->ReleaseFloatArrayElements(samples, data, JNI_ABORT);
+    if (status != 0) return nullptr;
+
+    std::string result;
+    for (int i = 0; i < parakeet_full_n_segments(context); ++i) {
+        std::string segment = parakeet_full_get_segment_text(context, i);
+        const auto start = segment.find_first_not_of(' ');
+        if (start == std::string::npos) continue;
+        if (!result.empty()) result += ' ';
+        result += segment.substr(start);
+    }
     auto *bytes = env->NewByteArray(static_cast<jsize>(result.size()));
     if (bytes) env->SetByteArrayRegion(bytes, 0, static_cast<jsize>(result.size()),
         reinterpret_cast<const jbyte *>(result.data()));

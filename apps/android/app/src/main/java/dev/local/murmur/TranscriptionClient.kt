@@ -5,6 +5,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -41,6 +42,7 @@ internal class TranscriptionClient {
         val request = (endpoint.uri.toURL().openConnection() as HttpURLConnection).also {
             connection = it
         }
+        var reusable = false
         try {
             request.instanceFollowRedirects = false
             request.requestMethod = "POST"
@@ -83,12 +85,38 @@ internal class TranscriptionClient {
             check(!cancelled.get()) { "Transcription cancelled." }
             val text = JSONObject(response).optString("text").trim()
             if (text.isEmpty() && !allowEmpty) throw IOException("No speech returned.")
+            reusable = true
             return text
         } finally {
             connection = null
-            request.disconnect()
+            // disconnect closes the socket, so only do it when the exchange broke
+            if (!reusable) request.disconnect()
         }
     }
+}
+
+// opens the TLS connection while the user is still speaking, so the upload and
+// cleanup requests reuse a warm socket instead of paying for a fresh handshake
+internal fun warmUpConnections(endpoints: List<URI>) {
+    val remote = endpoints.filter { it.scheme == "https" }.distinctBy { it.host to it.port }
+    if (remote.isEmpty()) return
+    Thread({
+        for (uri in remote) {
+            val request = uri.toURL().openConnection() as HttpURLConnection
+            try {
+                request.instanceFollowRedirects = false
+                request.requestMethod = "HEAD"
+                request.connectTimeout = 5_000
+                request.readTimeout = 5_000
+                request.responseCode
+                request.inputStream.close()
+            } catch (_: IOException) {
+                // a 404 or 405 still leaves a pooled connection behind, and a real
+                // network failure will surface again on the actual request
+                request.disconnect()
+            }
+        }
+    }, "murmur-warm-up").apply { isDaemon = true }.start()
 }
 
 internal class HttpStatusException(val statusCode: Int) : IOException("Transcription server returned HTTP $statusCode.")

@@ -10,7 +10,7 @@ Murmur is a temporary name for a replacement for Wispr Flow. The goal is reliabl
 | Linux polish           | Native Hyprland/CachyOS path; the recording indicator never becomes a tiled half-screen window, changes focus or moves the active workspace. Documented adapters and acceptance evidence for GNOME, KDE, Sway and X11               |
 | Other desktop systems  | Signed releases, onboarding for permissions, appropriate native recording indicator, reliable insertion, tray/menu-bar controls, suspend/resume and microphone changes                                                              |
 | iOS application        | A real containing app and keyboard extension, local and cloud options, model/key onboarding, transcript recovery and statistics. Honest handling of microphone and keyboard restrictions, with physical-device and App Review gates |
-| Android application    | A native input method with voice entry, direct editor insertion, ordinary keyboard switching, local/cloud choices, lifecycle recovery and visible microphone use                                                                    |
+| Android application    | A voice bubble beside the user's usual keyboard with direct editor insertion, local/cloud choices, lifecycle recovery and visible microphone use                                                                    |
 | Acoustic processing    | Device selection and level checks, resampling, VAD, silence handling, optional denoising when it improves measured recognition                                                                                                      |
 | Transcript cleanup     | Remove incidental fillers, punctuation and grammar errors; apply explicit self-corrections; preserve facts, negations, names, code, language and tone. Raw text remains recoverable for the configured retention period             |
 | Provider choice        | Local STT and cleanup; direct BYOK STT and cleanup; an optional managed service with no provider key setup. Each stage can be chosen separately                                                                                     |
@@ -23,7 +23,7 @@ Murmur is a temporary name for a replacement for Wispr Flow. The goal is reliabl
 ## Product decisions for the first implementation
 
 1. Use Handy as the desktop starting candidate and isolate platform adapters. Keep the inference layer replaceable. Confirm the Linux overlay and insertion spike before investing in a redesign.
-2. Use native Swift/SwiftUI for the iOS containing app and keyboard, and Kotlin/Compose plus Android IME APIs for Android. Share contracts and fixtures first. Share Rust through FFI only where measured benefit justifies it.
+2. Use native Swift/SwiftUI for the iOS containing app and keyboard, and Kotlin plus Android accessibility input APIs for Android. Share contracts and fixtures first. Share Rust through FFI only where measured benefit justifies it.
 3. Offer local mode without subscription or cloud dependence. Show BYOK as a separate choice. Introduce the managed service after the ledger and spend controls work.
 4. Default to conservative cleanup. Rewriting style, composing replies and executing commands are separate future features. Never execute dictated shell commands or press Enter automatically.
 5. Store usage metadata locally by default. Text history and audio retention have separate controls. Do not build account sync into the first local pipeline.

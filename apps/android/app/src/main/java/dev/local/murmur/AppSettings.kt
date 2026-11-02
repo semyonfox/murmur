@@ -99,7 +99,10 @@ internal class AppSettings(context: Context) {
         get() = preferences.getBoolean(REMOVE_FILLER_WORDS, true)
         set(value) { preferences.edit().putBoolean(REMOVE_FILLER_WORDS, value).apply() }
     fun prepareTranscript(raw: String): String = TranscriptText.prepare(raw,
-        if (translateToEnglish && localModelId != null) "en" else speechLanguage, removeFillerWords)
+        if (translateToEnglish && localTranslates) "en" else speechLanguage, removeFillerWords)
+    // only whisper models can translate, parakeet always transcribes as spoken
+    private val localTranslates: Boolean get() =
+        LocalSpeechModels.catalog.firstOrNull { it.id == localModelId }?.engine == SpeechEngine.WHISPER
     var historyRetentionDays: Int
         get() = preferences.getInt(HISTORY_RETENTION_DAYS, 0)
         set(value) {
