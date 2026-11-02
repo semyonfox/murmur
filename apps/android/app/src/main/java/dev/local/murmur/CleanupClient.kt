@@ -148,6 +148,7 @@ internal class CleanupClient {
                 .put(JSONObject().put("role", "user").put("content", prepared)))
         val payload = body.toString().toByteArray(StandardCharsets.UTF_8)
         val request = (config.uri.toURL().openConnection() as HttpURLConnection).also { connection = it }
+        var reusable = false
         try {
             check(!cancelled.get() && !Thread.currentThread().isInterrupted) { "Cleanup cancelled." }
             request.instanceFollowRedirects = false
@@ -200,10 +201,11 @@ internal class CleanupClient {
             if (cleaned.isBlank() || cleaned.length > prepared.length * 3) {
                 throw IOException("Cleanup changed too much text.")
             }
+            reusable = true
             return if (containsExplicitSpellings(cleaned, prepared, correctedWords)) cleaned else prepared
         } finally {
             connection = null
-            request.disconnect()
+            if (!reusable) request.disconnect()
         }
     }
 }

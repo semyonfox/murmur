@@ -38,6 +38,7 @@ class MurmurInputMethodService : InputMethodService() {
     private var onDeviceSession: OnDeviceSpeechSession? = null
     private var onDeviceRecordingEndedAt = 0L
     private var request: TranscriptionClient? = null
+    private var chunked: ChunkedTranscription? = null
     @Volatile private var cleanupRequest: CleanupClient? = null
     private var requestTask: Future<*>? = null
     private var requestFile: File? = null
@@ -184,23 +185,34 @@ class MurmurInputMethodService : InputMethodService() {
             showStatus("Add your OpenRouter key in Murmur.")
             return
         }
+        val chunks = ChunkedTranscription(worker, TranscriptionClient(), endpoint)
         try {
-            capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled) { result ->
+            capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled, onChunk = { piece ->
+                if (recordingSession == session && chunked === chunks) chunks.add(piece) else piece.delete()
+            }) { result ->
                 capture = null
                 micButton?.isEnabled = true
                 val file = result.getOrNull()
                 if (recordingSession != session || recordingEditor != editor || !isInputViewShown) {
                     file?.delete()
+                    chunks.cancel()
+                    if (chunked === chunks) chunked = null
                     return@start
                 }
                 if (file == null) {
+                    chunks.cancel()
+                    chunked = null
                     showStatus(result.exceptionOrNull()?.message ?: "Recording failed.")
                     return@start
                 }
-                beginTranscription(endpoint, cleanup, file, recordingSession, recordingEditor)
+                beginTranscription(cleanup, file, recordingSession, recordingEditor, chunks)
             }
+            chunked = chunks
             micButton?.text = "Stop"
             showStatus("Recording… Tap Stop to transcribe.")
+            val model = endpoint.localModel
+            if (model != null) worker.submit { LocalWhisper.preload(model) }
+            warmUpConnections(listOfNotNull(endpoint.uri.takeIf { model == null }, cleanup?.uri))
         } catch (_: SecurityException) {
             showStatus("Microphone access was denied.")
         } catch (error: Exception) {
@@ -242,15 +254,17 @@ class MurmurInputMethodService : InputMethodService() {
         }
     }
 
-    private fun beginTranscription(endpoint: TranscriptionEndpoint, cleanup: CleanupEndpoint?, file: File, recordingSession: Long, recordingEditor: EditorIdentity) {
-        val client = TranscriptionClient()
+    private fun beginTranscription(cleanup: CleanupEndpoint?, file: File, recordingSession: Long, recordingEditor: EditorIdentity, chunks: ChunkedTranscription) {
+        val client = chunks.client
+        val endpoint = chunks.endpoint
+        chunked = null
         request = client
         requestFile = file
         micButton?.text = "Cancel"
         showStatus("Transcribing…")
         requestTask = worker.submit {
             try {
-                val raw = client.transcribe(endpoint, file)
+                val raw = if (chunks.started) chunks.finish(file) else client.transcribe(endpoint, file)
                 val durationMs = ((file.length() - 44).coerceAtLeast(0) * 1000 / 32_000)
                 processTranscript(raw, cleanup, recordingSession, recordingEditor, durationMs, client)
             } catch (error: Exception) {
@@ -261,7 +275,7 @@ class MurmurInputMethodService : InputMethodService() {
                     )
                 }
             } finally {
-                if (endpoint.localModel != null) LocalWhisper.release()
+                if (endpoint.localModel != null) LocalWhisper.releaseWhenIdle()
                 file.delete()
                 mainHandler.post {
                     if (request === client) {
@@ -330,6 +344,8 @@ class MurmurInputMethodService : InputMethodService() {
         onDeviceSession?.close()
         onDeviceSession = null
         request?.cancel()
+        chunked?.cancel()
+        chunked = null
         cleanupRequest?.cancel()
         requestTask?.cancel(true)
         requestFile?.delete()

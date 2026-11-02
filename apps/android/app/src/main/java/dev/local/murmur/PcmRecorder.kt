@@ -22,6 +22,7 @@ internal class PcmRecorder private constructor(
     private val noiseSuppressor: NoiseSuppressor?,
     private val maxPcmBytes: Int,
     private val preserveOnFailure: Boolean,
+    private val onChunk: ((File) -> Unit)?,
     private val onComplete: (Result<File>) -> Unit,
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -46,6 +47,9 @@ internal class PcmRecorder private constructor(
     private fun runCapture(bufferSize: Int) {
         val result = runCatching {
             var pcmBytes = 0
+            var peak = 0
+            val chunker = onChunk?.let { PauseChunker() }
+            var chunks = 0
             RandomAccessFile(file, "rw").use { output ->
                 output.setLength(0)
                 output.write(ByteArray(WAV_HEADER_BYTES))
@@ -62,6 +66,11 @@ internal class PcmRecorder private constructor(
                         if (count < 0 && running.get()) error("Microphone capture failed.")
                         if (count <= 0) continue
                         output.write(buffer, 0, count)
+                        if (peak < SILENT_PEAK) peak = maxOf(peak, peakOf(buffer, count))
+                        chunker?.add(buffer, count)?.forEach { piece ->
+                            emitChunk(piece)
+                            chunks++
+                        }
                         pcmBytes += count
                         if (preserveOnFailure && System.currentTimeMillis() >= checkpointAt) {
                             val position = output.filePointer
@@ -78,6 +87,13 @@ internal class PcmRecorder private constructor(
                     }
                 }
                 if (pcmBytes < MIN_PCM_BYTES) error("Record at least half a second of speech.")
+                // android feeds silenced zeros instead of failing when it blocks a
+                // background app's microphone, so catch that before uploading it
+                if (!preserveOnFailure && peak < SILENT_PEAK) {
+                    error("Microphone was blocked. Open Murmur and turn voice on again.")
+                }
+                // once pieces went out, the consumer joins them and needs the tail too
+                if (chunks > 0) chunker?.finish()?.let(::emitChunk)
             }
             file
         }
@@ -98,6 +114,13 @@ internal class PcmRecorder private constructor(
         }
     }
 
+    private fun emitChunk(pcm: ByteArray) {
+        val chunk = pcmToWav(pcm, file.parentFile ?: return)
+        mainHandler.post {
+            if (discard.get()) chunk.delete() else onChunk?.invoke(chunk) ?: chunk.delete()
+        }
+    }
+
     companion object {
         private const val SAMPLE_RATE = 16_000
         private const val BYTES_PER_SAMPLE = 2
@@ -105,6 +128,19 @@ internal class PcmRecorder private constructor(
         private const val WAV_HEADER_BYTES = 44
         private const val DEFAULT_MAX_SECONDS = 120
         private const val MIN_PCM_BYTES = SAMPLE_RATE * BYTES_PER_SAMPLE / 2
+        // a working microphone always has some noise floor, blocked capture is near zero
+        private const val SILENT_PEAK = 8
+
+        private fun peakOf(buffer: ByteArray, count: Int): Int {
+            var peak = 0
+            var index = 0
+            while (index + 1 < count) {
+                val sample = (buffer[index].toInt() and 0xff) or (buffer[index + 1].toInt() shl 8)
+                peak = maxOf(peak, kotlin.math.abs(sample))
+                index += 2
+            }
+            return peak
+        }
 
         fun start(
             context: Context,
@@ -112,6 +148,7 @@ internal class PcmRecorder private constructor(
             suppressNoise: Boolean,
             maxSeconds: Int = DEFAULT_MAX_SECONDS,
             preserveOnFailure: Boolean = false,
+            onChunk: ((File) -> Unit)? = null,
             onComplete: (Result<File>) -> Unit,
         ): PcmRecorder {
             require(maxSeconds in 1..28_800)
@@ -172,12 +209,12 @@ internal class PcmRecorder private constructor(
                 file.delete()
                 error("Microphone did not start recording.")
             }
-            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, onComplete).also { capture ->
+            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, onChunk, onComplete).also { capture ->
                 Thread({ capture.runCapture(bufferSize) }, "murmur-audio").start()
             }
         }
 
-        private fun wavHeader(pcmBytes: Int): ByteArray {
+        fun wavHeader(pcmBytes: Int): ByteArray {
             return ByteBuffer.allocate(WAV_HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN).apply {
                 put("RIFF".toByteArray(Charsets.US_ASCII))
                 putInt(36 + pcmBytes)

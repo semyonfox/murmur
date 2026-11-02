@@ -20,8 +20,6 @@ android {
     namespace = "dev.local.murmur"
     compileSdk = 36
 
-    packaging { jniLibs.excludes += "**/libparakeet.so" }
-
     externalNativeBuild {
         cmake { path = file("src/main/cpp/CMakeLists.txt") }
     }
