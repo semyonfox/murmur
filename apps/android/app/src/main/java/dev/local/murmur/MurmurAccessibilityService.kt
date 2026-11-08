@@ -56,6 +56,7 @@ class MurmurAccessibilityService : AccessibilityService() {
     private var capture: PcmRecorder? = null
     private var onDeviceSession: OnDeviceSpeechSession? = null
     private var request: TranscriptionClient? = null
+    private var chunked: ChunkedTranscription? = null
     @Volatile private var cleanupRequest: CleanupClient? = null
     private var requestTask: Future<*>? = null
     private var requestFile: File? = null
@@ -248,8 +249,11 @@ class MurmurAccessibilityService : AccessibilityService() {
             return
         }
         val recordingSession = ++session
+        val chunks = ChunkedTranscription(worker, TranscriptionClient(), endpoint)
         try {
-            capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled) { result ->
+            capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled, chunkMinSeconds = chunks.minChunkSeconds, onChunk = { piece ->
+                if (recordingSession == session && chunked === chunks) chunks.add(piece) else piece.delete()
+            }) { result ->
                 capture = null
                 mainHandler.removeCallbacks(refreshTimer)
                 val file = result.getOrNull()
@@ -258,16 +262,20 @@ class MurmurAccessibilityService : AccessibilityService() {
                     return@start
                 }
                 if (file == null) {
+                    chunks.cancel()
+                    chunked = null
                     showMessage(result.exceptionOrNull()?.message ?: "Recording failed")
                     return@start
                 }
-                beginTranscription(endpoint, cleanup, file, recordingSession, target)
+                beginTranscription(cleanup, file, recordingSession, target, chunks)
             }
+            chunked = chunks
             mode = Mode.RECORDING
             recordingStartedAt = SystemClock.elapsedRealtime()
             mainHandler.removeCallbacks(refreshTimer)
             mainHandler.post(refreshTimer)
             syncBubble()
+            prepareWhileRecording(endpoint, cleanup)
         } catch (_: SecurityException) {
             showMessage("Microphone access was denied")
         } catch (_: Exception) {
@@ -312,6 +320,7 @@ class MurmurAccessibilityService : AccessibilityService() {
             mode = Mode.RECORDING
             mainHandler.post(refreshTimer)
             syncBubble()
+            prepareWhileRecording(null, cleanup)
         } catch (_: Exception) {
             onDeviceSession?.close()
             onDeviceSession = null
@@ -319,21 +328,29 @@ class MurmurAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun prepareWhileRecording(endpoint: TranscriptionEndpoint?, cleanup: CleanupEndpoint?) {
+        val model = endpoint?.localModel
+        if (model != null) worker.submit { LocalWhisper.preload(model) }
+        warmUpConnections(listOfNotNull(endpoint?.uri?.takeIf { model == null }, cleanup?.uri))
+    }
+
     private fun beginTranscription(
-        endpoint: TranscriptionEndpoint,
         cleanup: CleanupEndpoint?,
         file: File,
         recordingSession: Long,
         target: FocusTarget,
+        chunks: ChunkedTranscription,
     ) {
-        val client = TranscriptionClient()
+        val client = chunks.client
+        val endpoint = chunks.endpoint
+        chunked = null
         request = client
         requestFile = file
         mode = Mode.TRANSCRIBING
         renderBubble()
         requestTask = worker.submit {
             try {
-                val raw = client.transcribe(endpoint, file)
+                val raw = if (chunks.started) chunks.finish(file) else client.transcribe(endpoint, file)
                 val durationMs = ((file.length() - 44).coerceAtLeast(0) * 1000 / 32_000)
                 processTranscript(raw, cleanup, recordingSession, target, durationMs, client)
             } catch (error: Exception) {
@@ -344,7 +361,7 @@ class MurmurAccessibilityService : AccessibilityService() {
                     }
                 }
             } finally {
-                if (endpoint.localModel != null) LocalWhisper.release()
+                if (endpoint.localModel != null) LocalWhisper.releaseWhenIdle()
                 file.delete()
                 mainHandler.post {
                     if (request === client) {
@@ -417,6 +434,8 @@ class MurmurAccessibilityService : AccessibilityService() {
         onDeviceSession?.close()
         onDeviceSession = null
         request?.cancel()
+        chunked?.cancel()
+        chunked = null
         cleanupRequest?.cancel()
         requestTask?.cancel(true)
         requestFile?.delete()

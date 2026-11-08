@@ -4,7 +4,7 @@ The five platforms remain required. Staging the work lets the highest-risk nativ
 
 ## 1. Prove the platform interactions
 
-Make two early spikes: Handy-derived Linux capture/overlay/delivery, and a public-API iOS recorder/keyboard handoff. Also build minimal Windows/macOS insertion and verify both Android popup and keyboard flows so architectural decisions reflect every platform.
+Make two early spikes: Handy-derived Linux capture/overlay/delivery, and a public-API iOS recorder/keyboard handoff. Also build minimal Windows/macOS insertion and verify the Android popup flow so architectural decisions reflect every platform.
 
 For Linux, test CachyOS/Hyprland first, then Sway, GNOME Wayland, KDE Wayland and an X11 session. Use native Wayland and XWayland target apps. Acceptance includes no tiled overlay, no focus theft, no workspace switch, correct monitor placement, fractional scaling, fullscreen, keyboard-layout changes, modifier release, terminal paste, suspend/resume and clipboard changes during processing. Any silent insertion into the wrong field is a release blocker.
 
