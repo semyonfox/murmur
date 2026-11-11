@@ -48,8 +48,8 @@ android {
         applicationId = if (legacyBridge) "dev.local.murmur" else "ie.semyon.murmur"
         minSdk = 26
         targetSdk = 36
-        versionCode = if (legacyBridge) 6 else 22
-        versionName = if (legacyBridge) "0.1.5-bridge" else "0.1.21"
+        versionCode = if (legacyBridge) 6 else 23
+        versionName = if (legacyBridge) "0.1.5-bridge" else "0.1.22"
         manifestPlaceholders["migrationProviderEnabled"] = legacyBridge.toString()
         val updateManifestUrl = providers.gradleProperty("murmurUpdateManifestUrl").orNull
             ?: "https://github.com/semyonfox/murmur/releases/latest/download/android-update.json"
