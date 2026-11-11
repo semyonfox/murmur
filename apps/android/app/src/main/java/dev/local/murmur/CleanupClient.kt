@@ -113,6 +113,18 @@ internal class CleanupClient {
     }
 
     fun clean(config: CleanupEndpoint, raw: String): String {
+        val started = System.nanoTime()
+        return try {
+            send(config, raw).also {
+                Diagnostics.info("cleanup", "${config.uri.host} ${config.model}: ${raw.length} to ${it.length} chars in ${elapsedMs(started)} ms")
+            }
+        } catch (error: Exception) {
+            if (!cancelled.get()) Diagnostics.warn("cleanup", "${config.uri.host} ${config.model} failed after ${elapsedMs(started)} ms", error)
+            throw error
+        }
+    }
+
+    private fun send(config: CleanupEndpoint, raw: String): String {
         check(!cancelled.get() && !Thread.currentThread().isInterrupted) { "Cleanup cancelled." }
         val (prepared, correctedWords) = prepareExplicitSpellings(raw)
         val cleanupPolicy = """
@@ -153,8 +165,9 @@ internal class CleanupClient {
             check(!cancelled.get() && !Thread.currentThread().isInterrupted) { "Cleanup cancelled." }
             request.instanceFollowRedirects = false
             request.requestMethod = "POST"
-            request.connectTimeout = 15_000
-            request.readTimeout = 60_000
+            request.connectTimeout = 10_000
+            // the raw text is the fallback, so a stalled model should not hold it for a minute
+            request.readTimeout = (20_000 + prepared.length * 20).coerceAtMost(60_000)
             request.doOutput = true
             request.setRequestProperty("Content-Type", "application/json")
             request.setRequestProperty("Accept", "application/json")

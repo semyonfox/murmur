@@ -37,10 +37,12 @@ internal class MurmurReadyService : Service() {
             } else {
                 startForeground(NOTIFICATION_ID, notification())
             }
-        } catch (_: SecurityException) {
+        } catch (error: SecurityException) {
+            Diagnostics.error("ready", "foreground start refused", error)
             stopSelf()
             return START_NOT_STICKY
-        } catch (_: IllegalStateException) {
+        } catch (error: IllegalStateException) {
+            Diagnostics.error("ready", "foreground start refused in the background", error)
             stopSelf()
             return START_NOT_STICKY
         }

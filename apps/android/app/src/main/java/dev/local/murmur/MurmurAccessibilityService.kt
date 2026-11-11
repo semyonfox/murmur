@@ -62,6 +62,7 @@ class MurmurAccessibilityService : AccessibilityService() {
     private var requestFile: File? = null
     private var recordingStartedAt = 0L
     private var recordingEndedAt = 0L
+    private var stoppedAt = 0L
     @Volatile private var session = 0L
     private var mode = Mode.IDLE
     private var message = ""
@@ -115,8 +116,9 @@ class MurmurAccessibilityService : AccessibilityService() {
         ) return
         try {
             MurmurReadyService.start(this)
-        } catch (_: Exception) {
+        } catch (error: Exception) {
             // background start was refused; the next bubble tap retries while it is on screen
+            Diagnostics.warn("bubble", "could not restore the ready service", error)
         }
     }
 
@@ -226,7 +228,8 @@ class MurmurAccessibilityService : AccessibilityService() {
             showMessage("Allow microphone in Murmur")
             return
         }
-        val cleanup = try { settings.cleanupEndpointOrNull() } catch (_: Exception) {
+        val cleanup = try { settings.cleanupEndpointOrNull() } catch (error: Exception) {
+            Diagnostics.warn("bubble", "cleanup settings are invalid", error)
             showMessage("Check cleanup settings")
             return
         }
@@ -236,7 +239,8 @@ class MurmurAccessibilityService : AccessibilityService() {
         }
         val endpoint = try {
             settings.activeEndpointOrNull()
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            Diagnostics.warn("bubble", "recognition settings are invalid", error)
             showMessage("Check Murmur settings")
             return
         }
@@ -264,6 +268,7 @@ class MurmurAccessibilityService : AccessibilityService() {
                 if (file == null) {
                     chunks.cancel()
                     chunked = null
+                    Diagnostics.warn("bubble", "recording failed", result.exceptionOrNull())
                     showMessage(result.exceptionOrNull()?.message ?: "Recording failed")
                     return@start
                 }
@@ -272,13 +277,16 @@ class MurmurAccessibilityService : AccessibilityService() {
             chunked = chunks
             mode = Mode.RECORDING
             recordingStartedAt = SystemClock.elapsedRealtime()
+            stoppedAt = 0L
             mainHandler.removeCallbacks(refreshTimer)
             mainHandler.post(refreshTimer)
             syncBubble()
             prepareWhileRecording(endpoint, cleanup)
-        } catch (_: SecurityException) {
+        } catch (error: SecurityException) {
+            Diagnostics.warn("bubble", "microphone access was denied", error)
             showMessage("Microphone access was denied")
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            Diagnostics.error("bubble", "microphone could not start", error)
             showMessage("Microphone could not start")
         }
     }
@@ -286,6 +294,7 @@ class MurmurAccessibilityService : AccessibilityService() {
     private fun stopRecording() {
         if (mode != Mode.RECORDING) return
         mode = Mode.STOPPING
+        stoppedAt = SystemClock.elapsedRealtime()
         mainHandler.removeCallbacks(refreshTimer)
         renderBubble()
         if (onDeviceSession != null) {
@@ -298,6 +307,7 @@ class MurmurAccessibilityService : AccessibilityService() {
         val recordingSession = ++session
         recordingStartedAt = SystemClock.elapsedRealtime()
         recordingEndedAt = 0L
+        stoppedAt = 0L
         try {
             val recognizer = OnDeviceSpeechSession(this, settings.speechLanguage, onResult = { raw ->
                 onDeviceSession = null
@@ -309,9 +319,10 @@ class MurmurAccessibilityService : AccessibilityService() {
                 requestTask = worker.submit {
                     processTranscript(raw, cleanup, recordingSession, target, durationMs, null)
                 }
-            }, onError = {
+            }, onError = { code ->
                 onDeviceSession = null
-                if (recordingSession == session) showMessage("On-device recognition failed")
+                Diagnostics.warn("bubble", "on-device recognition failed with code $code")
+                if (recordingSession == session) showMessage(if (code == OnDeviceSpeechSession.NO_SPEECH || code == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT) "No speech heard" else "On-device recognition failed")
             }, onSpeechEnd = {
                 if (recordingEndedAt == 0L) recordingEndedAt = SystemClock.elapsedRealtime()
             })
@@ -321,7 +332,8 @@ class MurmurAccessibilityService : AccessibilityService() {
             mainHandler.post(refreshTimer)
             syncBubble()
             prepareWhileRecording(null, cleanup)
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            Diagnostics.warn("bubble", "on-device recognition could not start", error)
             onDeviceSession?.close()
             onDeviceSession = null
             showMessage("On-device recognition unavailable")
@@ -356,8 +368,8 @@ class MurmurAccessibilityService : AccessibilityService() {
             } catch (error: Exception) {
                 mainHandler.post {
                     if (request === client && recordingSession == session && !destroyed) {
-                        showMessage(if (error is HttpStatusException) "Server returned HTTP ${error.statusCode}"
-                            else error.message ?: "Transcription failed")
+                        Diagnostics.warn("bubble", "dictation failed ${SystemClock.elapsedRealtime() - stoppedAt} ms after stopping", error)
+                        showMessage(describeFailure(error, "Transcription failed"))
                     }
                 }
             } finally {
@@ -394,20 +406,24 @@ class MurmurAccessibilityService : AccessibilityService() {
         var cleanupFailure: String? = null
         val prepared = settings.prepareTranscript(raw)
         val cleaned = try { cleanup?.let { cleaner?.clean(it, prepared) } } catch (error: Exception) {
-            cleanupFailure = if (error is HttpStatusException) "Last cleanup failed (HTTP ${error.statusCode}); raw text was used."
-                else "Last cleanup failed; raw text was used."
+            cleanupFailure = "Last cleanup failed (${describeFailure(error, "unknown error")}), raw text was used."
             null
         }
         val transcript = cleaned ?: prepared
         mainHandler.post {
             if (recordingSession != session || destroyed || (client != null && request !== client)) return@post
-            val historyId = runCatching { history.add(raw, transcript, durationMs) }.getOrNull()
+            val historyId = runCatching { history.add(raw, transcript, durationMs) }
+                .onFailure { Diagnostics.error("bubble", "could not save the dictation to history", it) }
+                .getOrNull()
             settings.saveTranscript(raw, transcript, historyId)
             if (cleaner != null) settings.lastCleanupFailure = cleanupFailure
             cleanupRequest = null
             if (client == null) requestTask = null
             val suffix = if (cleaner != null && cleaned == null) " · online cleanup failed" else ""
-            showMessage((if (insertAtCursor(target, transcript)) "Sent to field · saved" else "Saved in Murmur · field changed") + suffix)
+            val inserted = insertAtCursor(target, transcript)
+            if (stoppedAt > 0L) Diagnostics.info("bubble", "dictation of ${durationMs / 1000.0}s ready " +
+                "${SystemClock.elapsedRealtime() - stoppedAt} ms after stopping, ${if (inserted) "inserted" else "field changed"}")
+            showMessage((if (inserted) "Sent to field · saved" else "Saved in Murmur · field changed") + suffix)
         }
     }
 
@@ -422,7 +438,8 @@ class MurmurAccessibilityService : AccessibilityService() {
             val leadingSpace = before?.isLetterOrDigit() == true && transcript.firstOrNull()?.isLetterOrDigit() == true
             connection.commitText(if (leadingSpace) " $transcript" else transcript, 1, null)
             true
-        } catch (_: RuntimeException) {
+        } catch (error: RuntimeException) {
+            Diagnostics.warn("bubble", "inserting into ${target.editor.packageName} failed", error)
             false
         }
     }
@@ -475,9 +492,11 @@ class MurmurAccessibilityService : AccessibilityService() {
                 bubbleParams = params
                 bubbleAttached = true
                 view.post { updateBubblePlacement() }
-            } catch (_: WindowManager.BadTokenException) {
+            } catch (error: WindowManager.BadTokenException) {
+                Diagnostics.warn("bubble", "could not show the bubble", error)
                 return
-            } catch (_: SecurityException) {
+            } catch (error: SecurityException) {
+                Diagnostics.warn("bubble", "could not show the bubble", error)
                 return
             }
         } else {

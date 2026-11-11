@@ -14,7 +14,7 @@ internal class OnDeviceSpeechSession(
     context: Context,
     private val language: String = "auto",
     private val onResult: (String) -> Unit,
-    private val onError: () -> Unit,
+    private val onError: (code: Int) -> Unit,
     private val onSpeechEnd: () -> Unit = {},
 ) {
     private val recognizer: SpeechRecognizer
@@ -36,7 +36,7 @@ internal class OnDeviceSpeechSession(
             override fun onError(error: Int) {
                 if (active) {
                     close()
-                    this@OnDeviceSpeechSession.onError()
+                    this@OnDeviceSpeechSession.onError(error)
                 }
             }
             override fun onResults(results: Bundle?) {
@@ -44,7 +44,7 @@ internal class OnDeviceSpeechSession(
                 val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?.firstOrNull()?.trim().orEmpty()
                 close()
-                if (text.isBlank()) this@OnDeviceSpeechSession.onError()
+                if (text.isBlank()) this@OnDeviceSpeechSession.onError(NO_SPEECH)
                 else this@OnDeviceSpeechSession.onResult(text)
             }
         })
@@ -65,5 +65,10 @@ internal class OnDeviceSpeechSession(
         active = false
         recognizer.cancel()
         recognizer.destroy()
+    }
+
+    companion object {
+        // the recogniser's own code for a take with nothing recognised
+        const val NO_SPEECH = SpeechRecognizer.ERROR_NO_MATCH
     }
 }

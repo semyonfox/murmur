@@ -1,6 +1,9 @@
 package dev.local.murmur
 
 import java.io.File
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
@@ -143,11 +146,16 @@ internal class ChunkedTranscription(
     }
 
     // runs on the single worker thread after every queued part, so they are all done.
-    // a failed part falls back to the whole recording rather than losing the take
+    // a failed part falls back to the whole recording rather than losing the take,
+    // unless the server is unreachable or too slow, where sending more audio only
+    // makes the user wait twice for the same failure
     fun finish(fullRecording: File): String {
         val joined = try {
             parts.joinToString(" ") { it.get().trim() }.replace(Regex(" {2,}"), " ").trim()
         } catch (error: ExecutionException) {
+            val cause = error.cause ?: error
+            if (cause is SocketTimeoutException || cause is UnknownHostException || cause is ConnectException) throw cause
+            Diagnostics.warn("speech", "a live part failed, sending the whole take instead", cause)
             null
         }
         if (joined != null && joined.isNotEmpty()) return joined
