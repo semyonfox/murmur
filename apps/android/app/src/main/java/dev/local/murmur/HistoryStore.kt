@@ -134,6 +134,14 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
         cursor.getString(4), cursor.getString(5), cursor.getLong(6), cursor.getString(7),
     )
 
+    fun renameLecture(id: Long, title: String) {
+        val trimmed = title.trim()
+        require(trimmed.isNotEmpty()) { "Enter a title." }
+        require(trimmed.length <= 200) { "Keep the title under 200 characters." }
+        writableDatabase.update("lectures", ContentValues().apply { put("title", trimmed) },
+            "id = ?", arrayOf(id.toString()))
+    }
+
     fun deleteLecture(id: Long) {
         val record = lecture(id) ?: return
         writableDatabase.delete("lectures", "id = ?", arrayOf(id.toString()))

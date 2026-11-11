@@ -46,6 +46,7 @@ internal object LocalSpeechModels {
         downloadMessage = null
         downloadThread = Thread({
             val result = runCatching { download(context.applicationContext, model) { downloadPercent = it } }
+            result.onFailure { Diagnostics.warn("models", "download of ${model.id} failed", it) }
             synchronized(this) {
                 downloadMessage = result.fold({ "${model.label} is ready." }, { it.message ?: "Download failed." })
                 downloadingId = null
@@ -184,6 +185,7 @@ internal object LocalWhisper {
     private const val PARAKEET_SEARCH_SAMPLES = 6 * 16_000
 
     @Synchronized fun release() {
+        if (context != 0L) Diagnostics.info("speech", "released ${loadedPath?.substringAfterLast('/')}")
         if (context != 0L) when (loadedEngine) {
             SpeechEngine.WHISPER -> nativeClose(context)
             SpeechEngine.PARAKEET -> nativeCloseParakeet(context)
@@ -206,7 +208,12 @@ internal object LocalWhisper {
     // called when recording starts so the load overlaps with the user speaking
     @Synchronized fun preload(model: File) {
         if (!model.isFile) return
-        runCatching { load(model) }
+        try {
+            load(model)
+        } catch (error: Exception) {
+            // transcribe loads again and reports the failure to the user
+            Diagnostics.warn("speech", "preloading ${model.name} failed", error)
+        }
         // a cancelled take never reaches transcribe, so schedule the release here too
         releaseWhenIdle()
     }
@@ -216,11 +223,13 @@ internal object LocalWhisper {
         if (loadedPath == model.absolutePath && context != 0L) return
         release()
         val engine = LocalSpeechModels.engineOf(model)
+        val started = System.nanoTime()
         context = when (engine) {
             SpeechEngine.WHISPER -> nativeOpen(model.absolutePath)
             SpeechEngine.PARAKEET -> nativeOpenParakeet(model.absolutePath)
         }
         if (context == 0L) throw IOException("Could not load the selected model.")
+        Diagnostics.info("speech", "loaded ${model.name} in ${elapsedMs(started)} ms")
         loadedEngine = engine
         loadedPath = model.absolutePath
     }

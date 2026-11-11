@@ -16,7 +16,8 @@ internal object LectureAudio {
     private const val SAMPLE_RATE = 16_000
     private const val BYTES_PER_SECOND = SAMPLE_RATE * 2
     private const val HEADER_BYTES = 44
-    private const val CHUNK_BYTES = BYTES_PER_SECOND * 120
+    const val CHUNK_SECONDS = 120
+    private const val CHUNK_BYTES = BYTES_PER_SECOND * CHUNK_SECONDS
     private const val MAX_SAMPLES = SAMPLE_RATE * 28_800L
 
     fun durationMs(file: File): Long = ((file.length() - HEADER_BYTES).coerceAtLeast(0) * 1000L) / BYTES_PER_SECOND

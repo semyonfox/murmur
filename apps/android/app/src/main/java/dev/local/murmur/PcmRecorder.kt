@@ -24,11 +24,20 @@ internal class PcmRecorder private constructor(
     private val preserveOnFailure: Boolean,
     private val onChunk: ((File) -> Unit)?,
     private val chunkMinSeconds: Int,
+    private val onLevel: ((level: Float, recordedMs: Long) -> Unit)?,
     private val onComplete: (Result<File>) -> Unit,
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val running = AtomicBoolean(true)
     private val discard = AtomicBoolean(false)
+    private val paused = AtomicBoolean(false)
+
+    val isPaused: Boolean get() = paused.get()
+
+    // the microphone keeps running while paused so resuming is instant, the audio is just dropped
+    fun pause() = paused.set(true)
+
+    fun resume() = paused.set(false)
 
     fun stop() {
         if (running.getAndSet(false)) {
@@ -55,17 +64,23 @@ internal class PcmRecorder private constructor(
                 output.setLength(0)
                 output.write(ByteArray(WAV_HEADER_BYTES))
                 val buffer = ByteArray(bufferSize)
+                // small reads give the level meter about 25 updates a second
+                val readSize = if (onLevel != null) minOf(bufferSize, LEVEL_READ_BYTES) else bufferSize
                 var checkpointAt = System.currentTimeMillis() + 5_000L
                 try {
                     while (running.get() && pcmBytes < maxPcmBytes) {
                         val count = recorder.read(
                             buffer,
                             0,
-                            minOf(buffer.size, maxPcmBytes - pcmBytes),
+                            minOf(readSize, maxPcmBytes - pcmBytes),
                             AudioRecord.READ_BLOCKING,
                         )
                         if (count < 0 && running.get()) error("Microphone capture failed.")
                         if (count <= 0) continue
+                        if (paused.get()) {
+                            onLevel?.invoke(0f, pcmBytes * 1000L / (SAMPLE_RATE * BYTES_PER_SAMPLE))
+                            continue
+                        }
                         output.write(buffer, 0, count)
                         if (peak < SILENT_PEAK) peak = maxOf(peak, peakOf(buffer, count))
                         chunker?.add(buffer, count)?.forEach { piece ->
@@ -73,6 +88,7 @@ internal class PcmRecorder private constructor(
                             chunks++
                         }
                         pcmBytes += count
+                        onLevel?.invoke(levelOf(buffer, count), pcmBytes * 1000L / (SAMPLE_RATE * BYTES_PER_SAMPLE))
                         if (preserveOnFailure && System.currentTimeMillis() >= checkpointAt) {
                             val position = output.filePointer
                             output.seek(0)
@@ -131,6 +147,24 @@ internal class PcmRecorder private constructor(
         private const val MIN_PCM_BYTES = SAMPLE_RATE * BYTES_PER_SAMPLE / 2
         // a working microphone always has some noise floor, blocked capture is near zero
         private const val SILENT_PEAK = 8
+        private const val LEVEL_READ_BYTES = SAMPLE_RATE * BYTES_PER_SAMPLE / 25
+
+        // rms on a 60 dB scale, which tracks how loud speech sounds better than raw amplitude
+        internal fun levelOf(buffer: ByteArray, count: Int): Float {
+            var sum = 0.0
+            var samples = 0
+            var index = 0
+            while (index + 1 < count) {
+                val sample = ((buffer[index].toInt() and 0xff) or (buffer[index + 1].toInt() shl 8)).toShort().toDouble()
+                sum += sample * sample
+                samples++
+                index += 2
+            }
+            if (samples == 0) return 0f
+            val rms = kotlin.math.sqrt(sum / samples) / 32768.0
+            if (rms <= 0.0) return 0f
+            return ((20 * kotlin.math.log10(rms) + 60) / 60).toFloat().coerceIn(0f, 1f)
+        }
 
         private fun peakOf(buffer: ByteArray, count: Int): Int {
             var peak = 0
@@ -151,6 +185,7 @@ internal class PcmRecorder private constructor(
             preserveOnFailure: Boolean = false,
             onChunk: ((File) -> Unit)? = null,
             chunkMinSeconds: Int = 3,
+            onLevel: ((level: Float, recordedMs: Long) -> Unit)? = null,
             onComplete: (Result<File>) -> Unit,
         ): PcmRecorder {
             require(maxSeconds in 1..28_800)
@@ -211,7 +246,7 @@ internal class PcmRecorder private constructor(
                 file.delete()
                 error("Microphone did not start recording.")
             }
-            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, onChunk, chunkMinSeconds, onComplete).also { capture ->
+            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, onChunk, chunkMinSeconds, onLevel, onComplete).also { capture ->
                 Thread({ capture.runCapture(bufferSize) }, "murmur-audio").start()
             }
         }
