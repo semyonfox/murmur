@@ -42,8 +42,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.heading
@@ -81,6 +86,14 @@ internal fun ScreenScaffold(
     // the large collapsing bar left a third of the first screen empty, tabs now
     // use the standard bar with a bigger title so content starts near the top
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val dock = LocalDock.current
+    if (onBack == null && dock != null) {
+        val topLimit = with(LocalDensity.current) { 40.dp.roundToPx() }
+        val nearTop by remember(listState) {
+            derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset <= topLimit }
+        }
+        LaunchedEffect(nearTop) { dock.setNearTop(nearTop) }
+    }
     Scaffold(
         modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),

@@ -25,6 +25,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +44,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -163,7 +165,7 @@ internal fun MurmurApp(model: AppModel, openLecture: Long?, onOpenLectureHandled
     }
     BackHandler(enabled = navigator.stack.size > 1 || navigator.current != Route.Tab.HOME) { navigator.pop() }
 
-    androidx.compose.runtime.CompositionLocalProvider(LocalSnackbar provides messenger) {
+    CompositionLocalProvider(LocalSnackbar provides messenger) {
         val lectureActions = rememberLectureActions(
             model,
             onRecording = {
@@ -174,12 +176,14 @@ internal fun MurmurApp(model: AppModel, openLecture: Long?, onOpenLectureHandled
         )
         val current = navigator.current
         val backdrop = rememberGraphicsLayer()
+        val dock = rememberDockState()
         var backdropOrigin by remember { mutableStateOf(Offset.Zero) }
         val onTab = current is Route.Tab
         Box(Modifier.fillMaxSize()) {
             Box(
                 Modifier
                     .fillMaxSize()
+                    .nestedScroll(dock.connection)
                     .onGloballyPositioned { backdropOrigin = it.positionInRoot() }
                     .drawWithContent {
                         backdrop.record { this@drawWithContent.drawContent() }
@@ -194,7 +198,9 @@ internal fun MurmurApp(model: AppModel, openLecture: Long?, onOpenLectureHandled
                     transitionSpec = { transition(initialState, targetState) },
                     label = "screen",
                 ) { stack ->
-                    Screen(stack.last(), model, navigator, lectureActions)
+                    CompositionLocalProvider(LocalDock provides dock) {
+                        Screen(stack.last(), model, navigator, lectureActions)
+                    }
                 }
             }
             AnimatedVisibility(
@@ -207,6 +213,7 @@ internal fun MurmurApp(model: AppModel, openLecture: Long?, onOpenLectureHandled
                     backdrop = backdrop,
                     backdropOrigin = backdropOrigin,
                     selected = (current as? Route.Tab) ?: Route.Tab.HOME,
+                    expanded = dock.expanded,
                     onSelect = { tab ->
                         if (current != tab) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
                         navigator.select(tab)
