@@ -5,15 +5,18 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -29,7 +32,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -40,8 +42,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.heading
@@ -71,37 +78,50 @@ internal fun ScreenScaffold(
     actions: @Composable RowScope.() -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
-    contentPadding: PaddingValues = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
     content: LazyListScope.() -> Unit,
 ) {
-    val scrollBehavior = if (onBack == null) TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-        else TopAppBarDefaults.pinnedScrollBehavior()
+    // tabs scroll underneath the floating dock, so their list and button keep clear of it
+    val dockSpace = if (onBack == null) WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + DockClearance
+        else 0.dp
+    // the large collapsing bar left a third of the first screen empty, tabs now
+    // use the standard bar with a bigger title so content starts near the top
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val dock = LocalDock.current
+    if (onBack == null && dock != null) {
+        val topLimit = with(LocalDensity.current) { 40.dp.roundToPx() }
+        val nearTop by remember(listState) {
+            derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset <= topLimit }
+        }
+        LaunchedEffect(nearTop) { dock.setNearTop(nearTop) }
+    }
     Scaffold(
         modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            val navigation: @Composable () -> Unit = {
-                if (onBack != null) IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-            }
-            if (onBack == null) LargeTopAppBar(
-                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                actions = actions,
-                scrollBehavior = scrollBehavior,
-            ) else TopAppBar(
-                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = navigation,
+            TopAppBar(
+                title = {
+                    Text(
+                        title,
+                        style = if (onBack == null) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                navigationIcon = {
+                    if (onBack != null) IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
                 actions = actions,
                 scrollBehavior = scrollBehavior,
             )
         },
-        floatingActionButton = floatingActionButton,
+        floatingActionButton = { Box(Modifier.padding(bottom = dockSpace)) { floatingActionButton() } },
     ) { padding ->
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = contentPadding,
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp + dockSpace),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content,
         )
