@@ -330,17 +330,16 @@ internal fun AboutScreen(model: AppModel, onBack: () -> Unit) {
     val context = LocalContext.current
     var licence by rememberSaveable { mutableStateOf(false) }
     var askInstallPermission by remember { mutableStateOf(false) }
-    var stopVoice by remember { mutableStateOf(false) }
     val snackbar = LocalSnackbar.current
     val scope = rememberCoroutineScope()
     var logSize by remember { mutableLongStateOf(Diagnostics.sizeBytes()) }
 
     fun install(apk: File) {
         when {
-            MurmurReadyService.isActive || LectureService.isActive ->
-                snackbar.showLater("Finish the voice bubble or lecture before installing.")
+            LectureService.isActive -> snackbar.showLater("Finish the lecture before installing.")
             !context.packageManager.canRequestPackageInstalls() -> askInstallPermission = true
             else -> {
+                if (MurmurReadyService.isActive) MurmurReadyService.pauseForUpdate(context)
                 val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.updates", apk)
                 runCatching {
                     // still the documented way to hand a sideloaded apk to the system installer
@@ -376,9 +375,9 @@ internal fun AboutScreen(model: AppModel, onBack: () -> Unit) {
                 if (update is UpdateState.Downloading) LinearProgressIndicator(progress = { update.percent / 100f }, Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     when (update) {
-                        is UpdateState.Available -> Button(onClick = {
-                            if (MurmurReadyService.isActive) stopVoice = true else model.downloadUpdate(update.update, ::install)
-                        }) { Text("Download update") }
+                        is UpdateState.Available -> Button(onClick = { model.downloadUpdate(update.update, ::install) }) {
+                            Text("Download update")
+                        }
                         is UpdateState.Ready -> Button(onClick = { install(update.apk) }) { Text("Install update") }
                         is UpdateState.Failed -> Button(onClick = {
                             update.update?.let { model.downloadUpdate(it, ::install) } ?: model.checkForUpdates(automatic = false)
@@ -440,12 +439,6 @@ internal fun AboutScreen(model: AppModel, onBack: () -> Unit) {
             context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
         },
         onDismiss = { askInstallPermission = false },
-    )
-    if (stopVoice) AlertDialog(
-        onDismissRequest = { stopVoice = false },
-        title = { Text("Turn off voice capture first") },
-        text = { Text("Stop the voice bubble before installing an update. Then return here to download it.") },
-        confirmButton = { TextButton(onClick = { stopVoice = false }) { Text("OK") } },
     )
 }
 

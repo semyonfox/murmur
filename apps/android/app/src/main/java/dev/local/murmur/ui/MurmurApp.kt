@@ -14,19 +14,13 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -35,20 +29,30 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import dev.local.murmur.AnonymousTelemetry
 import dev.local.murmur.LectureService
-import dev.local.murmur.TelemetryRoute
 import dev.local.murmur.LectureState
 import dev.local.murmur.R
+import dev.local.murmur.TelemetryRoute
 
 internal sealed interface Route {
     val key: String
@@ -169,33 +173,21 @@ internal fun MurmurApp(model: AppModel, openLecture: Long?, onOpenLectureHandled
             onOpenRecognition = { navigator.push(Route.Page.RECOGNITION) },
         )
         val current = navigator.current
-        Scaffold(
-            contentWindowInsets = WindowInsets.navigationBars,
-            snackbarHost = { SnackbarHost(snackbarHost) },
-            bottomBar = {
-                AnimatedVisibility(
-                    visible = current is Route.Tab,
-                    enter = slideInVertically { it } + fadeIn(),
-                    exit = slideOutVertically { it } + fadeOut(),
-                ) {
-                    NavigationBar {
-                        Route.Tab.entries.forEach { tab ->
-                            NavigationBarItem(
-                                selected = current == tab,
-                                onClick = {
-                                    if (current != tab) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                                    navigator.select(tab)
-                                },
-                                icon = { TabIcon(tab) },
-                                label = { Text(tab.label) },
-                            )
-                        }
+        val backdrop = rememberGraphicsLayer()
+        var backdropOrigin by remember { mutableStateOf(Offset.Zero) }
+        val onTab = current is Route.Tab
+        Box(Modifier.fillMaxSize()) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .onGloballyPositioned { backdropOrigin = it.positionInRoot() }
+                    .drawWithContent {
+                        backdrop.record { this@drawWithContent.drawContent() }
+                        drawLayer(backdrop)
                     }
-                }
-            },
-        ) { padding ->
-            val bottom = PaddingValues(bottom = padding.calculateBottomPadding())
-            Box(Modifier.fillMaxSize().padding(bottom).consumeWindowInsets(bottom)) {
+                    // pushed pages have no dock, so they stop at the navigation bar
+                    .then(if (onTab) Modifier else Modifier.navigationBarsPadding()),
+            ) {
                 AnimatedContent(
                     targetState = navigator.stack.toList(),
                     contentKey = { it.last().key },
@@ -205,6 +197,29 @@ internal fun MurmurApp(model: AppModel, openLecture: Long?, onOpenLectureHandled
                     Screen(stack.last(), model, navigator, lectureActions)
                 }
             }
+            AnimatedVisibility(
+                visible = onTab,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+            ) {
+                GlassDock(
+                    backdrop = backdrop,
+                    backdropOrigin = backdropOrigin,
+                    selected = (current as? Route.Tab) ?: Route.Tab.HOME,
+                    onSelect = { tab ->
+                        if (current != tab) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        navigator.select(tab)
+                    },
+                )
+            }
+            SnackbarHost(
+                snackbarHost,
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = if (onTab) DockClearance else 0.dp),
+            )
         }
     }
 }
@@ -226,7 +241,7 @@ private fun transition(from: List<Route>, to: List<Route>): ContentTransform {
 }
 
 @Composable
-private fun TabIcon(tab: Route.Tab) {
+internal fun TabIcon(tab: Route.Tab) {
     when (tab) {
         Route.Tab.HOME -> Icon(Icons.Filled.Home, contentDescription = null)
         Route.Tab.LECTURES -> Icon(painterResource(R.drawable.ic_school), contentDescription = null)

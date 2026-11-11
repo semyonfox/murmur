@@ -134,5 +134,11 @@ internal class MurmurReadyService : Service() {
             setWanted(context, false)
             context.stopService(Intent(context, MurmurReadyService::class.java))
         }
+
+        // an update replaces the process anyway. keeping the choice lets the app
+        // and the accessibility service bring the bubble back on the new version
+        fun pauseForUpdate(context: Context) {
+            context.stopService(Intent(context, MurmurReadyService::class.java))
+        }
     }
 }
