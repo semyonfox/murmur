@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import dev.local.murmur.AppSettings
 import dev.local.murmur.DownloadableSpeechModel
 import dev.local.murmur.LocalSpeechModels
+import dev.local.murmur.MlKitSpeech
 import dev.local.murmur.R
 import kotlinx.coroutines.delay
 import java.io.File
@@ -79,13 +80,14 @@ internal fun RecognitionScreen(model: AppModel, onBack: () -> Unit) {
                 val phoneAvailable = model.onDeviceAvailable
                 GroupItem(
                     "Phone speech service",
-                    if (phoneAvailable) "Uses the phone's installed offline recogniser. Dictation only, it cannot transcribe lectures."
+                    if (phoneAvailable) "Uses the phone's offline recogniser, and Google's newer on-device model when the phone has one. Dictation only, it cannot transcribe lectures."
                     else "This phone has no on-device speech service.",
                     leading = { RadioButton(selected = settings.useOnDeviceRecognition && phoneAvailable, onClick = null, enabled = phoneAvailable) },
                     onClick = if (phoneAvailable) {
                         {
                             settings.useOnDeviceRecognition = true
                             settings.localModelId = null
+                            MlKitSpeech.prewarm(settings.speechLanguage)
                             model.refresh()
                         }
                     } else null,

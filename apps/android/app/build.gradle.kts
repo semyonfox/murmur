@@ -45,6 +45,7 @@ android {
     defaultConfig {
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86") }
         externalNativeBuild { cmake { targets += "murmur_whisper" } }
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         applicationId = if (legacyBridge) "dev.local.murmur" else "ie.semyon.murmur"
         minSdk = 26
         targetSdk = 36
@@ -68,6 +69,9 @@ android {
         buildConfigField("String", "TELEMETRY_ENDPOINT", "\"$telemetryEndpoint\"")
     }
 
+    // the engine benchmark replays whisper.cpp's public-domain jfk sample instead of a personal recording
+    sourceSets.getByName("androidTest").assets.srcDir("../native/whisper.cpp/samples")
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -87,6 +91,10 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.ui:ui")
+    // alpha api, needs kotlin 2.4 metadata
+    implementation("com.google.mlkit:genai-speech-recognition:1.0.0-alpha2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
 }

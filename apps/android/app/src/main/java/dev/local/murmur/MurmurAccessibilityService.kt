@@ -29,6 +29,7 @@ import android.view.inputmethod.EditorInfo
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.annotation.RequiresApi
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -55,6 +56,9 @@ class MurmurAccessibilityService : AccessibilityService() {
     private var windowStartY = 0
     private var capture: PcmRecorder? = null
     private var onDeviceSession: OnDeviceSpeechSession? = null
+    private var liveSpeech: MlKitSpeech.LiveSession? = null
+    // which recogniser produced the current dictation, for the latency line in diagnostics
+    private var engine = ""
     private var request: TranscriptionClient? = null
     private var chunked: ChunkedTranscription? = null
     @Volatile private var cleanupRequest: CleanupClient? = null
@@ -104,6 +108,7 @@ class MurmurAccessibilityService : AccessibilityService() {
             readyReceiverRegistered = true
         }
         restoreReady()
+        if (settings.useOnDeviceRecognition) MlKitSpeech.prewarm(settings.speechLanguage)
         syncBubble()
     }
 
@@ -148,12 +153,12 @@ class MurmurAccessibilityService : AccessibilityService() {
 
     private fun syncBubble() {
         if (destroyed || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || !bubbleAllowed()) {
-            if (!destroyed && (capture != null || onDeviceSession != null || request != null || cleanupRequest != null)) cancelCurrentWork(false)
+            if (!destroyed && (capture != null || onDeviceSession != null || liveSpeech != null || request != null || cleanupRequest != null)) cancelCurrentWork(false)
             hideBubble()
             return
         }
         if (activeEditorIsSensitive()) {
-            if (capture != null || onDeviceSession != null || request != null || cleanupRequest != null) cancelCurrentWork(false)
+            if (capture != null || onDeviceSession != null || liveSpeech != null || request != null || cleanupRequest != null) cancelCurrentWork(false)
             hideBubble()
             return
         }
@@ -253,6 +258,7 @@ class MurmurAccessibilityService : AccessibilityService() {
             return
         }
         val recordingSession = ++session
+        engine = endpoint.localModel?.name ?: endpoint.uri.host.orEmpty()
         val chunks = ChunkedTranscription(worker, TranscriptionClient(), endpoint)
         try {
             capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled, chunkMinSeconds = chunks.minChunkSeconds, onChunk = { piece ->
@@ -304,7 +310,14 @@ class MurmurAccessibilityService : AccessibilityService() {
     }
 
     private fun startOnDevice(target: FocusTarget, cleanup: CleanupEndpoint?) {
+        if (Build.VERSION.SDK_INT >= MlKitSpeech.MIN_SDK) MlKitSpeech.cached(settings.speechLanguage)?.let { ready ->
+            startMlKit(target, cleanup, ready)
+            return
+        }
+        // the ml kit model may still be downloading or warming, so the next dictation can use it
+        MlKitSpeech.prewarm(settings.speechLanguage)
         val recordingSession = ++session
+        engine = "speech service"
         recordingStartedAt = SystemClock.elapsedRealtime()
         recordingEndedAt = 0L
         stoppedAt = 0L
@@ -337,6 +350,73 @@ class MurmurAccessibilityService : AccessibilityService() {
             onDeviceSession?.close()
             onDeviceSession = null
             showMessage("On-device recognition unavailable")
+        }
+    }
+
+    // ml kit transcribes while murmur records, so stopping only waits for the last words
+    @RequiresApi(MlKitSpeech.MIN_SDK)
+    private fun startMlKit(target: FocusTarget, cleanup: CleanupEndpoint?, ready: MlKitSpeech.Ready) {
+        val recordingSession = ++session
+        engine = ready.label
+        val speech = MlKitSpeech.LiveSession(ready)
+        try {
+            capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled, onPcm = speech::feed) { result ->
+                capture = null
+                mainHandler.removeCallbacks(refreshTimer)
+                val file = result.getOrNull()
+                val durationMs = file?.let { ((it.length() - 44).coerceAtLeast(0) * 1000 / 32_000) } ?: 0L
+                file?.delete()
+                if (recordingSession != session || destroyed || !bubbleAllowed()) {
+                    speech.cancel()
+                    if (liveSpeech === speech) liveSpeech = null
+                    return@start
+                }
+                if (file == null) {
+                    speech.cancel()
+                    liveSpeech = null
+                    Diagnostics.warn("bubble", "recording failed", result.exceptionOrNull())
+                    showMessage(result.exceptionOrNull()?.message ?: "Recording failed")
+                    return@start
+                }
+                mode = Mode.TRANSCRIBING
+                renderBubble()
+                requestTask = worker.submit {
+                    val raw = try {
+                        speech.finish()
+                    } catch (error: Exception) {
+                        mainHandler.post {
+                            if (liveSpeech === speech) liveSpeech = null
+                            if (recordingSession == session && !destroyed) {
+                                Diagnostics.warn("bubble", "ml kit dictation failed ${SystemClock.elapsedRealtime() - stoppedAt} ms after stopping", error)
+                                showMessage("On-device recognition failed")
+                            }
+                        }
+                        return@submit
+                    }
+                    mainHandler.post { if (liveSpeech === speech) liveSpeech = null }
+                    if (raw.isBlank()) {
+                        mainHandler.post { if (recordingSession == session) showMessage("No speech heard") }
+                        return@submit
+                    }
+                    processTranscript(raw, cleanup, recordingSession, target, durationMs, null)
+                }
+            }
+            liveSpeech = speech
+            mode = Mode.RECORDING
+            recordingStartedAt = SystemClock.elapsedRealtime()
+            stoppedAt = 0L
+            mainHandler.removeCallbacks(refreshTimer)
+            mainHandler.post(refreshTimer)
+            syncBubble()
+            prepareWhileRecording(null, cleanup)
+        } catch (error: SecurityException) {
+            speech.cancel()
+            Diagnostics.warn("bubble", "microphone access was denied", error)
+            showMessage("Microphone access was denied")
+        } catch (error: Exception) {
+            speech.cancel()
+            Diagnostics.error("bubble", "microphone could not start", error)
+            showMessage("Microphone could not start")
         }
     }
 
@@ -421,7 +501,7 @@ class MurmurAccessibilityService : AccessibilityService() {
             if (client == null) requestTask = null
             val suffix = if (cleaner != null && cleaned == null) " · online cleanup failed" else ""
             val inserted = insertAtCursor(target, transcript)
-            if (stoppedAt > 0L) Diagnostics.info("bubble", "dictation of ${durationMs / 1000.0}s ready " +
+            if (stoppedAt > 0L) Diagnostics.info("bubble", "dictation via $engine of ${durationMs / 1000.0}s ready " +
                 "${SystemClock.elapsedRealtime() - stoppedAt} ms after stopping, ${if (inserted) "inserted" else "field changed"}")
             showMessage((if (inserted) "Sent to field · saved" else "Saved in Murmur · field changed") + suffix)
         }
@@ -450,6 +530,9 @@ class MurmurAccessibilityService : AccessibilityService() {
         capture = null
         onDeviceSession?.close()
         onDeviceSession = null
+        // only ever set on api 31 and up
+        if (Build.VERSION.SDK_INT >= MlKitSpeech.MIN_SDK) liveSpeech?.cancel()
+        liveSpeech = null
         request?.cancel()
         chunked?.cancel()
         chunked = null
