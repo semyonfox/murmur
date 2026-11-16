@@ -65,7 +65,8 @@ fn stt_account_id(base_url: &str) -> Result<String, String> {
 
     // Keep the key tied to the exact configured endpoint, even when two URL forms resolve alike.
     let digest = Sha256::digest(base_url.as_bytes());
-    Ok(format!("url-sha256-{digest:x}"))
+    let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
+    Ok(format!("url-sha256-{hex}"))
 }
 
 fn stt_entry(base_url: &str) -> Result<Entry, String> {

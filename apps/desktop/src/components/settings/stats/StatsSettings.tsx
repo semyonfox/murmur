@@ -177,7 +177,7 @@ export const StatsSettings: React.FC = () => {
             defaultValue: "Recorded minutes",
           }),
           value: hasAudio
-            ? `${new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format(stats.recording_seconds / 60)} ${t("murmur.history.stats.minutes", { defaultValue: "min" })}`
+            ? `${new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format((stats.recording_seconds ?? 0) / 60)} ${t("murmur.history.stats.minutes", { defaultValue: "min" })}`
             : "—",
           description: t("murmur.stats.recordedDescription", {
             defaultValue: "From recordings with duration",

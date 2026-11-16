@@ -25,7 +25,7 @@ const useIsRecording = () => {
   const [isRecording, setIsRecording] = useState<boolean | null>(null);
 
   const [statusError, setStatusError] = useState(false);
-  const retryRef = useRef<() => Promise<void>>();
+  const retryRef = useRef<() => Promise<void>>(undefined);
 
   useEffect(() => {
     let active = true;
