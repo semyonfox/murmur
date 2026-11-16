@@ -13,13 +13,12 @@ require(releaseSigningValues.all { it.isNullOrBlank() } || releaseSigningValues.
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "dev.local.murmur"
-    compileSdk = 36
+    compileSdk = 37
 
     externalNativeBuild {
         cmake { path = file("src/main/cpp/CMakeLists.txt") }
@@ -70,7 +69,7 @@ android {
     }
 
     // the engine benchmark replays whisper.cpp's public-domain jfk sample instead of a personal recording
-    sourceSets.getByName("androidTest").assets.srcDir("../native/whisper.cpp/samples")
+    sourceSets.getByName("androidTest").assets.directories.add("../native/whisper.cpp/samples")
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -85,8 +84,8 @@ kotlin {
 }
 
 dependencies {
-    implementation("androidx.core:core:1.17.0")
-    implementation(platform("androidx.compose:compose-bom:2026.06.01"))
+    implementation("androidx.core:core:1.19.1")
+    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
@@ -94,7 +93,7 @@ dependencies {
     // alpha api, needs kotlin 2.4 metadata
     implementation("com.google.mlkit:genai-speech-recognition:1.0.0-alpha2")
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.json:json:20240303")
+    testImplementation("org.json:json:20260814")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
 }
