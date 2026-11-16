@@ -588,7 +588,11 @@ impl TranscriptionManager {
                     .as_ref()
                     .map(transcribe_device_label)
                     .unwrap_or_else(|| "automatic".to_string());
-                let model_options = ModelOptions { backend, device };
+                let model_options = ModelOptions {
+                    backend,
+                    device,
+                    ..ModelOptions::default()
+                };
                 let model = Model::load_with(&model_path, &model_options).map_err(|e| {
                     let error_msg = format!("Failed to load whisper model {}: {}", model_id, e);
                     emit_loading_failed(&error_msg);
@@ -609,7 +613,14 @@ impl TranscriptionManager {
                 // loaded model's real ones (GGUF metadata) so badges/gating
                 // reflect runtime truth, not the pre-download probe. The
                 // load-completed event below triggers the frontend refresh.
-                let caps = session.model().capabilities();
+                let caps = session.model().capabilities().map_err(|e| {
+                    let error_msg = format!(
+                        "Model {} is not a speech recognition model: {}",
+                        model_id, e
+                    );
+                    emit_loading_failed(&error_msg);
+                    anyhow::anyhow!(error_msg)
+                })?;
                 self.model_manager.set_runtime_capabilities(
                     model_id,
                     caps.supports_streaming,
@@ -889,9 +900,10 @@ impl TranscriptionManager {
         // batch. The loaded session (not the ModelManager copy) is the source of
         // truth for run-path capabilities.
         let (supports_streaming, supports_translate, languages) = match &engine {
-            LoadedEngine::TranscribeCpp(session) => {
+            // load already rejected models without speech capabilities
+            LoadedEngine::TranscribeCpp(session) if session.model().capabilities().is_ok() => {
                 let model = session.model();
-                let caps = model.capabilities();
+                let caps = model.capabilities().expect("checked by the match guard");
                 info!(
                     "Live preview: model '{}' arch='{}' variant='{}' supports_streaming={} \
                      supports_translate={} languages={:?}",
@@ -1284,11 +1296,13 @@ impl TranscriptionManager {
             let mut model_detected_language: Option<String> = None;
             if let LoadedEngine::TranscribeCpp(session) = &engine {
                 let model = session.model();
-                let caps = model.capabilities();
                 model_takes_initial_prompt = model.supports(Feature::InitialPrompt);
                 model_is_whisper = model.arch() == "whisper";
-                model_supports_translate = caps.supports_translate;
-                model_languages = caps.languages;
+                // load already rejected models without speech capabilities
+                if let Ok(caps) = model.capabilities() {
+                    model_supports_translate = caps.supports_translate;
+                    model_languages = caps.languages;
+                }
                 debug!(
                     "transcribe-cpp model '{}' on '{}': initial_prompt={}, translate={}, languages={:?}",
                     settings.selected_model,

@@ -86,7 +86,10 @@ fn test_verify_sha256_fails_and_deletes_partial_when_file_missing() {
 // caller's job), so "no Completed on a bad hash" is the rename gate too.
 
 fn sha_hex(data: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(data))
+    Sha256::digest(data)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 fn http_response(status_line: &str, headers: &[String], body: &[u8]) -> Vec<u8> {

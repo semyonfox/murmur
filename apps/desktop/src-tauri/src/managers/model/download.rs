@@ -96,7 +96,11 @@ impl ModelManager {
             }
             hasher.update(&buffer[..n]);
         }
-        Ok(format!("{:x}", hasher.finalize()))
+        Ok(hasher
+            .finalize()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect())
     }
 
     /// Emit verification events around a blocking sha256 check of `path`.

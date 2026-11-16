@@ -19,9 +19,9 @@ import {
 const RETENTION_KEYS: Record<RecordingRetentionPeriod, string> = {
   never: "never",
   preserve_limit: "preserveLimit",
-  days_3: "days3",
-  weeks_2: "weeks2",
-  months_3: "months3",
+  days3: "days3",
+  weeks2: "weeks2",
+  months3: "months3",
 };
 
 interface SummaryRowProps {

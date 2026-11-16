@@ -164,11 +164,12 @@ test("history cancellation retains the entry and never invokes deletion", async 
   await openHistory(page);
   await page.getByRole("button", { name: "Delete entry" }).click();
   await expect
-    .poll(() => commandsCalled(page, "plugin:dialog|ask"))
+    .poll(() => commandsCalled(page, "plugin:dialog|message"))
     .toHaveLength(1);
-  expect((await commandsCalled(page, "plugin:dialog|ask"))[0]).toMatchObject({
-    yesButtonLabel: "Delete",
-    noButtonLabel: "Cancel",
+  expect(
+    (await commandsCalled(page, "plugin:dialog|message"))[0],
+  ).toMatchObject({
+    buttons: { OkCancelCustom: ["Delete", "Cancel"] },
   });
   expect(await commandsCalled(page, "delete_history_entry")).toEqual([]);
   await expect(

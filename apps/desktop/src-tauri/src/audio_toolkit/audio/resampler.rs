@@ -1,11 +1,12 @@
-use rubato::{FftFixedIn, Resampler};
+use rubato::audioadapter_buffers::direct::InterleavedSlice;
+use rubato::{Fft, FixedSync, Indexing, Resampler, WindowFunction};
 use std::time::Duration;
 
 // Make this a constant you can tweak
 const RESAMPLER_CHUNK_SIZE: usize = 1024;
 
 pub struct FrameResampler {
-    resampler: Option<FftFixedIn<f32>>,
+    resampler: Option<Fft<f32>>,
     chunk_in: usize,
     in_buf: Vec<f32>,
     frame_samples: usize,
@@ -27,8 +28,17 @@ impl FrameResampler {
         let chunk_in = RESAMPLER_CHUNK_SIZE;
 
         let resampler = (in_hz != out_hz).then(|| {
-            FftFixedIn::<f32>::new(in_hz, out_hz, chunk_in, 1, 1)
-                .expect("Failed to create resampler")
+            // one sub-chunk and the old default window keep the 0.16 delay and output counts
+            Fft::<f32>::new_custom(
+                in_hz,
+                out_hz,
+                chunk_in,
+                1,
+                1,
+                WindowFunction::BlackmanHarris2,
+                FixedSync::Input,
+            )
+            .expect("Failed to create resampler")
         });
 
         Self {
@@ -59,16 +69,11 @@ impl FrameResampler {
 
             if self.in_buf.len() == self.chunk_in {
                 // let start = std::time::Instant::now();
-                if let Ok(out) = self
-                    .resampler
-                    .as_mut()
-                    .unwrap()
-                    .process(&[&self.in_buf[..]], None)
-                {
+                if let Ok(out) = self.resample(self.chunk_in) {
                     // let duration = start.elapsed();
                     // log::debug!("Resampler took: {:?}", duration);
-                    self.out_count += out[0].len();
-                    self.emit_frames(&out[0], &mut emit);
+                    self.out_count += out.len();
+                    self.emit_frames(&out, &mut emit);
                 }
                 self.in_buf.clear();
             }
@@ -79,14 +84,9 @@ impl FrameResampler {
         if self.resampler.is_some() {
             // Process any remaining input samples (padded internally).
             if !self.in_buf.is_empty() {
-                let result = self
-                    .resampler
-                    .as_mut()
-                    .unwrap()
-                    .process_partial(Some(&[&self.in_buf[..]]), None);
-                if let Ok(out) = result {
-                    self.out_count += out[0].len();
-                    self.emit_frames(&out[0], &mut emit);
+                if let Ok(out) = self.resample(self.in_buf.len()) {
+                    self.out_count += out.len();
+                    self.emit_frames(&out, &mut emit);
                 }
                 // Drop the consumed input: a full in_buf would satisfy the
                 // next push()'s chunk check immediately, re-processing this
@@ -103,16 +103,11 @@ impl FrameResampler {
                 let mut rounds = 0;
                 while self.out_count < expected && rounds < 8 {
                     rounds += 1;
-                    let result = self
-                        .resampler
-                        .as_mut()
-                        .unwrap()
-                        .process_partial::<&[f32]>(None, None);
-                    match result {
+                    match self.resample(0) {
                         Ok(out) => {
-                            let take = (expected - self.out_count).min(out[0].len());
+                            let take = (expected - self.out_count).min(out.len());
                             self.out_count += take;
-                            self.emit_frames(&out[0][..take], &mut emit);
+                            self.emit_frames(&out[..take], &mut emit);
                         }
                         Err(_) => break,
                     }
@@ -140,6 +135,23 @@ impl FrameResampler {
         if let Some(ref mut resampler) = self.resampler {
             resampler.reset();
         }
+    }
+
+    // runs the first `frames` samples of in_buf through the resampler. a short
+    // input is zero padded, which is how the tail and the delay line get flushed
+    fn resample(&mut self, frames: usize) -> rubato::ResampleResult<Vec<f32>> {
+        let input = InterleavedSlice::new(&self.in_buf[..frames], 1, frames)
+            .expect("a mono slice always matches its frame count");
+        let indexing = Indexing {
+            partial_len: (frames < self.chunk_in).then_some(frames),
+            ..Indexing::default()
+        };
+        let out = self
+            .resampler
+            .as_mut()
+            .unwrap()
+            .process(&input, Some(&indexing))?;
+        Ok(out.take_data())
     }
 
     fn emit_frames(&mut self, mut data: &[f32], emit: &mut impl FnMut(&[f32])) {

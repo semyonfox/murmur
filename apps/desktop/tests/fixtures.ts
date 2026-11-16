@@ -191,8 +191,13 @@ export async function installFixture(page: Page, options: FixtureOptions = {}) {
               if (fixture.historyFailure === "thrown")
                 throw new Error("Synthetic history error");
               return { entries: history, has_more: false };
-            case "plugin:dialog|ask":
-              return fixture.confirmDelete ?? false;
+            // plugin-dialog's ask() resolves to true when the reply matches its ok label
+            case "plugin:dialog|message": {
+              const [ok, cancel] = (
+                args.buttons as { OkCancelCustom: [string, string] }
+              ).OkCancelCustom;
+              return fixture.confirmDelete ? ok : cancel;
+            }
             case "delete_history_entry":
               if (fixture.deleteFailure) throw "Synthetic deletion error";
               history = history.filter((entry) => entry.id !== args.id);

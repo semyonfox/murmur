@@ -465,6 +465,8 @@ pub struct AppSettings {
         default = "default_post_process_formality",
         deserialize_with = "deserialize_post_process_formality"
     )]
+    // the deserialiser only range checks, the wire type is still u8
+    #[specta(type = u8)]
     pub post_process_formality: u8,
     #[serde(default = "default_post_process_provider_id")]
     pub post_process_provider_id: String,
@@ -524,6 +526,8 @@ pub struct AppSettings {
         default = "default_transcribe_gpu_device",
         deserialize_with = "deserialize_transcribe_gpu_device"
     )]
+    // legacy numeric indices are accepted on load, the frontend only sends a string or null
+    #[specta(type = Option<String>)]
     pub transcribe_gpu_device: Option<String>,
     #[serde(default)]
     pub extra_recording_buffer_ms: u64,

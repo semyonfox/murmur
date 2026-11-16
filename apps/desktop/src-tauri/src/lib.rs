@@ -34,8 +34,8 @@ mod utils;
 
 pub use cli::CliArgs;
 #[cfg(debug_assertions)]
-use specta_typescript::{BigIntExportBehavior, Typescript};
-use tauri_specta::{collect_commands, collect_events, Builder};
+use specta_typescript::Typescript;
+use tauri_specta::{collect_commands, collect_events, Builder, ErrorHandlingMode};
 pub use utils::env_flag_enabled;
 
 use env_filter::Builder as EnvFilterBuilder;
@@ -656,6 +656,11 @@ pub fn run(cli_args: CliArgs) {
     let console_filter = build_console_filter();
 
     let specta_builder = Builder::<tauri::Wry>::new()
+        // keep the bindings shape the frontend was written against: result objects,
+        // one type per struct, and 64-bit ids, sizes and timestamps typed as number
+        .error_handling(ErrorHandlingMode::Result)
+        .disable_serde_phases()
+        .dangerously_cast_bigints_to_number()
         .commands(collect_commands![
             shortcut::change_binding,
             shortcut::reset_binding,
@@ -795,10 +800,7 @@ pub fn run(cli_args: CliArgs) {
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds
     specta_builder
-        .export(
-            Typescript::default().bigint(BigIntExportBehavior::Number),
-            "../src/bindings.ts",
-        )
+        .export(Typescript::default(), "../src/bindings.ts")
         .expect("Failed to export typescript bindings");
 
     let invoke_handler = specta_builder.invoke_handler();
