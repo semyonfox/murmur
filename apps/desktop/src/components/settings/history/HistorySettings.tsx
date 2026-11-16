@@ -336,11 +336,11 @@ export const HistorySettings: React.FC = () => {
               return (
                 <React.Fragment key={entry.id}>
                   {day !== previousDay && (
-                    <h3 className="border-y border-mid-gray/15 bg-mid-gray/5 px-4 py-2 text-sm font-semibold text-text first:border-t-0">
+                    <h3 className="border-y border-line/9 bg-mid-gray/5 px-4 py-2 text-sm font-semibold text-text first:border-t-0">
                       {formatDate(String(entry.timestamp), i18n.language)}
                     </h3>
                   )}
-                  <div className="border-b border-mid-gray/15 last:border-b-0">
+                  <div className="border-b border-line/9 last:border-b-0">
                     <HistoryEntryComponent
                       entry={entry}
                       onToggleSaved={() => toggleSaved(entry.id)}
@@ -375,7 +375,7 @@ export const HistorySettings: React.FC = () => {
             label={t("settings.history.openFolder")}
           />
         </div>
-        <div className="bg-surface border border-mid-gray/15 rounded-xl overflow-visible">
+        <div className="bg-surface border border-line/9 rounded-xl overflow-visible">
           {content}
           {loadError && (
             <div className="px-4 py-3">
@@ -420,7 +420,7 @@ export const HistorySettings: React.FC = () => {
         {getSetting("recording_retention_period") === "preserve_limit" && (
           <HistoryLimit descriptionMode="tooltip" grouped />
         )}
-        <div className="border-t border-mid-gray/20 px-4 py-3">
+        <div className="border-t border-line/12 px-4 py-3">
           <Button
             onClick={() => void exportArchive()}
             variant="secondary"
@@ -587,11 +587,10 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
             disabled={!hasTranscription || busy}
             title={t("settings.history.copyToClipboard")}
           >
-            {showCopied ? (
-              <Check width={16} height={16} />
-            ) : (
-              <Copy width={16} height={16} />
-            )}
+            <span className="icon-swap">
+              <Check width={16} height={16} data-hidden={!showCopied} />
+              <Copy width={16} height={16} data-hidden={showCopied} />
+            </span>
           </IconButton>
           <IconButton
             onClick={onToggleSaved}

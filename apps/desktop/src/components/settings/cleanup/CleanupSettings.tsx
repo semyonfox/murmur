@@ -218,7 +218,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
         )}
 
         {!isCreating && !selectedPrompt && (
-          <div className="p-3 bg-mid-gray/5 rounded-md border border-mid-gray/20">
+          <div className="p-3 bg-mid-gray/5 rounded-md border border-line/12">
             <p className="text-sm text-mid-gray">
               {hasPrompts
                 ? t("settings.postProcessing.prompts.selectToEdit")
@@ -386,7 +386,7 @@ export const CleanupSettings: React.FC = () => {
                 className={`flex min-w-0 cursor-pointer items-center justify-center rounded-lg border px-1 py-2 text-center text-xs font-medium transition-colors focus-within:ring-2 focus-within:ring-logo-primary/40 ${
                   formality === option.value
                     ? "border-logo-primary/70 bg-logo-primary/10 text-text"
-                    : "border-mid-gray/20 text-text/80 hover:border-mid-gray/45"
+                    : "border-line/12 text-text/80 hover:border-line/27"
                 }`}
               >
                 <input

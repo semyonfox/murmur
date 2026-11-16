@@ -28,14 +28,14 @@ export const Button: React.FC<ButtonProps> = ({
     "primary-soft":
       "text-text bg-logo-primary/20 border-transparent hover:bg-logo-primary/30 focus:ring-1 focus:ring-logo-primary",
     secondary:
-      "text-text bg-mid-gray/10 border-mid-gray/20 hover:bg-mid-gray/20 hover:border-mid-gray/40 focus-visible:ring-2 focus-visible:ring-logo-primary/40",
+      "text-text bg-mid-gray/10 border-line/12 hover:bg-mid-gray/20 hover:border-line/24 focus-visible:ring-2 focus-visible:ring-logo-primary/40",
     // Secondary's neutral resting look, but hover/focus use the semantic
     // --color-warning token (theme.css) instead of the pink accent — for
     // buttons sitting on warning surfaces like SecureInputWarning
     warning:
-      "text-text bg-mid-gray/10 border-mid-gray/20 hover:bg-warning/15 hover:border-warning focus:ring-1 focus:ring-warning",
+      "text-text bg-mid-gray/10 border-line/12 hover:bg-warning/15 hover:border-warning focus:ring-1 focus:ring-warning",
     danger:
-      "text-white bg-red-600 border-mid-gray/20 hover:bg-red-700 hover:border-red-700 focus:ring-1 focus:ring-red-500",
+      "text-white bg-red-600 border-line/12 hover:bg-red-700 hover:border-red-700 focus:ring-1 focus:ring-red-500",
     "danger-ghost":
       "text-red-400 border-transparent hover:text-red-300 hover:bg-red-500/10 focus:bg-red-500/20",
     ghost:

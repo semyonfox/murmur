@@ -141,7 +141,7 @@ const StatusCard: React.FC = () => {
         });
 
   return (
-    <section className="rounded-xl border border-mid-gray/15 bg-surface px-4 py-3">
+    <section className="rounded-xl border border-line/9 bg-surface px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div
           className="flex items-center gap-2 text-sm font-medium text-text"

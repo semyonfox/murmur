@@ -328,7 +328,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     return (
       <main
         role="status"
-        className="h-screen w-full flex items-center justify-center gap-3"
+        className="h-dvh w-full flex items-center justify-center gap-3"
       >
         <Loader2
           aria-hidden="true"
@@ -348,7 +348,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     return (
       <main
         role="status"
-        className="h-screen w-full flex flex-col items-center justify-center gap-4"
+        className="h-dvh w-full flex flex-col items-center justify-center gap-4"
       >
         <div className="p-4 rounded-full bg-emerald-500/20">
           <Check className="w-12 h-12 text-emerald-400" />
@@ -364,7 +364,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
   return (
     <main
       aria-labelledby="permissions-heading"
-      className="min-h-screen w-full flex flex-col p-6 gap-6 items-center justify-center"
+      className="min-h-dvh w-full flex flex-col p-6 gap-6 items-center justify-center"
     >
       <div className="flex flex-col items-center gap-2">
         <HandyTextLogo width={200} />
@@ -393,7 +393,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
         )}
         {/* Microphone Permission Card */}
         {showMicrophonePermission && (
-          <div className="w-full p-4 rounded-lg bg-white/5 border border-mid-gray/20">
+          <div className="w-full p-4 rounded-lg bg-white/5 border border-line/12">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-full bg-logo-primary/20 shrink-0">
                 <Mic className="w-6 h-6 text-logo-primary" />
@@ -451,7 +451,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
 
         {/* Accessibility Permission Card */}
         {showAccessibilityPermission && (
-          <div className="w-full p-4 rounded-lg bg-white/5 border border-mid-gray/20">
+          <div className="w-full p-4 rounded-lg bg-white/5 border border-line/12">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-full bg-logo-primary/20 shrink-0">
                 <Keyboard className="w-6 h-6 text-logo-primary" />

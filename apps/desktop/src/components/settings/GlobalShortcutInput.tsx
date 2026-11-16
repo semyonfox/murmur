@@ -312,7 +312,7 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
             type="button"
             aria-label={`Change ${translatedName}: ${formatKeyCombination(binding.current_binding, osType)}`}
             disabled={disabled}
-            className="min-h-11 px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 hover:bg-logo-primary/10 rounded-md cursor-pointer hover:border-logo-primary"
+            className="min-h-11 px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-line/48 hover:bg-logo-primary/10 rounded-md cursor-pointer hover:border-logo-primary"
             onClick={(event) => {
               activationTarget.current = event.currentTarget;
               void startRecording(shortcutId);

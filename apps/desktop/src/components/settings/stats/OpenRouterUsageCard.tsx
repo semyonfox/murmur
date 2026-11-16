@@ -67,9 +67,9 @@ export function OpenRouterUsageCard() {
     <section
       aria-busy={loading}
       aria-labelledby="openrouter-usage-heading"
-      className="overflow-hidden rounded-xl border border-mid-gray/15 bg-surface"
+      className="overflow-hidden rounded-xl border border-line/9 bg-surface"
     >
-      <div className="flex items-start justify-between gap-3 border-b border-mid-gray/20 px-4 py-4 sm:px-5">
+      <div className="flex items-start justify-between gap-3 border-b border-line/12 px-4 py-4 sm:px-5">
         <div>
           <h2
             id="openrouter-usage-heading"
@@ -101,7 +101,7 @@ export function OpenRouterUsageCard() {
       {usage && error && (
         <p
           role="status"
-          className="border-b border-mid-gray/20 px-4 py-2 text-xs text-mid-gray sm:px-5"
+          className="border-b border-line/12 px-4 py-2 text-xs text-mid-gray sm:px-5"
         >
           {t("murmur.stats.costStale", {
             defaultValue:
@@ -135,7 +135,7 @@ export function OpenRouterUsageCard() {
       )}
       {usage && usage.key_count > 0 && (
         <>
-          <div className="grid grid-cols-3 divide-x divide-mid-gray/15">
+          <div className="grid grid-cols-3 divide-x divide-line/9">
             {[
               {
                 label: t("murmur.stats.costWeek", {
@@ -162,7 +162,7 @@ export function OpenRouterUsageCard() {
               </div>
             ))}
           </div>
-          <div className="space-y-2 border-t border-mid-gray/20 px-4 py-3 text-xs leading-relaxed text-mid-gray sm:px-5">
+          <div className="space-y-2 border-t border-line/12 px-4 py-3 text-xs leading-relaxed text-mid-gray sm:px-5">
             {usage.byok_usage_monthly > 0 && (
               <p>
                 {t("murmur.stats.byokValue", {

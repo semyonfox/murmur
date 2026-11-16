@@ -163,7 +163,7 @@ const Onboarding: React.FC<OnboardingProps> = ({
   };
 
   return (
-    <div className="h-screen w-full flex flex-col p-6 gap-4">
+    <div className="h-dvh w-full flex flex-col p-6 gap-4">
       <div className="flex flex-col items-center gap-2 shrink-0">
         <HandyTextLogo width={200} />
         <p className="text-text/70 max-w-md font-medium mx-auto">
@@ -177,7 +177,7 @@ const Onboarding: React.FC<OnboardingProps> = ({
         onClick={() => {
           if (!preview) onConfigureEndpoint();
         }}
-        className="w-full max-w-[600px] mx-auto rounded-xl border border-mid-gray/30 px-4 py-3 text-left hover:bg-mid-gray/10 disabled:opacity-50 cursor-pointer"
+        className="w-full max-w-[600px] mx-auto rounded-xl border border-line/18 px-4 py-3 text-left hover:bg-mid-gray/10 disabled:opacity-50 cursor-pointer"
       >
         <span className="block text-sm font-medium text-text">
           {t("onboarding.configureEndpoint", {
@@ -195,7 +195,7 @@ const Onboarding: React.FC<OnboardingProps> = ({
       <div className="max-w-[600px] w-full mx-auto text-center flex-1 flex flex-col min-h-0">
         <div className="space-y-6 pb-6">
           {initialized && models.length === 0 && (
-            <p className="rounded-xl border border-mid-gray/20 px-4 py-6 text-sm text-mid-gray">
+            <p className="rounded-xl border border-line/12 px-4 py-6 text-sm text-mid-gray">
               {t("onboarding.noModels", {
                 defaultValue: "No downloadable models are listed right now.",
               })}

@@ -263,7 +263,7 @@ export const SttSourceSettings: React.FC<SttSourceSettingsProps> = ({
               className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition-colors focus-within:ring-2 focus-within:ring-logo-primary/40 ${
                 source === "local"
                   ? "border-logo-primary/60 bg-mid-gray/10"
-                  : "border-mid-gray/20 hover:border-mid-gray/45"
+                  : "border-line/12 hover:border-line/27"
               }`}
             >
               <input
@@ -302,7 +302,7 @@ export const SttSourceSettings: React.FC<SttSourceSettingsProps> = ({
               className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition-colors focus-within:ring-2 focus-within:ring-logo-primary/40 ${
                 source === "endpoint"
                   ? "border-logo-primary/60 bg-mid-gray/10"
-                  : "border-mid-gray/20 hover:border-mid-gray/45"
+                  : "border-line/12 hover:border-line/27"
               }`}
             >
               <input
@@ -337,7 +337,7 @@ export const SttSourceSettings: React.FC<SttSourceSettingsProps> = ({
         </fieldset>
 
         {source === "endpoint" && (
-          <div className="space-y-3 rounded-xl border border-mid-gray/20 bg-mid-gray/5 p-4">
+          <div className="space-y-3 rounded-xl border border-line/12 bg-mid-gray/5 p-4">
             <fieldset
               className="space-y-1.5"
               disabled={isSaving || isKeySaving || !!pendingConfig}
@@ -360,7 +360,7 @@ export const SttSourceSettings: React.FC<SttSourceSettingsProps> = ({
                     className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                       activePreset?.id === preset.id
                         ? "border-logo-primary/60 bg-background font-medium text-text"
-                        : "border-mid-gray/25 text-text/80 hover:border-mid-gray/50"
+                        : "border-line/15 text-text/80 hover:border-line/30"
                     }`}
                   >
                     {preset.label}
@@ -424,7 +424,7 @@ export const SttSourceSettings: React.FC<SttSourceSettingsProps> = ({
                 })}
               </p>
             </div>
-            <div className="space-y-2 border-t border-mid-gray/20 pt-3">
+            <div className="space-y-2 border-t border-line/12 pt-3">
               <label
                 htmlFor="stt-api-key"
                 className="block text-sm font-medium"
@@ -509,7 +509,7 @@ export const SttSourceSettings: React.FC<SttSourceSettingsProps> = ({
         )}
 
         {(source === "endpoint" || isDirty || !!error || !!pendingConfig) && (
-          <div className="space-y-3 border-t border-mid-gray/20 pt-3">
+          <div className="space-y-3 border-t border-line/12 pt-3">
             {source === "endpoint" && (
               <p className="text-xs leading-relaxed text-mid-gray">
                 {t("murmur.stt.endpoint.notice", {

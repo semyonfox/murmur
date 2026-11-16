@@ -185,7 +185,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <nav
       aria-label={t("murmur.nav.label", { defaultValue: "Settings" })}
-      className="flex h-full w-44 shrink-0 flex-col overflow-y-auto border-e border-mid-gray/15 px-2 max-sm:h-auto max-sm:w-full max-sm:border-e-0 max-sm:border-b"
+      className="flex h-full w-44 shrink-0 flex-col overflow-y-auto border-e border-line/9 px-2 max-sm:h-auto max-sm:w-full max-sm:border-e-0 max-sm:border-b"
     >
       <HandyTextLogo width={104} className="mx-2 mt-4 mb-5 max-sm:hidden" />
       <ul className="flex flex-col gap-0.5 pb-3 max-sm:flex-row max-sm:overflow-x-auto max-sm:py-2">
@@ -216,7 +216,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Icon
                   size={17}
-                  strokeWidth={isActive ? 2.1 : 1.8}
                   className={`shrink-0 ${isActive ? "text-logo-primary" : ""}`}
                   aria-hidden="true"
                 />

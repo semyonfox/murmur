@@ -302,11 +302,20 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           className="min-h-11 min-w-11 inline-flex items-center justify-center transition-colors cursor-pointer text-text hover:text-logo-primary disabled:opacity-50"
           aria-label={isPlaying ? "Pause" : "Play"}
         >
-          {isPlaying ? (
-            <Pause width={20} height={20} fill="currentColor" />
-          ) : (
-            <Play width={20} height={20} fill="currentColor" />
-          )}
+          <span className="icon-swap">
+            <Pause
+              width={20}
+              height={20}
+              fill="currentColor"
+              data-hidden={!isPlaying}
+            />
+            <Play
+              width={20}
+              height={20}
+              fill="currentColor"
+              data-hidden={isPlaying}
+            />
+          </span>
         </button>
 
         <div className="flex-1 flex items-center gap-2">
@@ -330,7 +339,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               backgroundSize: "100% 4px",
               backgroundRepeat: "no-repeat",
               backgroundPosition: "center",
-              backgroundImage: `linear-gradient(to right, #FAA2CA 0%, #FAA2CA ${progressPercent}%, rgba(128, 128, 128, 0.2) ${progressPercent}%, rgba(128, 128, 128, 0.2) 100%)`,
+              backgroundImage: `linear-gradient(to right, var(--color-logo-primary) ${progressPercent}%, color-mix(in oklab, var(--color-mid-gray) 20%, transparent) ${progressPercent}%)`,
             }}
           />
 

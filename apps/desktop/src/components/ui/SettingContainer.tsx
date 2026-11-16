@@ -49,7 +49,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
 
   const containerClasses = grouped
     ? "px-4 p-2"
-    : "px-4 p-2 rounded-lg border border-mid-gray/20";
+    : "px-4 p-2 rounded-lg border border-line/12";
 
   if (layout === "stacked") {
     if (descriptionMode === "tooltip") {
@@ -91,7 +91,6 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
                   d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
@@ -132,7 +131,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
   // Horizontal layout (default)
   const horizontalContainerClasses = grouped
     ? "flex items-center justify-between gap-2 min-h-12 px-4 p-2 max-sm:flex-col max-sm:items-stretch"
-    : "flex items-center justify-between gap-2 min-h-12 px-4 p-2 rounded-lg border border-mid-gray/20 max-sm:flex-col max-sm:items-stretch";
+    : "flex items-center justify-between gap-2 min-h-12 px-4 p-2 rounded-lg border border-line/12 max-sm:flex-col max-sm:items-stretch";
 
   if (descriptionMode === "tooltip") {
     return (
@@ -174,7 +173,6 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
                   d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>

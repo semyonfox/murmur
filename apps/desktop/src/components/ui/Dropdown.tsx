@@ -93,10 +93,10 @@ export const Dropdown: React.FC<DropdownProps> = ({
         }
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}
-        className={`px-2.5 py-[5px] text-sm bg-background border border-mid-gray/30 rounded-lg min-w-[200px] max-sm:min-w-0 w-full text-start grid grid-cols-[1fr_auto] gap-2 items-center transition-all duration-150 ${
+        className={`px-2.5 py-[5px] text-sm bg-background border border-line/18 rounded-lg min-w-[200px] max-sm:min-w-0 w-full text-start grid grid-cols-[1fr_auto] gap-2 items-center transition-all duration-150 ${
           disabled
             ? "opacity-50 cursor-not-allowed"
-            : "cursor-pointer hover:border-mid-gray/50"
+            : "cursor-pointer hover:border-line/30"
         }`}
         onClick={handleToggle}
         disabled={disabled}
@@ -111,7 +111,6 @@ export const Dropdown: React.FC<DropdownProps> = ({
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth={2}
             d="M19 9l-7 7-7-7"
           />
         </svg>
@@ -119,7 +118,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
       {isOpen && !disabled && (
         <div
           id={menuId}
-          className={`absolute top-full mt-1 bg-surface border border-mid-gray/25 rounded-lg shadow-lg z-50 py-1 max-h-60 overflow-y-auto ${
+          className={`absolute top-full mt-1 bg-raised border border-line/15 rounded-lg shadow-raised z-50 p-1 max-h-60 overflow-y-auto ${
             menuClassName ?? "left-0 right-0"
           }`}
         >
@@ -132,7 +131,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
               <button
                 key={option.value}
                 type="button"
-                className={`w-full text-sm text-start hover:bg-mid-gray/15 transition-colors duration-150 ${
+                className={`w-full rounded-[calc(var(--radius-lg)-5px)] text-sm text-start hover:bg-mid-gray/15 transition-colors duration-150 ${
                   option.description ? "px-3 py-2" : "px-2 py-1"
                 } ${
                   selectedValue === option.value

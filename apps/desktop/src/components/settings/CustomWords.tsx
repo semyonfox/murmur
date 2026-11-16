@@ -125,7 +125,7 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
         </SettingContainer>
         {customWords.length > 0 && (
           <div
-            className={`px-4 p-3 ${grouped ? "" : "rounded-lg border border-mid-gray/20"} space-y-3`}
+            className={`px-4 p-3 ${grouped ? "" : "rounded-lg border border-line/12"} space-y-3`}
           >
             <Input
               type="search"
@@ -169,7 +169,6 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={2}
                       d="M6 18L18 6M6 6l12 12"
                     />
                   </svg>
