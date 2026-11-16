@@ -6,39 +6,56 @@
 
     /* Palette source of truth. The active tokens below and the `data-theme`
      overrides select between these light and dark values. */
-    /* near-neutral greys with a faint green cast; the accent carries the colour */
-    --light-color-text: #1b1f1d;
-    --light-color-background: #f3f4f3;
-    --light-color-surface: #ffffff;
-    --light-color-logo-primary: #2d7560;
-    --light-color-logo-stroke: #1b1f1d;
-    --light-color-on-logo-primary: #ffffff;
-    --light-color-mid-gray: #5a625e;
+    /* near-neutral greys with a faint green cast (hue ~164); the accent carries
+     the colour. OKLCH keeps lightness steps perceptually even, so a new shade is
+     a change to L alone */
+    --light-color-text: oklch(23.4% 0.007 164.3);
+    --light-color-background: oklch(96.6% 0.002 145.6);
+    --light-color-surface: oklch(100% 0 0);
+    --light-color-raised: oklch(100% 0 0);
+    --light-color-logo-primary: oklch(51.1% 0.08 170.9);
+    --light-color-logo-stroke: oklch(23.4% 0.007 164.3);
+    --light-color-on-logo-primary: oklch(100% 0 0);
+    --light-color-mid-gray: oklch(48.8% 0.012 164.5);
+    /* borders are black or white at low alpha so they sit on any surface */
+    --light-color-line: oklch(0% 0 0);
 
-    --dark-color-text: #e5e8e6;
-    --dark-color-background: #161918;
-    --dark-color-surface: #1e2220;
-    --dark-color-logo-primary: #7cc2a6;
-    --dark-color-logo-stroke: #dde4e0;
-    --dark-color-on-logo-primary: #0f1b16;
-    --dark-color-mid-gray: #9ba39f;
+    --dark-color-text: oklch(92.8% 0.004 157.2);
+    --dark-color-background: oklch(21% 0.005 173.9);
+    --dark-color-surface: oklch(24.7% 0.007 164.4);
+    /* dark mode shows depth with lighter surfaces, not shadows */
+    --dark-color-raised: oklch(29% 0.008 164.4);
+    --dark-color-logo-primary: oklch(76% 0.082 167);
+    --dark-color-logo-stroke: oklch(91.2% 0.009 161.3);
+    --dark-color-on-logo-primary: oklch(20.9% 0.02 166.6);
+    --dark-color-mid-gray: oklch(70.8% 0.011 164.7);
+    --dark-color-line: oklch(100% 0 0);
 
     /* Semantic status colors. First used by SecureInputWarning; intended to
      replace the ad-hoc yellow-500/red-500 usages (e.g. ui/Alert.tsx) over
      time so status styling is themeable from one place. */
-    --light-color-warning: #d97706;
-    --light-color-error: #dc2626;
-    --dark-color-warning: #fbbf24;
-    --dark-color-error: #f87171;
+    --light-color-warning: oklch(66.6% 0.157 58.3);
+    --light-color-error: oklch(57.7% 0.215 27.3);
+    --dark-color-warning: oklch(83.7% 0.164 84.4);
+    --dark-color-error: oklch(71.1% 0.166 22.2);
+
+    /* raised elements (menus, tooltips, dialogs, toasts) */
+    --light-shadow-raised:
+        0 10px 15px -3px oklch(0% 0 0 / 0.1), 0 4px 6px -4px oklch(0% 0 0 / 0.1);
+    /* a transparent zero shadow, not `none`, so it can sit in a box-shadow list */
+    --dark-shadow-raised: 0 0 #0000;
 
     /* Tokens that do not change between light and dark */
-    --color-text-stroke: #f3f4f3;
+    --color-text-stroke: oklch(96.6% 0.002 145.6);
 
     /* Active palette — defaults to light, follows the OS via the media query
      below, or is forced by `data-theme` (see the overrides below). */
     --color-text: var(--light-color-text);
     --color-background: var(--light-color-background);
     --color-surface: var(--light-color-surface);
+    --color-raised: var(--light-color-raised);
+    --color-line: var(--light-color-line);
+    --shadow-raised: var(--light-shadow-raised);
     --color-logo-primary: var(--light-color-logo-primary);
     --color-logo-stroke: var(--light-color-logo-stroke);
     --color-on-logo-primary: var(--light-color-on-logo-primary);
@@ -52,6 +69,9 @@
         --color-text: var(--dark-color-text);
         --color-background: var(--dark-color-background);
         --color-surface: var(--dark-color-surface);
+        --color-raised: var(--dark-color-raised);
+        --color-line: var(--dark-color-line);
+        --shadow-raised: var(--dark-shadow-raised);
         --color-logo-primary: var(--dark-color-logo-primary);
         --color-logo-stroke: var(--dark-color-logo-stroke);
         --color-on-logo-primary: var(--dark-color-on-logo-primary);
@@ -75,6 +95,9 @@
     --color-text: var(--light-color-text);
     --color-background: var(--light-color-background);
     --color-surface: var(--light-color-surface);
+    --color-raised: var(--light-color-raised);
+    --color-line: var(--light-color-line);
+    --shadow-raised: var(--light-shadow-raised);
     --color-logo-primary: var(--light-color-logo-primary);
     --color-logo-stroke: var(--light-color-logo-stroke);
     --color-on-logo-primary: var(--light-color-on-logo-primary);
@@ -87,6 +110,9 @@
     --color-text: var(--dark-color-text);
     --color-background: var(--dark-color-background);
     --color-surface: var(--dark-color-surface);
+    --color-raised: var(--dark-color-raised);
+    --color-line: var(--dark-color-line);
+    --shadow-raised: var(--dark-shadow-raised);
     --color-logo-primary: var(--dark-color-logo-primary);
     --color-logo-stroke: var(--dark-color-logo-stroke);
     --color-on-logo-primary: var(--dark-color-on-logo-primary);

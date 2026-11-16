@@ -40,8 +40,7 @@ type NonCreatableProps = {
 export type SelectProps = BaseProps & (CreatableProps | NonCreatableProps);
 
 const fieldBackground = "var(--color-background)";
-const neutralBorder =
-  "color-mix(in srgb, var(--color-mid-gray) 30%, transparent)";
+const neutralBorder = "color-mix(in oklab, var(--color-line) 18%, transparent)";
 
 const selectStyles: StylesConfig<SelectOption, false> = {
   control: (base, state) => ({
@@ -59,7 +58,7 @@ const selectStyles: StylesConfig<SelectOption, false> = {
     ":hover": {
       borderColor: state.isFocused
         ? "var(--color-logo-primary)"
-        : "color-mix(in srgb, var(--color-mid-gray) 50%, transparent)",
+        : "color-mix(in oklab, var(--color-line) 30%, transparent)",
     },
   }),
   valueContainer: (base) => ({
@@ -94,14 +93,21 @@ const selectStyles: StylesConfig<SelectOption, false> = {
   menu: (provided) => ({
     ...provided,
     zIndex: 30,
-    backgroundColor: "var(--color-surface)",
+    // same radius as the control. options sit 4px inside a 1px border, so
+    // their radius is 8 - 4 - 1
+    borderRadius: 8,
+    backgroundColor: "var(--color-raised)",
     color: "var(--color-text)",
-    border:
-      "1px solid color-mix(in srgb, var(--color-mid-gray) 30%, transparent)",
-    boxShadow: "0 10px 30px rgba(15, 15, 15, 0.2)",
+    border: `1px solid ${neutralBorder}`,
+    boxShadow: "var(--shadow-raised)",
+  }),
+  menuList: (base) => ({
+    ...base,
+    padding: 4,
   }),
   option: (base, state) => ({
     ...base,
+    borderRadius: 3,
     backgroundColor: state.isFocused
       ? "color-mix(in srgb, var(--color-mid-gray) 15%, transparent)"
       : "transparent",

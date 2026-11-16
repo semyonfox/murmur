@@ -244,9 +244,9 @@ export const StatsSettings: React.FC = () => {
       <section
         aria-busy={isLoading}
         aria-labelledby="stats-heading"
-        className="overflow-hidden rounded-xl border border-mid-gray/15 bg-surface"
+        className="overflow-hidden rounded-xl border border-line/9 bg-surface"
       >
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-mid-gray/20 px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line/12 px-4 py-4 sm:px-5">
           <div>
             <h2
               id="stats-heading"
@@ -281,7 +281,7 @@ export const StatsSettings: React.FC = () => {
         {stats && error && (
           <p
             role="status"
-            className="border-b border-mid-gray/20 px-4 py-2 text-xs text-mid-gray sm:px-5"
+            className="border-b border-line/12 px-4 py-2 text-xs text-mid-gray sm:px-5"
           >
             {t("murmur.history.stats.stale", {
               defaultValue:
@@ -326,7 +326,7 @@ export const StatsSettings: React.FC = () => {
 
         {stats && (
           <>
-            <div className="border-b border-mid-gray/20 py-4">
+            <div className="border-b border-line/12 py-4">
               <div className="px-4 pb-3 sm:px-5">
                 <p aria-live="polite" className="sr-only">
                   {t("murmur.stats.position", {
@@ -380,7 +380,7 @@ export const StatsSettings: React.FC = () => {
                 aria-label={t("murmur.stats.metricCards", {
                   defaultValue: "Dictation stat cards",
                 })}
-                className={`flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 select-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-logo-primary [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:scroll-px-5 sm:px-5 ${isDraggingMetric ? "cursor-grabbing" : "cursor-grab"}`}
+                className={`edge-fade flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 select-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-logo-primary [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:scroll-px-5 sm:px-5 sm:[--edge-fade:1.25rem] ${isDraggingMetric ? "cursor-grabbing" : "cursor-grab"}`}
               >
                 {metricCards.map((metric) => (
                   <StatCard
@@ -467,7 +467,7 @@ export const StatsSettings: React.FC = () => {
                 })}
               </ul>
 
-              <div className="mt-4 border-t border-mid-gray/20 pt-3">
+              <div className="mt-4 border-t border-line/12 pt-3">
                 <h3 className="text-sm font-medium text-text">
                   {t("murmur.history.stats.weeklyPace", {
                     defaultValue: "Recorded pace each week",
@@ -545,7 +545,7 @@ const StatCard: React.FC<StatCardProps> = ({
   unavailable,
   unavailableLabel,
 }) => (
-  <div className="flex min-h-36 w-[78%] shrink-0 snap-start flex-col rounded-2xl border border-mid-gray/20 bg-mid-gray/5 px-5 py-4">
+  <div className="flex min-h-36 w-[78%] shrink-0 snap-start flex-col rounded-2xl border border-line/12 bg-mid-gray/5 px-5 py-4">
     <p className="text-xs font-semibold text-logo-primary">{label}</p>
     <p className="mt-3 font-serif text-3xl tracking-tight tabular-nums text-text">
       {value}

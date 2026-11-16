@@ -25,29 +25,21 @@
     );
     /* Neutrals. muted/faint are overlay-specific secondary/tertiary text grays
      (no theme equivalent). */
-    --light-s-muted: #6e6e6e;
-    --dark-s-muted: #a3a09a;
-    --light-s-faint: #9a9a9a;
-    --dark-s-faint: #6f6c66;
-    /* Hairlines reuse the app's mid-gray at low opacity in light — same vocabulary
-     as the app's border-mid-gray/* utilities — and flip to the near-white text
-     token for contrast on dark. */
-    --light-s-border: color-mix(
-        in srgb,
-        var(--color-mid-gray) 22%,
-        transparent
-    );
-    --dark-s-border: color-mix(in srgb, var(--color-text) 12%, transparent);
-    --light-s-hair: color-mix(in srgb, var(--color-mid-gray) 12%, transparent);
-    --dark-s-hair: color-mix(in srgb, var(--color-text) 8%, transparent);
+    /* same lightness as before, on the app's grey hue so the overlay matches */
+    --light-s-muted: oklch(53.8% 0.008 164.5);
+    --dark-s-muted: oklch(70.6% 0.009 164.5);
+    --light-s-faint: oklch(68.6% 0.008 164.5);
+    --dark-s-faint: oklch(53.2% 0.01 164.5);
+    /* hairlines are the app's black or white line colour at low alpha, the same
+     as its border-line/* utilities, so they sit on any surface */
+    --s-border: color-mix(in oklab, var(--color-line) 12%, transparent);
+    --s-hair: color-mix(in oklab, var(--color-line) 7%, transparent);
 
     /* Active neutrals — default light, flipped by the media query below or forced
      by `data-theme`. */
     --s-accent-soft: var(--light-s-accent-soft);
     --s-muted: var(--light-s-muted);
     --s-faint: var(--light-s-faint);
-    --s-border: var(--light-s-border);
-    --s-hair: var(--light-s-hair);
 
     /* Card geometry — single source of truth for the visible overlay sizes. The
      native overlay window (overlay.rs) is sized from these: it must be at least
@@ -61,6 +53,12 @@
                          center longer labels; shared by Live (collapsed) + minimal */
     --ov-open-w: 392px; /* Live panel, expanded */
     --ov-base-h: 40px; /* control-row height (.sbase) */
+    --ov-btn: 22px; /* cancel button diameter (.sx) */
+    /* gap from the cancel button to the card edge, the same on both axes */
+    --ov-inset: calc((var(--ov-base-h) - var(--ov-btn)) / 2);
+    /* nested radius: the card corner is concentric with the round cancel button
+     that sits in it, so card radius = button radius + inset + 1px border */
+    --ov-radius: calc(var(--ov-btn) / 2 + var(--ov-inset) + 1px);
     --ov-cap-max-h: 64px; /* max height of the scrolling live-text region */
 }
 @media (prefers-color-scheme: dark) {
@@ -68,8 +66,6 @@
         --s-accent-soft: var(--dark-s-accent-soft);
         --s-muted: var(--dark-s-muted);
         --s-faint: var(--dark-s-faint);
-        --s-border: var(--dark-s-border);
-        --s-hair: var(--dark-s-hair);
     }
 }
 
@@ -86,16 +82,12 @@
     --s-accent-soft: var(--light-s-accent-soft);
     --s-muted: var(--light-s-muted);
     --s-faint: var(--light-s-faint);
-    --s-border: var(--light-s-border);
-    --s-hair: var(--light-s-hair);
 }
 
 :root[data-theme="dark"] {
     --s-accent-soft: var(--dark-s-accent-soft);
     --s-muted: var(--dark-s-muted);
     --s-faint: var(--dark-s-faint);
-    --s-border: var(--dark-s-border);
-    --s-hair: var(--dark-s-hair);
 }
 
 /* ============================================================
@@ -168,7 +160,7 @@
     /* Never wider than the window: an unaccounted content zoom degrades to a
      narrower card instead of clipping. 2px = our border (no border-box reset). */
     max-width: calc(100vw - 2px);
-    border-radius: 24px;
+    border-radius: var(--ov-radius);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -177,11 +169,9 @@
     background: var(--s-surface);
     border: 1px solid var(--s-border);
     /* Flat: no drop shadow, no backdrop blur/saturate (was a glassy gradient look). */
-    /* pop-in plays on mount; morph (width/radius) is a transition */
+    /* pop-in plays on mount; the width morph is a transition */
     animation: scard-pop 460ms cubic-bezier(0.22, 1, 0.36, 1);
-    transition:
-        width 460ms cubic-bezier(0.22, 1, 0.36, 1),
-        border-radius 460ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: width 460ms cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform, width, opacity;
 }
 @keyframes scard-pop {
@@ -204,11 +194,9 @@
 }
 .scard.open {
     width: var(--ov-open-w);
-    border-radius: 16px;
 }
 .scard.working {
     width: var(--ov-work-w);
-    border-radius: 18px;
 }
 
 /* Compact form: two fixed widths so the recording→working change is an animatable
@@ -244,7 +232,10 @@
 .stext-cap {
     /* Vertical counterpart of the .scard clamp: show fewer lines rather than clip.
      20px = cap padding (12) + card borders (2) + 6px slack for zoom rounding. */
-    max-height: min(var(--ov-cap-max-h), calc(100vh - var(--ov-base-h) - 20px));
+    max-height: min(
+        var(--ov-cap-max-h),
+        calc(100dvh - var(--ov-base-h) - 20px)
+    );
     overflow-y: auto;
     overscroll-behavior: contain;
     display: flex;
@@ -296,17 +287,20 @@
 .sbase {
     height: var(--ov-base-h);
     flex: none; /* the control row never squashes; only the text region gives */
-    padding: 0 10px;
+    padding: 0 var(--ov-inset);
     display: grid;
     /* Equal side columns (min 22px to hold the cancel button) keep the center item
      — waveform or label — centered whether the pill is at min width or content-
      sized. */
-    grid-template-columns: minmax(22px, 1fr) auto minmax(22px, 1fr);
+    grid-template-columns: minmax(var(--ov-btn), 1fr) auto minmax(
+            var(--ov-btn),
+            1fr
+        );
     align-items: center;
 }
 .sbase-l {
     display: flex;
-    padding-left: 5px;
+    padding-left: 6px; /* keeps the dot where it sat before the inset moved to 9px */
     align-items: center;
     justify-self: start;
 }
@@ -412,8 +406,8 @@
     }
 }
 .sx {
-    width: 22px;
-    height: 22px;
+    width: var(--ov-btn);
+    height: var(--ov-btn);
     border-radius: 50%;
     flex: none;
     padding: 0;

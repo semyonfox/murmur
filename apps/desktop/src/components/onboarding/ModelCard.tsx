@@ -119,15 +119,15 @@ const ModelCard: React.FC<ModelCardProps> = ({
       return "border border-logo-primary/60 bg-surface";
     }
     if (isFeatured) {
-      return "border border-mid-gray/25 bg-surface";
+      return "border border-line/15 bg-surface";
     }
-    return "border border-mid-gray/15 bg-surface";
+    return "border border-line/9 bg-surface";
   };
 
   const getInteractiveClasses = () => {
     if (!isClickable) return "";
     if (disabled) return "opacity-50 cursor-not-allowed";
-    return "cursor-pointer hover:border-mid-gray/45 group";
+    return "cursor-pointer hover:border-line/27 group";
   };
 
   const handleClick = () => {
@@ -230,7 +230,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
         )}
       </div>
 
-      <hr className="w-full border-mid-gray/20" />
+      <hr className="w-full border-line/12" />
 
       {/* Bottom row: tags + action buttons (full width) */}
       <div className="flex items-center gap-3 w-full -mb-0.5 mt-0.5 h-5">

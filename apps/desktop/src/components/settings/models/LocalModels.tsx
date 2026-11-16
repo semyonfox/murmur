@@ -248,7 +248,7 @@ export const LocalModels: React.FC = () => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t("settings.models.searchPlaceholder")}
-          className="w-full pl-9 pr-3 py-2 text-sm bg-surface border border-mid-gray/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-logo-primary/40 placeholder:text-text/40"
+          className="w-full pl-9 pr-3 py-2 text-sm bg-surface border border-line/12 rounded-lg focus:outline-none focus:ring-2 focus:ring-logo-primary/40 placeholder:text-text/40"
         />
       </div>
 
@@ -327,8 +327,8 @@ export const LocalModels: React.FC = () => {
                 </button>
 
                 {languageDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-56 bg-background border border-mid-gray/80 rounded-lg shadow-lg z-50 overflow-hidden">
-                    <div className="p-2 border-b border-mid-gray/40">
+                  <div className="absolute top-full right-0 mt-1 w-56 bg-raised border border-line/48 rounded-lg shadow-raised z-50 overflow-hidden">
+                    <div className="p-2 border-b border-line/24">
                       <input
                         ref={languageSearchInputRef}
                         type="text"
@@ -350,10 +350,10 @@ export const LocalModels: React.FC = () => {
                         placeholder={t(
                           "settings.general.language.searchPlaceholder",
                         )}
-                        className="w-full px-2 py-1 text-sm bg-mid-gray/10 border border-mid-gray/40 rounded-md focus:outline-none focus:ring-1 focus:ring-logo-primary"
+                        className="w-full px-2 py-1 text-sm bg-mid-gray/10 border border-line/24 rounded-md focus:outline-none focus:ring-1 focus:ring-logo-primary"
                       />
                     </div>
-                    <div className="max-h-48 overflow-y-auto">
+                    <div className="max-h-48 overflow-y-auto p-1">
                       <button
                         type="button"
                         onClick={() => {
@@ -361,7 +361,7 @@ export const LocalModels: React.FC = () => {
                           setLanguageDropdownOpen(false);
                           setLanguageSearch("");
                         }}
-                        className={`w-full px-3 py-1.5 text-sm text-left transition-colors ${
+                        className={`w-full rounded-[calc(var(--radius-lg)-5px)] px-3 py-1.5 text-sm text-left transition-colors ${
                           languageFilter === "all"
                             ? "bg-logo-primary/20 text-logo-primary font-semibold"
                             : "hover:bg-mid-gray/10"
@@ -378,7 +378,7 @@ export const LocalModels: React.FC = () => {
                             setLanguageDropdownOpen(false);
                             setLanguageSearch("");
                           }}
-                          className={`w-full px-3 py-1.5 text-sm text-left transition-colors ${
+                          className={`w-full rounded-[calc(var(--radius-lg)-5px)] px-3 py-1.5 text-sm text-left transition-colors ${
                             languageFilter === lang.value
                               ? "bg-logo-primary/20 text-logo-primary font-semibold"
                               : "hover:bg-mid-gray/10"
@@ -422,7 +422,7 @@ export const LocalModels: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowAvailable(true)}
-              className="w-full cursor-pointer rounded-xl border border-dashed border-mid-gray/30 px-4 py-3 text-sm font-medium text-text/80 hover:border-mid-gray/50 hover:bg-mid-gray/5"
+              className="w-full cursor-pointer rounded-xl border border-dashed border-line/18 px-4 py-3 text-sm font-medium text-text/80 hover:border-line/30 hover:bg-mid-gray/5"
             >
               {t("murmur.models.browse", {
                 count: availableModels.length,

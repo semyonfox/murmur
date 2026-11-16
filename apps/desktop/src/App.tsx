@@ -340,11 +340,11 @@ function App() {
         unstyled: true,
         classNames: {
           toast:
-            "bg-surface border border-mid-gray/20 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 text-sm",
+            "bg-raised border border-line/12 rounded-lg shadow-raised px-4 py-3 flex items-center gap-3 text-sm",
           title: "font-medium",
           description: "text-mid-gray",
           actionButton:
-            "px-2 py-1 text-xs font-medium rounded-lg border bg-mid-gray/10 border-mid-gray/20 hover:bg-mid-gray/20 cursor-pointer whitespace-nowrap",
+            "px-2 py-1 text-xs font-medium rounded-lg border bg-mid-gray/10 border-line/12 hover:bg-mid-gray/20 cursor-pointer whitespace-nowrap",
         },
       }}
     />
@@ -381,7 +381,7 @@ function App() {
         <button
           type="button"
           onClick={() => setOnboardingPreview(null)}
-          className="fixed top-4 end-4 z-50 rounded-lg border border-mid-gray/20 bg-background px-4 py-2 text-sm font-medium text-text shadow-lg hover:bg-mid-gray/20 cursor-pointer"
+          className="fixed top-4 end-4 z-50 rounded-lg border border-line/12 bg-raised px-4 py-2 text-sm font-medium text-text shadow-raised hover:bg-mid-gray/20 cursor-pointer"
         >
           {t("settings.debug.onboardingPreview.exitButton")}
         </button>
@@ -400,7 +400,7 @@ function App() {
     );
   } else {
     content = (
-      <div dir={direction} className="h-screen flex flex-col cursor-default">
+      <div dir={direction} className="h-dvh flex flex-col cursor-default">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-background focus:p-3"
