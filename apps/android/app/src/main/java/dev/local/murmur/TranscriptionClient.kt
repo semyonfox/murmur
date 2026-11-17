@@ -19,14 +19,16 @@ internal class TranscriptionClient {
         connection?.disconnect()
     }
 
-    fun transcribe(endpoint: TranscriptionEndpoint, audioFile: File, allowEmpty: Boolean = false): String {
+    // onLanguage only fires for on-phone whisper running with automatic detection
+    fun transcribe(endpoint: TranscriptionEndpoint, audioFile: File, allowEmpty: Boolean = false,
+                   onLanguage: ((String) -> Unit)? = null): String {
         check(!cancelled.get()) { "Transcription cancelled." }
         val audioMs = (audioFile.length() - 44).coerceAtLeast(0) / 32
         val source = endpoint.localModel?.name?.removePrefix("ggml-")?.removeSuffix(".bin") ?: endpoint.uri.host
         val started = System.nanoTime()
         try {
             val text = endpoint.localModel?.let { model ->
-                LocalWhisper.transcribe(model, audioFile, endpoint.language, endpoint.translate)
+                LocalWhisper.transcribe(model, audioFile, endpoint.language, endpoint.translate, onLanguage)
             } ?: upload(endpoint, audioFile, audioMs)
             Diagnostics.info("speech", "$source: ${audioMs / 1000.0}s of audio in ${elapsedMs(started)} ms, ${text.length} chars")
             if (text.isEmpty() && !allowEmpty) throw IOException("No speech returned.")

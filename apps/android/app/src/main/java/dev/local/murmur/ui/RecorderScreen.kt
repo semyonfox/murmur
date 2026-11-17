@@ -70,7 +70,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.local.murmur.LectureService
-import dev.local.murmur.LectureState
 import dev.local.murmur.LectureTranscript
 import dev.local.murmur.R
 
@@ -82,18 +81,22 @@ internal fun RecorderScreen(onClose: () -> Unit, onFinished: (Long) -> Unit) {
     val state by LectureService.state.collectAsState()
     val levels by LectureService.levels.collectAsState()
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
-    // the service starts asynchronously, so only leave once it has actually been busy
-    var seenBusy by remember { mutableStateOf(false) }
+    // the service starts asynchronously, so only leave once it has actually recorded
+    var seenRecording by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.phase, state.lectureId) {
-        if (state.busy) seenBusy = true
+    LaunchedEffect(state.recording, state.finishedRecordingId) {
+        if (state.recording) seenRecording = true
+        val finished = state.finishedRecordingId
         when {
-            state.phase == LectureState.Phase.TRANSCRIBING && state.lectureId != 0L -> onFinished(state.lectureId)
-            seenBusy && !state.busy -> onClose()
+            finished != 0L -> {
+                LectureService.consumeFinishedRecording()
+                onFinished(finished)
+            }
+            seenRecording && !state.recording -> onClose()
         }
     }
 
-    val recording = state.phase == LectureState.Phase.RECORDING
+    val recording = state.recording
     val paused = recording && state.paused
     val red = LocalExtraColors.current.recording
 

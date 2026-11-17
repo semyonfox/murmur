@@ -61,6 +61,16 @@ Java_dev_local_murmur_LocalWhisper_nativeTranscribe(
     return bytes;
 }
 
+// the language whisper settled on in its last run, which is what auto detection picked
+extern "C" JNIEXPORT jstring JNICALL
+Java_dev_local_murmur_LocalWhisper_nativeDetectedLanguage(JNIEnv *env, jobject, jlong context_ptr) {
+    auto *context = reinterpret_cast<whisper_context *>(context_ptr);
+    if (!context) return nullptr;
+    const int id = whisper_full_lang_id(context);
+    const char *code = id >= 0 ? whisper_lang_str(id) : nullptr;
+    return code ? env->NewStringUTF(code) : nullptr;
+}
+
 extern "C" JNIEXPORT jlong JNICALL
 Java_dev_local_murmur_LocalWhisper_nativeOpenParakeet(JNIEnv *env, jobject, jstring model_path) {
     const char *path = env->GetStringUTFChars(model_path, nullptr);

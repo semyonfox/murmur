@@ -24,6 +24,7 @@ internal class PcmRecorder private constructor(
     private val preserveOnFailure: Boolean,
     private val onChunk: ((File) -> Unit)?,
     private val chunkMinSeconds: Int,
+    private val chunkMaxSeconds: Int,
     private val onLevel: ((level: Float, recordedMs: Long) -> Unit)?,
     private val onPcm: ((buffer: ByteArray, count: Int) -> Unit)?,
     private val onComplete: (Result<File>) -> Unit,
@@ -59,7 +60,7 @@ internal class PcmRecorder private constructor(
         val result = runCatching {
             var pcmBytes = 0
             var peak = 0
-            val chunker = onChunk?.let { PauseChunker(chunkMinSeconds) }
+            val chunker = onChunk?.let { PauseChunker(chunkMinSeconds, chunkMaxSeconds * SAMPLE_RATE * BYTES_PER_SAMPLE) }
             var chunks = 0
             RandomAccessFile(file, "rw").use { output ->
                 output.setLength(0)
@@ -187,6 +188,7 @@ internal class PcmRecorder private constructor(
             preserveOnFailure: Boolean = false,
             onChunk: ((File) -> Unit)? = null,
             chunkMinSeconds: Int = 3,
+            chunkMaxSeconds: Int = 25,
             onLevel: ((level: Float, recordedMs: Long) -> Unit)? = null,
             // called on the capture thread with each recorded buffer, so it must not block
             onPcm: ((buffer: ByteArray, count: Int) -> Unit)? = null,
@@ -250,7 +252,7 @@ internal class PcmRecorder private constructor(
                 file.delete()
                 error("Microphone did not start recording.")
             }
-            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, onChunk, chunkMinSeconds, onLevel, onPcm, onComplete).also { capture ->
+            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, onChunk, chunkMinSeconds, chunkMaxSeconds, onLevel, onPcm, onComplete).also { capture ->
                 Thread({ capture.runCapture(bufferSize) }, "murmur-audio").start()
             }
         }

@@ -18,7 +18,9 @@ import javax.crypto.spec.GCMParameterSpec
 internal class TranscriptionEndpoint(
     val uri: URI, val model: String, val apiKey: String?, val localModel: java.io.File? = null,
     val language: String = "auto", val translate: Boolean = false,
-)
+) {
+    fun withLanguage(code: String) = TranscriptionEndpoint(uri, model, apiKey, localModel, code, translate)
+}
 internal class CleanupEndpoint(
     val uri: URI, val model: String, val apiKey: String?, val formality: Int,
     val dictionary: List<String>, val customInstructions: String?,
@@ -86,7 +88,7 @@ internal class AppSettings(context: Context) {
             }.apply()
         }
     var speechLanguage: String
-        get() = preferences.getString(SPEECH_LANGUAGE, "auto") ?: "auto"
+        get() = preferences.getString(SPEECH_LANGUAGE, null) ?: SpeechLanguages.deviceDefault()
         set(value) {
             val normalized = value.trim().lowercase()
             require(normalized == "auto" || normalized.matches(Regex("[a-z]{2,3}(-[a-z]{2,4})?"))) { "Use auto or a language code such as en or fr." }

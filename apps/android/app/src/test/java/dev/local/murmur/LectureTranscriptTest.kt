@@ -28,4 +28,13 @@ class LectureTranscriptTest {
         assertEquals("[59:59]", LectureTranscript.stamp(3_599_000))
         assertEquals("[1:00:00]", LectureTranscript.stamp(3_600_000))
     }
+
+    @Test
+    fun subtitlesRunUntilTheNextPartAndTheEnd() {
+        val srt = LectureExport.srt("[00:00] Intro.\n[1:02:03] Late part.", durationMs = 3_730_500)
+        assertEquals(
+            "1\n00:00:00,000 --> 01:02:03,000\nIntro.\n\n2\n01:02:03,000 --> 01:02:10,500\nLate part.\n",
+            srt,
+        )
+    }
 }

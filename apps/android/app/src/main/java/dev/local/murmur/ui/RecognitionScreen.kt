@@ -44,6 +44,7 @@ import dev.local.murmur.DownloadableSpeechModel
 import dev.local.murmur.LocalSpeechModels
 import dev.local.murmur.MlKitSpeech
 import dev.local.murmur.R
+import dev.local.murmur.SpeechLanguages
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -260,30 +261,19 @@ private fun OnlineServiceCard(model: AppModel) {
 @Composable
 private fun LanguageCard(model: AppModel) {
     val settings = model.settings
-    var language by rememberSaveable { mutableStateOf(settings.speechLanguage) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var saved by remember { mutableStateOf(false) }
+    var language by remember { mutableStateOf(settings.speechLanguage) }
     var translate by remember { mutableStateOf(settings.translateToEnglish) }
     PaddedCard {
-        OutlinedTextField(
-            language, { language = it; saved = false; error = null },
-            label = { Text("Recognition language") },
-            placeholder = { Text("auto, en, fr…") },
-            singleLine = true,
-            isError = error != null,
-            supportingText = { Text(error ?: if (saved) "Saved." else "Use auto to detect the language.") },
-            trailingIcon = {
-                TextButton(onClick = {
-                    try {
-                        settings.speechLanguage = language
-                        language = settings.speechLanguage
-                        saved = true
-                    } catch (failure: IllegalArgumentException) {
-                        error = failure.message
-                    }
-                }) { Text("Save") }
-            },
-            modifier = Modifier.fillMaxWidth(),
+        Text("Recognition language", style = MaterialTheme.typography.bodyLarge)
+        LanguagePicker(language, onChange = { code ->
+            settings.speechLanguage = code
+            language = settings.speechLanguage
+            if (settings.useOnDeviceRecognition) MlKitSpeech.prewarm(language)
+        }, modifier = Modifier.fillMaxWidth())
+        Hint(
+            if (language == SpeechLanguages.AUTO) "Detection can mistake accented speech for another language. A lecture keeps the language found in its first part with speech."
+            else "Speech is transcribed as ${SpeechLanguages.label(language)}. Choose Detect automatically for mixed languages.",
+            Modifier.padding(0.dp),
         )
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {

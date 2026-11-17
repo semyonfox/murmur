@@ -52,7 +52,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import dev.local.murmur.AnonymousTelemetry
 import dev.local.murmur.LectureService
-import dev.local.murmur.LectureState
 import dev.local.murmur.R
 import dev.local.murmur.TelemetryRoute
 
@@ -140,16 +139,16 @@ internal fun MurmurApp(model: AppModel, openLecture: Long?, onOpenLectureHandled
 
     LaunchedEffect(openLecture) {
         val id = openLecture ?: return@LaunchedEffect
-        if (lecture.phase == LectureState.Phase.RECORDING) {
+        if (lecture.recording) {
             navigator.select(Route.Tab.LECTURES)
             navigator.push(Route.Page.RECORDER)
         } else if (id > 0) navigator.showLecture(id)
         else navigator.select(Route.Tab.LECTURES)
         onOpenLectureHandled()
     }
-    LaunchedEffect(lecture.message, lecture.busy) {
+    // lectures finish while others record or wait, so outcomes show as they arrive
+    LaunchedEffect(lecture.message) {
         val message = lecture.message ?: return@LaunchedEffect
-        if (lecture.busy) return@LaunchedEffect
         if (lecture.failed) haptics.performHapticFeedback(HapticFeedbackType.Reject)
         messenger.showLater(message)
         LectureService.consumeMessage()

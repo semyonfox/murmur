@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import dev.local.murmur.AnonymousTelemetry
 import dev.local.murmur.DictationStats
 import dev.local.murmur.LectureService
-import dev.local.murmur.LectureState
 import dev.local.murmur.MurmurReadyService
 import dev.local.murmur.R
 import dev.local.murmur.TelemetryError
@@ -181,23 +180,19 @@ internal fun HomeScreen(
 
         item(key = "lecture-label") { SectionLabel("Lectures") }
         item(key = "lecture") {
-            if (lecture.phase == LectureState.Phase.RECORDING) LiveRecordingCard(lecture, lectureActions.record)
+            if (lecture.recording) LiveRecordingCard(lecture, lectureActions.record)
             else PaddedCard {
                 Text(
-                    when (lecture.phase) {
-                        LectureState.Phase.TRANSCRIBING -> if (lecture.parts > 0) "Transcribing part ${minOf(lecture.part + 1, lecture.parts)} of ${lecture.parts}" else "Transcribing…"
-                        LectureState.Phase.PREPARING -> "Preparing audio…"
-                        else -> "Record a lecture or transcribe an audio file."
-                    },
+                    lectureStatus(lecture) ?: "Record a lecture or transcribe an audio file.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = lectureActions.record, enabled = !lecture.busy, modifier = Modifier.weight(1f)) {
+                    Button(onClick = lectureActions.record, modifier = Modifier.weight(1f)) {
                         Icon(painterResource(R.drawable.ic_microphone), null, Modifier.size(18.dp))
                         Spacer(Modifier.size(8.dp))
                         Text("Record")
                     }
-                    OutlinedButton(onClick = lectureActions.import, enabled = !lecture.busy, modifier = Modifier.weight(1f)) {
+                    OutlinedButton(onClick = lectureActions.import, modifier = Modifier.weight(1f)) {
                         Icon(painterResource(R.drawable.ic_upload), null, Modifier.size(18.dp))
                         Spacer(Modifier.size(8.dp))
                         Text("Import")
