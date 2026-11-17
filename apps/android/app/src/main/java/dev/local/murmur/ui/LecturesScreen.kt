@@ -74,6 +74,9 @@ internal fun rememberLectureActions(model: AppModel, onRecording: () -> Unit, on
 
     fun start() {
         MurmurReadyService.stop(context)
+        // a recording finished from the notification leaves its marker behind, and the
+        // recorder would otherwise jump straight to that older lecture
+        LectureService.consumeFinishedRecording()
         runCatching { LectureService.record(context) }
             .onSuccess { onRecording() }
             .onFailure {
@@ -108,19 +111,13 @@ internal fun rememberLectureActions(model: AppModel, onRecording: () -> Unit, on
     return LectureActions(
         record = {
             when {
-                LectureService.state.value.phase == LectureState.Phase.RECORDING -> onRecording()
-                LectureService.isActive -> snackbar.showLater("Wait for the current lecture to finish.")
+                LectureService.state.value.recording -> onRecording()
                 !ready() -> Unit
                 !model.micAllowed -> microphone.launch(Manifest.permission.RECORD_AUDIO)
                 else -> start()
             }
         },
-        import = {
-            when {
-                LectureService.isActive -> snackbar.showLater("Wait for the current lecture to finish.")
-                ready() -> picker.launch(arrayOf("audio/*"))
-            }
-        },
+        import = { if (ready()) picker.launch(arrayOf("audio/*", "video/*")) },
     )
 }
 
@@ -138,7 +135,7 @@ internal fun LecturesScreen(
 ) {
     val haptics = LocalHapticFeedback.current
     val state by LectureService.state.collectAsState()
-    val records = remember(model.revision, state.phase, state.part, state.lectureId, state.message) {
+    val records = remember(model.revision, state.recordingId, state.transcribingId, state.part, state.queuedIds, state.message) {
         runCatching { model.history.lectures() }.onFailure { Diagnostics.error("history", "could not load lectures", it) }
     }
 
@@ -150,7 +147,7 @@ internal fun LecturesScreen(
             }
         },
         floatingActionButton = {
-            val recording = state.phase == LectureState.Phase.RECORDING
+            val recording = state.recording
             ExtendedFloatingActionButton(
                 onClick = { haptics.performHapticFeedback(HapticFeedbackType.Confirm); actions.record() },
                 icon = { Icon(painterResource(R.drawable.ic_microphone), contentDescription = null) },
@@ -160,10 +157,10 @@ internal fun LecturesScreen(
             )
         },
     ) {
-        if (state.phase == LectureState.Phase.RECORDING) item(key = "live") {
+        if (state.recording) item(key = "live") {
             LiveRecordingCard(state, onOpenRecorder)
         }
-        if (state.phase == LectureState.Phase.PREPARING) item(key = "preparing") {
+        if (state.preparing > 0) item(key = "preparing") {
             PaddedCard {
                 Text("Preparing audio…", style = MaterialTheme.typography.titleSmall)
                 LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -179,7 +176,7 @@ internal fun LecturesScreen(
                     record = record,
                     state = state,
                     onClick = {
-                        if (state.phase == LectureState.Phase.RECORDING && state.lectureId == record.id) onOpenRecorder()
+                        if (state.recordingId == record.id) onOpenRecorder()
                         else onOpenLecture(record.id)
                     },
                 )
@@ -187,6 +184,19 @@ internal fun LecturesScreen(
         }
         item { Hint("Audio and text stay on this phone until their retention period ends or you delete them.") }
     }
+}
+
+internal fun transcribingLabel(state: LectureState): String =
+    if (state.parts > 0) "Transcribing part ${minOf(state.part + 1, state.parts)} of ${state.parts}" else "Finishing the last parts…"
+
+// a one line summary of background lecture work, or null when there is none
+internal fun lectureStatus(state: LectureState): String? {
+    val waiting = state.queuedIds.count { it != state.recordingId }
+    return listOfNotNull(
+        state.transcribingId.takeIf { it != 0L && it != state.recordingId }?.let { transcribingLabel(state) },
+        "Preparing audio…".takeIf { state.preparing > 0 },
+        "$waiting waiting".takeIf { waiting > 0 },
+    ).joinToString(" · ").ifBlank { null }
 }
 
 @Composable
@@ -230,7 +240,7 @@ private fun EmptyLectures() {
         }
         Text("No lectures yet", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Record a lecture or import an audio file. Murmur transcribes it in two-minute parts with your chosen model.",
+            "Record a lecture or import an audio file. Murmur transcribes it in parts as it records, with your chosen model.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -240,8 +250,7 @@ private fun EmptyLectures() {
 
 @Composable
 private fun LectureCard(record: LectureRecord, state: LectureState, onClick: () -> Unit) {
-    val active = state.busy && state.lectureId == record.id
-    val interrupted = !active && record.status in listOf("recording", "processing")
+    val interrupted = !state.isActive(record.id) && record.status in listOf("recording", "processing")
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(24.dp),
@@ -259,17 +268,18 @@ private fun LectureCard(record: LectureRecord, state: LectureState, onClick: () 
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             when {
-                active && state.phase == LectureState.Phase.TRANSCRIBING -> {
+                state.recordingId == record.id -> StatusChip("Recording now", error = true)
+                state.transcribingId == record.id -> {
                     val progress = if (state.parts > 0) state.part.toFloat() / state.parts else 0f
                     if (state.parts > 0) LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth().padding(top = 4.dp))
                     else LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 4.dp))
                     Text(
-                        if (state.parts > 0) "Transcribing part ${minOf(state.part + 1, state.parts)} of ${state.parts}" else "Starting transcription…",
+                        transcribingLabel(state),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
-                active && state.phase == LectureState.Phase.RECORDING -> StatusChip("Recording now", error = true)
+                record.id in state.queuedIds -> StatusChip("Waiting to transcribe", error = false)
                 interrupted -> StatusChip("Interrupted · open to retry", error = true)
                 record.status == "failed" -> StatusChip("Failed · open to retry", error = true)
             }

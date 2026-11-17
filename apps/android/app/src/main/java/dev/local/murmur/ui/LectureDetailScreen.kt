@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -48,6 +51,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,12 +65,16 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import dev.local.murmur.Diagnostics
+import dev.local.murmur.LectureExport
 import dev.local.murmur.LectureService
-import dev.local.murmur.LectureState
 import dev.local.murmur.LectureTranscript
 import dev.local.murmur.R
 import dev.local.murmur.TranscriptSegment
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -77,14 +85,42 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
     val context = LocalContext.current
     val snackbar = LocalSnackbar.current
     val state by LectureService.state.collectAsState()
-    val record = remember(model.revision, id, state.phase, state.part, state.message) {
+    val record = remember(model.revision, id, state.transcribingId, state.part, state.queuedIds, state.message) {
         runCatching { model.history.lecture(id) }.getOrNull()
     }
     LaunchedEffect(record == null) { if (record == null) onBack() }
     if (record == null) return
 
-    val active = state.busy && state.lectureId == id
+    val active = state.isActive(id)
     val file = remember(record.fileName) { runCatching { model.history.lectureFile(record.fileName) }.getOrNull() }
+    val scope = rememberCoroutineScope()
+    var exporting by remember { mutableStateOf(false) }
+    val stamped = record.finalText.ifBlank { record.raw }.trim()
+
+    // exports run off the main thread, one at a time, and report through the snackbar
+    fun export(done: String, work: suspend () -> Unit) {
+        if (exporting) return
+        exporting = true
+        scope.launch {
+            runCatching { withContext(Dispatchers.IO) { work() } }
+                .onSuccess { if (done.isNotEmpty()) snackbar.showLater(done) }
+                .onFailure {
+                    Diagnostics.error("lecture", "export failed", it)
+                    snackbar.showLater(it.message ?: "Export failed.")
+                }
+            exporting = false
+        }
+    }
+    val saveAudio = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/mp4")) { uri: Uri? ->
+        val source = file ?: return@rememberLauncherForActivityResult
+        if (uri != null) export("Audio saved.") { copyToUri(context, encodedAudio(context, source, record.title), uri) }
+    }
+    val saveText = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri: Uri? ->
+        if (uri != null) export("Transcript saved.") { writeToUri(context, uri, stamped + "\n") }
+    }
+    val saveSubtitles = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/x-subrip")) { uri: Uri? ->
+        if (uri != null) export("Subtitles saved.") { writeToUri(context, uri, LectureExport.srt(stamped, record.durationMs)) }
+    }
     val player = rememberPlayer(file)
     var showRaw by rememberSaveable { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -119,13 +155,38 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
                 DropdownMenuItem(
                     text = { Text("Share audio") },
                     leadingIcon = { Icon(Icons.Filled.Share, null) },
-                    enabled = file?.exists() == true,
-                    onClick = { menu = false; file?.let { shareAudio(context, it) } },
+                    enabled = file?.exists() == true && !exporting,
+                    onClick = {
+                        menu = false
+                        val source = file ?: return@DropdownMenuItem
+                        export("") {
+                            val m4a = encodedAudio(context, source, record.title)
+                            withContext(Dispatchers.Main) { shareAudio(context, m4a) }
+                        }
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Save audio (M4A)") },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_download), null) },
+                    enabled = file?.exists() == true && !exporting,
+                    onClick = { menu = false; saveAudio.launch(LectureExport.fileName(record.title, "m4a")) },
+                )
+                DropdownMenuItem(
+                    text = { Text("Save transcript (TXT)") },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_download), null) },
+                    enabled = stamped.isNotBlank() && !exporting,
+                    onClick = { menu = false; saveText.launch(LectureExport.fileName(record.title, "txt")) },
+                )
+                DropdownMenuItem(
+                    text = { Text("Save subtitles (SRT)") },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_download), null) },
+                    enabled = stamped.isNotBlank() && !exporting,
+                    onClick = { menu = false; saveSubtitles.launch(LectureExport.fileName(record.title, "srt")) },
                 )
                 DropdownMenuItem(
                     text = { Text("Transcribe again") },
                     leadingIcon = { Icon(Icons.Filled.Refresh, null) },
-                    enabled = !state.busy,
+                    enabled = !active,
                     onClick = { menu = false; confirmRetry = true },
                 )
                 DropdownMenuItem(
@@ -149,13 +210,14 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
             )
         }
         if (player != null) item(key = "player") { PlayerCard(player) }
-        if (active && state.phase == LectureState.Phase.TRANSCRIBING) item(key = "progress") {
+        if (state.transcribingId == id || (id in state.queuedIds && state.recordingId != id)) item(key = "progress") {
             PaddedCard {
+                val transcribing = state.transcribingId == id
                 Text(
-                    if (state.parts > 0) "Transcribing part ${minOf(state.part + 1, state.parts)} of ${state.parts}" else "Starting transcription…",
+                    if (transcribing) transcribingLabel(state) else "Waiting for other lectures to finish",
                     style = MaterialTheme.typography.titleSmall,
                 )
-                if (state.parts > 0) LinearProgressIndicator(progress = { state.part.toFloat() / state.parts }, Modifier.fillMaxWidth())
+                if (transcribing && state.parts > 0) LinearProgressIndicator(progress = { state.part.toFloat() / state.parts }, Modifier.fillMaxWidth())
                 else LinearProgressIndicator(Modifier.fillMaxWidth())
                 Hint("Text appears below as each part finishes. You can leave this screen.")
             }
@@ -168,7 +230,7 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
                     color = MaterialTheme.colorScheme.error,
                 )
                 Hint("The audio and any text so far are kept. Transcribing again replaces the text once new parts arrive.")
-                Button(onClick = { confirmRetry = true }, enabled = !state.busy) { Text("Transcribe again") }
+                Button(onClick = { confirmRetry = true }, enabled = !active) { Text("Transcribe again") }
             }
         }
         if (hasCleaned) item(key = "toggle") {
@@ -195,20 +257,33 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
             .onSuccess { renaming = false; model.refresh() }
             .onFailure { snackbar.showLater(it.message ?: "Could not rename.") }
     }
-    if (confirmRetry) ConfirmDialog(
-        title = "Transcribe again?",
-        text = "Murmur sends this audio to your selected model or endpoint again. An online endpoint may charge for the new requests. The current text stays until new text arrives.",
-        confirm = "Transcribe",
-        onConfirm = {
-            val issue = model.recognitionIssue(forSavedAudio = true)
-            if (issue != null) {
-                snackbar.showLater(issue)
-                onOpenRecognition()
-            } else runCatching { LectureService.retry(context, id) }
-                .onFailure { snackbar.showLater(it.message ?: "Could not start transcription.") }
-        },
-        onDismiss = { confirmRetry = false },
-    )
+    if (confirmRetry) {
+        val saved = model.settings.speechLanguage
+        var language by rememberSaveable { mutableStateOf(saved) }
+        AlertDialog(
+            onDismissRequest = { confirmRetry = false },
+            title = { Text("Transcribe again?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Murmur sends this audio to your selected model or endpoint again. An online endpoint may charge for the new requests. The current text stays until new text arrives.")
+                    Text("Language for this lecture", style = MaterialTheme.typography.labelLarge)
+                    LanguagePicker(language, onChange = { language = it }, modifier = Modifier.fillMaxWidth())
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRetry = false
+                    val issue = model.recognitionIssue(forSavedAudio = true)
+                    if (issue != null) {
+                        snackbar.showLater(issue)
+                        onOpenRecognition()
+                    } else runCatching { LectureService.retry(context, id, language.takeIf { it != saved }) }
+                        .onFailure { snackbar.showLater(it.message ?: "Could not start transcription.") }
+                }) { Text("Transcribe") }
+            },
+            dismissButton = { TextButton(onClick = { confirmRetry = false }) { Text("Cancel") } },
+        )
+    }
     if (confirmDelete) ConfirmDialog(
         title = "Delete lecture?",
         text = "This removes the audio, raw transcript and cleaned transcript from this phone.",
@@ -382,10 +457,27 @@ private fun shareText(context: Context, title: String, text: String) {
     }, "Share transcript"))
 }
 
+// one export at a time lives in the cache, so shared files do not pile up
+private fun encodedAudio(context: Context, wav: File, title: String): File {
+    val directory = File(context.cacheDir, "exports").apply { mkdirs() }
+    directory.listFiles()?.forEach { it.delete() }
+    return File(directory, LectureExport.fileName(title, "m4a")).also { LectureExport.writeM4a(wav, it) }
+}
+
+private fun copyToUri(context: Context, file: File, uri: Uri) {
+    val output = context.contentResolver.openOutputStream(uri, "wt") ?: error("Could not open the chosen file.")
+    output.use { stream -> file.inputStream().use { it.copyTo(stream) } }
+}
+
+private fun writeToUri(context: Context, uri: Uri, text: String) {
+    val output = context.contentResolver.openOutputStream(uri, "wt") ?: error("Could not open the chosen file.")
+    output.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+}
+
 private fun shareAudio(context: Context, file: File) {
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", file)
     context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-        type = "audio/wav"
+        type = "audio/mp4"
         putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }, "Share lecture audio"))

@@ -3,4 +3,5 @@
     <cache-path name="updates" path="updates/" />
     <files-path name="lectures" path="lectures/" />
     <cache-path name="diagnostics" path="diagnostics/" />
+    <cache-path name="exports" path="exports/" />
 </paths>

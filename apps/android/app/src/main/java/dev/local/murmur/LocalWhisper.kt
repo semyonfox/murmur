@@ -170,6 +170,7 @@ internal object LocalWhisper {
     private external fun nativeOpen(path: String): Long
     private external fun nativeClose(context: Long)
     private external fun nativeTranscribe(context: Long, samples: FloatArray, language: String, translate: Boolean): ByteArray?
+    private external fun nativeDetectedLanguage(context: Long): String?
     private external fun nativeOpenParakeet(path: String): Long
     private external fun nativeCloseParakeet(context: Long)
     private external fun nativeTranscribeParakeet(context: Long, samples: FloatArray): ByteArray?
@@ -234,7 +235,10 @@ internal object LocalWhisper {
         loadedPath = model.absolutePath
     }
 
-    @Synchronized fun transcribe(model: File, wav: File, language: String, translate: Boolean): String {
+    // onLanguage hears the language whisper detected when it was asked to detect one.
+    // it runs under this lock, so another transcription cannot replace the answer first
+    @Synchronized fun transcribe(model: File, wav: File, language: String, translate: Boolean,
+                                 onLanguage: ((String) -> Unit)? = null): String {
         check(model.isFile) { "Download the selected model first." }
         if (wav.length() > 16L * 1024 * 1024) throw IOException("Audio part is too large for local transcription.")
         val bytes = FileInputStream(wav).use { it.readBytes() }
@@ -249,9 +253,10 @@ internal object LocalWhisper {
         val samples = FloatArray((bytes.size - 44) / 2) { index -> header.getShort(44 + index * 2) / 32768f }
         load(model)
         return when (loadedEngine) {
-            SpeechEngine.WHISPER -> nativeTranscribe(context, samples, language.substringBefore('-'), translate)
+            SpeechEngine.WHISPER -> (nativeTranscribe(context, samples, language.substringBefore('-'), translate)
                 ?.toString(Charsets.UTF_8)?.trim()
-                ?: throw IOException("On-phone transcription failed.")
+                ?: throw IOException("On-phone transcription failed."))
+                .also { if (language == "auto") nativeDetectedLanguage(context)?.let { code -> onLanguage?.invoke(code) } }
             SpeechEngine.PARAKEET -> transcribeParakeet(samples)
         }
     }

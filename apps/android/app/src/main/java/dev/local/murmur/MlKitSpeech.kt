@@ -55,9 +55,12 @@ internal object MlKitSpeech {
 
     private class Client(val locale: Locale, val mode: Int, val recognizer: SpeechRecognizer)
 
-    // regional preference extensions such as en-IE-u-mu-celsius make every mode unavailable
-    fun localeFor(language: String): Locale =
-        if (language == "auto") Locale.getDefault().stripExtensions() else Locale.forLanguageTag(language)
+    // regional preference extensions such as en-IE-u-mu-celsius make every mode unavailable.
+    // the phone's own language keeps its region, so en on an Irish phone asks for en-IE
+    fun localeFor(language: String): Locale {
+        val device = Locale.getDefault().stripExtensions()
+        return if (language == "auto" || language == device.language) device else Locale.forLanguageTag(language)
+    }
 
     // the warmed client for this language, or null so the caller keeps the older recogniser.
     // never blocks, prewarm fills it
