@@ -1,5 +1,10 @@
 package dev.local.murmur
 
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -132,6 +137,81 @@ class CleanupClientTest {
             withResponse("/chat/completions", response) { config ->
                 assertThrows(IOException::class.java) { CleanupClient().clean(config, "hello") }
             }
+        }
+    }
+
+    @Test fun severeReductionOfLongTranscriptIsRejectedEvenWithSuccessfulFinishReason() {
+        val raw = "The lecture covers tides, coastal erosion and the effect of winter storms. ".repeat(9)
+        val responses = listOf(
+            "/chat/completions" to """{"choices":[{"message":{"content":"Done"},"finish_reason":"stop"}]}""",
+            "/messages" to """{"content":[{"type":"text","text":"Done"}],"stop_reason":"end_turn"}""",
+        )
+        for ((path, response) in responses) {
+            withResponse(path, response) { config ->
+                assertThrows(IOException::class.java) { CleanupClient().clean(config, raw) }
+            }
+        }
+    }
+
+    @Test fun openRouterRetryOmitsReasoningAndSharesDeadline() {
+        val attempts = mutableListOf<Pair<Boolean?, Long>>()
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            val request = chain.request()
+            val body = Buffer()
+            request.body!!.writeTo(body)
+            val reasoning = org.json.JSONObject(body.readUtf8()).optJSONObject("reasoning")?.getBoolean("enabled")
+            attempts += reasoning to chain.call().timeout().deadlineNanoTime()
+            val response = if (reasoning != null) """{"error":{"message":"Reasoning is mandatory for this endpoint and cannot be disabled."}}"""
+                else """{"choices":[{"message":{"content":"Hello."},"finish_reason":"stop"}]}"""
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
+                .code(if (reasoning != null) 400 else 200).message("test")
+                .body(response.toResponseBody()).build()
+        }.build()
+        val config = CleanupEndpoint(URI("https://openrouter.ai/api/v1/chat/completions"),
+            "test-model", null, 2, emptyList(), null)
+        assertEquals("Hello.", CleanupClient(http).clean(config, "hello"))
+        assertEquals(listOf(false, null), attempts.map { it.first })
+        assertEquals(attempts[0].second, attempts[1].second)
+    }
+
+    @Test fun unrelatedOpenRouterBadRequestDoesNotResendTranscript() {
+        var attempts = 0
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            attempts++
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
+                .code(400).message("Bad Request")
+                .body("""{"error":{"message":"Invalid reasoning setting: a model name is required"}}""".toResponseBody())
+                .build()
+        }.build()
+        val config = CleanupEndpoint(URI("https://openrouter.ai/api/v1/chat/completions"),
+            "test-model", null, 2, emptyList(), null)
+        assertThrows(HttpStatusException::class.java) { CleanupClient(http).clean(config, "hello") }
+        assertEquals(1, attempts)
+    }
+
+    @Test fun keepaliveBytesCannotHoldCleanupPastItsDeadline() {
+        ServerSocket(0).use { server ->
+            server.soTimeout = 5_000
+            val worker = Thread {
+                server.accept().use { socket ->
+                    val output = socket.getOutputStream()
+                    output.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n".toByteArray())
+                    // a slow provider padding the body so the read timeout never fires
+                    runCatching {
+                        repeat(50) {
+                            output.write(' '.code)
+                            output.flush()
+                            Thread.sleep(200)
+                        }
+                    }
+                }
+            }.also { it.start() }
+            val config = CleanupEndpoint(URI("http://127.0.0.1:${server.localPort}/chat/completions"),
+                "test-model", null, 2, emptyList(), null)
+            val started = System.nanoTime()
+            assertThrows(java.net.SocketTimeoutException::class.java) { CleanupClient { 1_000L }.clean(config, "hello") }
+            assertTrue((System.nanoTime() - started) / 1_000_000 < 3_000)
+            worker.join(15_000)
         }
     }
 
