@@ -62,6 +62,7 @@ internal class LectureService : Service() {
     private val settings by lazy { AppSettings(this) }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val worker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture") }
+    private val cleanupWorker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture-cleanup") }
     // lecture id to the number of its tasks still queued or running
     private val pending = LinkedHashMap<Long, Int>()
     private var recorder: PcmRecorder? = null
@@ -69,12 +70,11 @@ internal class LectureService : Service() {
     private var foregroundType = 0
     @Volatile private var destroyed = false
 
-    // one lecture's transcription. its pieces and its final step run on the worker in
-    // order, so only the worker touches the text
+    // both workers take the job lock when saving a transcript snapshot
     private class Job(val id: Long, endpoint: TranscriptionEndpoint, val cleanup: CleanupEndpoint?) {
         @Volatile var endpoint = endpoint
         val raw = StringBuilder()
-        val cleaned = StringBuilder()
+        val cleaned = mutableListOf<String>()
         @Volatile var durationMs = 0L
         @Volatile var pieces = 0
         @Volatile var recordingDone = false
@@ -171,8 +171,7 @@ internal class LectureService : Service() {
         enqueue(job.id) {
             try {
                 if (job.discarded || job.failure != null) return@enqueue
-                mutable.update { it.copy(transcribingId = job.id, part = index, parts = if (job.recordingDone) job.pieces else 0) }
-                notifyCurrent()
+                showPart(job.id, index, if (job.recordingDone) job.pieces else 0)
                 transcribeInto(job, piece, offsetMs, index, null)
                 mutable.update { it.copy(part = index + 1) }
             } catch (error: Exception) {
@@ -259,29 +258,41 @@ internal class LectureService : Service() {
         }
     }
 
-    private fun enqueue(id: Long, task: () -> Unit) {
-        if (worker.isShutdown) return
-        synchronized(pending) { pending[id] = (pending[id] ?: 0) + 1 }
-        publishQueue()
-        worker.execute {
-            try {
-                task()
-            } finally {
-                val left = synchronized(pending) {
-                    val count = (pending[id] ?: 1) - 1
-                    if (count > 0) pending[id] = count else pending.remove(id)
-                    count
+    private fun enqueue(id: Long, executor: ExecutorService = worker, task: () -> Unit) {
+        synchronized(pending) {
+            if (destroyed || executor.isShutdown) return
+            pending[id] = (pending[id] ?: 0) + 1
+            executor.execute {
+                try {
+                    task()
+                } finally {
+                    synchronized(pending) {
+                        val left = pending.getValue(id) - 1
+                        if (left > 0) pending[id] = left else pending.remove(id)
+                        if (!destroyed) {
+                            if (left == 0) mutable.update {
+                                if (it.transcribingId == id) it.copy(transcribingId = 0L, part = 0, parts = 0) else it
+                            }
+                            publishQueue()
+                        }
+                    }
+                    mainHandler.post { if (!destroyed) stopIfIdle() }
                 }
-                if (left <= 0) mutable.update { if (it.transcribingId == id) it.copy(transcribingId = 0L, part = 0, parts = 0) else it }
-                publishQueue()
-                mainHandler.post { stopIfIdle() }
             }
+            publishQueue()
         }
     }
 
+    // called with the pending lock held
     private fun publishQueue() {
-        val ids = synchronized(pending) { pending.keys.toList() }
-        mutable.update { current -> current.copy(queuedIds = ids.filter { it != current.transcribingId }) }
+        mutable.update { current -> current.copy(queuedIds = pending.keys.filter { it != current.transcribingId }) }
+        notifyCurrent()
+    }
+
+    private fun showPart(id: Long, index: Int, total: Int) = synchronized(pending) {
+        mutable.update {
+            it.copy(transcribingId = id, part = index, parts = total, queuedIds = pending.keys.filter { queued -> queued != id })
+        }
         notifyCurrent()
     }
 
@@ -292,8 +303,7 @@ internal class LectureService : Service() {
         try {
             LectureAudio.forEachChunk(file, cacheDir) { chunk, index, total ->
                 check(!job.discarded) { "Lecture was deleted." }
-                mutable.update { it.copy(transcribingId = job.id, part = index, parts = total) }
-                notifyCurrent()
+                showPart(job.id, index, total)
                 transcribeInto(job, chunk, index * LectureAudio.CHUNK_SECONDS * 1000L, index, total)
                 mutable.update { it.copy(part = index + 1) }
             }
@@ -312,17 +322,33 @@ internal class LectureService : Service() {
         val piece = transcribePart(job, chunk, index, total)
         if (piece.isBlank()) return
         val stamp = LectureTranscript.stamp(offsetMs)
-        job.raw.append(stamp).append(' ').append(piece).append('\n')
-        save(job, "processing")
         val prepared = settings.prepareTranscript(piece)
-        val finalPiece = job.cleanup?.let { cleanup ->
-            runCatching { CleanupClient().clean(cleanup, prepared) }.getOrElse { error ->
-                settings.lastCleanupFailure = "Lecture cleanup failed (${describeFailure(error, "unknown error")}), raw text was used."
-                prepared
+        val part = synchronized(job) {
+            if (destroyed || job.discarded) return
+            job.raw.append(stamp).append(' ').append(piece).append('\n')
+            job.cleaned.add("$stamp $prepared")
+            save(job, if (job.failure == null) "processing" else "failed")
+            job.cleaned.lastIndex
+        }
+        val cleanup = job.cleanup ?: return
+        enqueue(job.id, cleanupWorker) {
+            if (destroyed || job.discarded || job.failure != null) return@enqueue
+            val cleaned = runCatching { CleanupClient().clean(cleanup, prepared) }.getOrElse { error ->
+                if (!destroyed && !job.discarded) {
+                    settings.lastCleanupFailure = "Lecture cleanup failed (${describeFailure(error, "unknown error")}), uncleaned text was used."
+                }
+                return@enqueue
             }
-        } ?: prepared
-        job.cleaned.append(stamp).append(' ').append(finalPiece).append('\n')
-        save(job, "processing")
+            try {
+                synchronized(job) {
+                    if (destroyed || job.discarded || job.failure != null) return@enqueue
+                    job.cleaned[part] = "$stamp $cleaned"
+                    save(job, "processing")
+                }
+            } catch (error: Exception) {
+                fail(job, error)
+            }
+        }
     }
 
     // nobody is waiting on a lecture in real time, so a part gets a second chance
@@ -351,23 +377,50 @@ internal class LectureService : Service() {
 
     private fun save(job: Job, status: String) {
         if (job.discarded) return
-        history.updateLecture(job.id, job.raw.toString().trim(), job.cleaned.toString().trim(), job.durationMs, status)
+        history.updateLecture(job.id, job.raw.toString().trim(), job.cleaned.joinToString("\n").trim(), job.durationMs, status)
     }
 
     private fun complete(job: Job) {
-        if (job.discarded || history.lecture(job.id) == null) return
+        if (job.cleanup == null) finishTranscript(job)
+        else {
+            enqueue(job.id, cleanupWorker) {
+                try {
+                    finishTranscript(job)
+                } catch (error: Exception) {
+                    fail(job, error)
+                }
+            }
+            synchronized(pending) {
+                if (destroyed) return
+                mutable.update {
+                    if (it.transcribingId == job.id) {
+                        it.copy(transcribingId = 0L, part = 0, parts = 0, queuedIds = pending.keys.toList())
+                    } else it
+                }
+                notifyCurrent()
+            }
+        }
+    }
+
+    private fun finishTranscript(job: Job) = synchronized(job) {
+        if (destroyed || job.discarded || job.failure != null || history.lecture(job.id) == null) return@synchronized
         save(job, "done")
         mutable.update { it.copy(message = "Transcript ready.", failed = false) }
     }
 
-    private fun fail(job: Job, error: Throwable) {
-        if (job.discarded) return
+    private fun fail(job: Job, error: Throwable): Unit = synchronized(job) {
+        if (destroyed || job.discarded) return@synchronized
+        job.failure = error
         Diagnostics.error("lecture", "lecture ${job.id} failed", error)
         markFailed(job.id, job.durationMs.takeIf { it > 0 })
-        mutable.update { it.copy(failed = true,
-            message = describeFailure(error, "Lecture could not be transcribed").let { text ->
-                if ("Retry" in text) text else text.trimEnd('.') + ". Retry from the lecture."
-            }) }
+        mainHandler.post {
+            if (!destroyed && !job.discarded) {
+                mutable.update { it.copy(failed = true,
+                    message = describeFailure(error, "Lecture could not be transcribed").let { text ->
+                        if ("Retry" in text) text else text.trimEnd('.') + ". Retry from the lecture."
+                    }) }
+            }
+        }
     }
 
     private fun markFailed(id: Long, durationMs: Long?) {
@@ -492,7 +545,10 @@ internal class LectureService : Service() {
     override fun onDestroy() {
         destroyed = true
         recorder?.stop()
-        worker.shutdownNow()
+        synchronized(pending) {
+            worker.shutdownNow()
+            cleanupWorker.shutdownNow()
+        }
         if (state.value.busy) {
             Diagnostics.warn("lecture", "service destroyed with lecture work still running")
             mutable.value = LectureState(failed = true, message = "Lecture stopped. Retry from Lectures.")
@@ -503,8 +559,12 @@ internal class LectureService : Service() {
     }
 
     override fun onTimeout(startId: Int, fgsType: Int) {
+        destroyed = true
         Diagnostics.error("lecture", "android ended the foreground job (type $fgsType) at its time limit")
-        worker.shutdownNow()
+        synchronized(pending) {
+            worker.shutdownNow()
+            cleanupWorker.shutdownNow()
+        }
         mutable.value = LectureState(failed = true, message = "Android stopped transcription for today. Retry from Lectures.")
         stopSelf()
     }
