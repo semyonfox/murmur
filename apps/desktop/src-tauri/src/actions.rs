@@ -217,6 +217,21 @@ fn preserve_explicit_spellings(cleaned: String, prepared: &str, spellings: &[Str
     }
 }
 
+// corrections and spoken spelling can shrink a short dictation a lot, but a long
+// transcript that comes back at under half its length was summarised
+fn cleanup_dropped_too_much(prepared: &str, cleaned: &str) -> bool {
+    let prepared = prepared.chars().count();
+    prepared >= 600 && cleaned.chars().count() * 2 < prepared
+}
+
+fn guard_cleanup(cleaned: String, prepared: &str, spellings: &[String]) -> String {
+    if cleanup_dropped_too_much(prepared, &cleaned) {
+        warn!("Cleanup returned under half of a long transcript; using the prepared transcript");
+        return prepared.to_string();
+    }
+    preserve_explicit_spellings(cleaned, prepared, spellings)
+}
+
 // transcript and vocabulary stay in the user payload, even without structured output
 fn build_system_prompt(prompt_template: &str, formality: u8) -> String {
     let style = match formality.clamp(1, 5) {
@@ -433,7 +448,7 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
                                 "Apple Intelligence post-processing succeeded. Output length: {} chars",
                                 result.len()
                             );
-                            Some(preserve_explicit_spellings(result, &prepared, &spellings))
+                            Some(guard_cleanup(result, &prepared, &spellings))
                         }
                     }
                     Err(err) => {
@@ -488,9 +503,7 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
                                 provider.id,
                                 result.len()
                             );
-                            return Some(preserve_explicit_spellings(
-                                result, &prepared, &spellings,
-                            ));
+                            return Some(guard_cleanup(result, &prepared, &spellings));
                         } else {
                             error!("Structured output response missing 'transcription' field");
                             return None;
@@ -534,7 +547,7 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
                 provider.id,
                 content.len()
             );
-            Some(preserve_explicit_spellings(content, &prepared, &spellings))
+            Some(guard_cleanup(content, &prepared, &spellings))
         }
         Ok(None) => {
             error!("LLM API response has no content");
@@ -690,6 +703,39 @@ async fn process_transcription_output_with_settings(
     }
 }
 
+/// Opens the connections this dictation will need while the user is still
+/// speaking, so neither the upload nor the cleanup request pays for a handshake.
+fn open_connections_while_recording(settings: &AppSettings) {
+    let speech =
+        (settings.stt_source == SttSource::Endpoint).then_some(settings.stt_base_url.as_str());
+    let cleanup = settings
+        .post_process_enabled
+        .then(|| settings.active_post_process_provider())
+        .flatten()
+        .map(|provider| provider.base_url.as_str());
+    crate::http_client::warm_up(speech.into_iter().chain(cleanup));
+}
+
+/// The endpoint to transcribe live pieces with, or `None` to upload the whole
+/// take after stop. Pieces need the voice detector to find pauses. They also
+/// need a chosen language: a server asked to detect it guesses again for every
+/// piece, and a few seconds of accented speech can come back in the wrong one.
+fn live_endpoint(
+    settings: &AppSettings,
+    vad_policy: VadPolicy,
+) -> Option<crate::live_stt::Endpoint> {
+    (settings.stt_source == SttSource::Endpoint
+        && vad_policy == VadPolicy::Offline
+        && settings.selected_language != "auto")
+        .then(|| {
+            crate::live_stt::Endpoint::new(
+                settings.stt_base_url.clone(),
+                settings.stt_model.clone(),
+                Some(settings.selected_language.clone()),
+            )
+        })
+}
+
 impl ShortcutAction for TranscribeAction {
     fn start(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
         let start_time = Instant::now();
@@ -744,6 +790,10 @@ impl ShortcutAction for TranscribeAction {
         if model_supports_streaming {
             tm.start_stream();
         }
+        open_connections_while_recording(&settings);
+        if let Some(endpoint) = live_endpoint(&settings, vad_policy) {
+            crate::live_stt::live().begin(endpoint);
+        }
         let plan_elapsed = plan_started.elapsed();
 
         // Sizing the overlay follows the same advertised capability. A model that
@@ -783,6 +833,9 @@ impl ShortcutAction for TranscribeAction {
                 let app_clone = app.clone();
                 let rm_clone = Arc::clone(&rm);
                 std::thread::spawn(move || {
+                    // asked while the microphone warms up, so it costs no time
+                    let cue_stays_out_of_microphone =
+                        audio_feedback && crate::audio_feedback::output_is_private();
                     if !readiness.wait() {
                         debug!("Microphone readiness wait ended without receiving samples");
                         return;
@@ -805,6 +858,23 @@ impl ShortcutAction for TranscribeAction {
 
                     if !rm_clone.is_recording_readiness_current(generation) {
                         debug!("Microphone became ready for an inactive recording");
+                        return;
+                    }
+
+                    if cue_stays_out_of_microphone {
+                        // on headphones the microphone cannot hear the cue, so capture
+                        // opens now and words spoken over the cue are kept
+                        let Some(resumed) = rm_clone.resume_recording_after_feedback(generation)
+                        else {
+                            return;
+                        };
+                        if resumed.recv().is_err() {
+                            return;
+                        }
+                        debug!("Output is private; recording through the start cue");
+                        utils::emit_recording_ready(&app_clone);
+                        rm_clone.quiet_other_audio(generation);
+                        play_feedback_sound(&app_clone, SoundType::Start);
                         return;
                     }
 
@@ -857,6 +927,7 @@ impl ShortcutAction for TranscribeAction {
             // Starting failed (for example due to blocked microphone permissions).
             // Revert UI state so we don't stay stuck in the recording overlay.
             tm.cancel_stream();
+            crate::live_stt::live().cancel();
             utils::hide_recording_overlay(app);
             set_tray_state(app, TrayIconState::Idle);
             if let Some(err) = recording_error {
@@ -936,6 +1007,9 @@ impl ShortcutAction for TranscribeAction {
 
             let stop_recording_time = Instant::now();
             let samples = rm.stop_recording(&binding_id, cancel_generation);
+            // the final drain has reached the live pieces, so the last one goes out
+            // now. every early return below drops it, which stops its uploads
+            let live_take = crate::live_stt::live().finish();
             // other audio resumes as soon as capture ends, not after transcription
             rm.restore_other_audio();
             if let Some(samples) = samples {
@@ -1047,6 +1121,11 @@ impl ShortcutAction for TranscribeAction {
                             .then_some(session_settings.selected_language.as_str());
                         let endpoint_result = complete_unless_cancelled(
                             async {
+                                if let Some(take) = live_take {
+                                    if let Some(text) = take.text().await? {
+                                        return Ok(text);
+                                    }
+                                }
                                 let wav =
                                     tokio::fs::read(&wav_path_for_verify).await.map_err(|_| {
                                         anyhow::anyhow!("Could not read the recorded audio")
@@ -1054,22 +1133,10 @@ impl ShortcutAction for TranscribeAction {
                                 if rm.was_cancelled_since(cancel_generation) {
                                     return Err(anyhow::anyhow!("Transcription cancelled"));
                                 }
-                                let configured_base_url = session_settings.stt_base_url.clone();
-                                let stored_key = tokio::task::spawn_blocking(move || {
-                                    crate::secrets::get_stt_key(&configured_base_url)
-                                })
+                                let api_key = crate::cloud_stt::stored_api_key(
+                                    &session_settings.stt_base_url,
+                                )
                                 .await;
-                                let stored_key = match stored_key {
-                                    Ok(Ok(key)) => key.filter(|key| !key.trim().is_empty()),
-                                    Ok(Err(_)) | Err(_) => {
-                                        warn!("STT credential store unavailable; checking environment key");
-                                        None
-                                    }
-                                };
-                                let api_key = stored_key.unwrap_or_else(|| {
-                                    crate::secrets::stt_env_key(&session_settings.stt_base_url)
-                                        .unwrap_or_default()
-                                });
                                 if rm.was_cancelled_since(cancel_generation) {
                                     return Err(anyhow::anyhow!("Transcription cancelled"));
                                 }

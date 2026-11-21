@@ -164,6 +164,9 @@ impl VadConfig {
 /// Callback invoked with each 16 kHz mono frame that passes the active capture
 /// policy while recording. Used to feed a live streaming transcription as audio arrives.
 pub type AudioFrameCallback = Arc<dyn Fn(&[f32]) + Send + Sync + 'static>;
+/// Callback invoked with the length of each 16 kHz frame the voice detector dropped
+/// as silence while recording, so a listener can tell a pause from continuous speech.
+pub type SilenceCallback = Arc<dyn Fn(usize) + Send + Sync + 'static>;
 pub type LevelCallback = Arc<dyn Fn(Vec<f32>) + Send + Sync + 'static>;
 
 pub struct AudioRecorder {
@@ -173,6 +176,7 @@ pub struct AudioRecorder {
     vad: Option<VadConfig>,
     level_cb: Option<LevelCallback>,
     audio_cb: Option<AudioFrameCallback>,
+    silence_cb: Option<SilenceCallback>,
     /// Which input channel to use. None = average all (original behavior).
     selected_channel: Option<usize>,
     /// Preferred stream config cached per device name. The two HAL property
@@ -195,6 +199,7 @@ impl AudioRecorder {
             vad: None,
             level_cb: None,
             audio_cb: None,
+            silence_cb: None,
             selected_channel: None,
             config_cache: Arc::new(Mutex::new(None)),
             stream_error: Arc::new(AtomicBool::new(false)),
@@ -241,6 +246,16 @@ impl AudioRecorder {
         self
     }
 
+    /// Register a callback for frames the voice detector drops as silence. It
+    /// runs on the recorder's consumer thread like the audio callback.
+    pub fn with_silence_callback<F>(mut self, cb: F) -> Self
+    where
+        F: Fn(usize) + Send + Sync + 'static,
+    {
+        self.silence_cb = Some(Arc::new(cb));
+        self
+    }
+
     pub fn with_selected_channel(mut self, channel: Option<u16>) -> Self {
         self.set_selected_channel(channel);
         self
@@ -278,6 +293,7 @@ impl AudioRecorder {
         let level_cb = self.level_cb.clone();
         // Move the optional real-time audio frame callback into the worker thread
         let audio_cb = self.audio_cb.clone();
+        let silence_cb = self.silence_cb.clone();
         let selected_channel = self.selected_channel;
         let config_cache = Arc::clone(&self.config_cache);
         let stream_error = Arc::clone(&self.stream_error);
@@ -402,13 +418,14 @@ impl AudioRecorder {
                     // Timestamp for the play()-returned -> first-samples gap the
                     // init handshake can't see (hardware dependent).
                     let stream_running_at = Instant::now();
-                    let processor = CaptureProcessor::new(
+                    let mut processor = CaptureProcessor::new(
                         sample_rate,
                         vad,
                         level_cb,
                         audio_cb,
                         stream_running_at,
                     );
+                    processor.silence_cb = silence_cb;
                     run_consumer(
                         processor,
                         sample_consumer,
@@ -781,6 +798,7 @@ fn handle_frame(
     vad_policy: VadPolicy,
     vad: &Option<VadConfig>,
     audio_cb: &Option<AudioFrameCallback>,
+    silence_cb: &Option<SilenceCallback>,
     mut output: impl FnMut(&[f32]),
 ) {
     let mut emit = |buf: &[f32]| {
@@ -802,7 +820,11 @@ fn handle_frame(
             .unwrap_or(VadFrame::Speech(samples))
         {
             VadFrame::Speech(buf) => emit(buf),
-            VadFrame::Noise => {}
+            VadFrame::Noise => {
+                if let Some(cb) = silence_cb {
+                    cb(samples.len());
+                }
+            }
         }
     } else {
         emit(samples);
@@ -850,6 +872,7 @@ struct CaptureProcessor {
     vad: Option<VadConfig>,
     level_cb: Option<LevelCallback>,
     audio_cb: Option<AudioFrameCallback>,
+    silence_cb: Option<SilenceCallback>,
     stream_running_at: Instant,
     visualizer: AudioVisualiser,
     frame_resampler: FrameResampler,
@@ -908,6 +931,7 @@ impl CaptureProcessor {
             vad,
             level_cb,
             audio_cb,
+            silence_cb: None,
             stream_running_at,
             visualizer,
             frame_resampler,
@@ -1013,9 +1037,14 @@ impl CaptureProcessor {
         let vad_policy = self.vad_policy;
         self.frame_resampler.push(raw, |frame: &[f32]| {
             if let Some(target) = self.target.as_mut() {
-                handle_frame(frame, vad_policy, &self.vad, &self.audio_cb, |samples| {
-                    target.append(samples)
-                });
+                handle_frame(
+                    frame,
+                    vad_policy,
+                    &self.vad,
+                    &self.audio_cb,
+                    &self.silence_cb,
+                    |samples| target.append(samples),
+                );
             }
         });
 
@@ -1071,9 +1100,14 @@ impl CaptureProcessor {
         let vad_policy = self.vad_policy;
         self.frame_resampler.finish(|frame: &[f32]| {
             if let Some(target) = self.target.as_mut() {
-                handle_frame(frame, vad_policy, &self.vad, &self.audio_cb, |samples| {
-                    target.append(samples)
-                });
+                handle_frame(
+                    frame,
+                    vad_policy,
+                    &self.vad,
+                    &self.audio_cb,
+                    &self.silence_cb,
+                    |samples| target.append(samples),
+                );
             }
         });
 

@@ -10,11 +10,13 @@ mod clipboard;
 mod cloud_stt;
 mod commands;
 mod helpers;
+mod http_client;
 #[cfg(target_os = "linux")]
 mod hyprland_window;
 mod input;
 #[cfg(target_os = "linux")]
 mod linux_modifier_guard;
+mod live_stt;
 mod llm_client;
 mod managers;
 mod memory;

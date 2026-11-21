@@ -6,6 +6,7 @@ use serde_json::Value;
 use std::collections::HashSet;
 use std::error::Error as StdError;
 use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 
 #[derive(Debug, Serialize)]
 struct ChatMessage {
@@ -137,6 +138,10 @@ struct ChatCompletionRequest {
     model: String,
     messages: Vec<ChatMessage>,
     stream: bool,
+    /// Cleanup should return the same text for the same dictation, and the
+    /// model benchmark was run this way. Dropped when an endpoint rejects it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     response_format: Option<ResponseFormat>,
     #[serde(flatten)]
@@ -232,15 +237,20 @@ pub(crate) fn validate_provider_url(base_url: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Create an HTTP client with provider-specific headers
-fn create_client(provider: &PostProcessProvider, api_key: &str) -> Result<reqwest::Client, String> {
+/// The shared client and this provider's headers. The headers go on each
+/// request so the connection pool can be shared across providers and keys.
+fn client_and_headers(
+    provider: &PostProcessProvider,
+    api_key: &str,
+) -> Result<(reqwest::Client, HeaderMap), String> {
     validate_provider_url(&provider.base_url)?;
     let headers = build_headers(provider, api_key)?;
-    reqwest::Client::builder()
-        .default_headers(headers)
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .map_err(|e| report_reqwest_error("Failed to build HTTP client", &e))
+    Ok((crate::http_client::client()?, headers))
+}
+
+/// The raw text is the fallback, so a stalled model should not hold it for long.
+fn cleanup_timeout(content_chars: usize) -> Duration {
+    Duration::from_millis(20_000 + 20 * content_chars as u64).min(Duration::from_secs(60))
 }
 
 /// Format a bounded error source chain.
@@ -405,7 +415,8 @@ pub async fn send_chat_completion_with_schema(
         sanitized_url_for_log(&url)
     );
 
-    let client = create_client(provider, &api_key)?;
+    let (client, headers) = client_and_headers(provider, &api_key)?;
+    let timeout = cleanup_timeout(user_content.chars().count());
 
     // Build messages vector
     let mut messages = Vec::new();
@@ -436,7 +447,9 @@ pub async fn send_chat_completion_with_schema(
 
     let key = endpoint_key(provider, model);
     let strict_disable = require_non_thinking(provider, disable_reasoning);
-    let reasoning = if disable_reasoning && (strict_disable || !is_known_rejected(&key)) {
+    // an endpoint that rejected the optional fields once gets a plain request
+    let plain = !strict_disable && is_known_rejected(&key);
+    let reasoning = if disable_reasoning && !plain {
         reasoning_disable_params(provider)
     } else {
         ReasoningParams::default()
@@ -446,12 +459,15 @@ pub async fn send_chat_completion_with_schema(
         model: model.to_string(),
         messages,
         stream: false,
+        temperature: (!plain).then_some(0.0),
         response_format,
         reasoning,
     };
 
     let mut response = client
         .post(&url)
+        .headers(headers.clone())
+        .timeout(timeout)
         .json(&request_body)
         .send()
         .await
@@ -473,23 +489,27 @@ pub async fn send_chat_completion_with_schema(
         ));
     }
 
-    // Unknown OpenAI-compatible endpoints may reject the disable field. Retry
-    // without it there, but never on SiliconFlow or OpenRouter.
+    // Unknown OpenAI-compatible endpoints may reject the disable field, and
+    // some models only accept their default temperature. Retry without both
+    // there, but never on SiliconFlow or OpenRouter.
     if !status.is_success()
         && matches!(status.as_u16(), 400 | 422)
-        && !request_body.reasoning.is_empty()
+        && (!request_body.reasoning.is_empty() || request_body.temperature.is_some())
     {
         let error_text = response.text().await.unwrap_or_else(|e| {
             report_reqwest_error("Failed to read reasoning rejection response", &e)
         });
         info!(
-            "Endpoint rejected request with reasoning disabled (status {}): {}. Retrying without reasoning fields",
+            "Endpoint rejected request with reasoning disabled or temperature 0 (status {}): {}. Retrying without those fields",
             status, error_text
         );
 
         request_body.reasoning = ReasoningParams::default();
+        request_body.temperature = None;
         response = client
             .post(&url)
+            .headers(headers)
+            .timeout(timeout)
             .json(&request_body)
             .send()
             .await
@@ -504,7 +524,7 @@ pub async fn send_chat_completion_with_schema(
 
         if status.is_success() {
             info!(
-                "Retry without reasoning fields succeeded; '{}' (model '{}') will skip them from now on",
+                "Retry without the optional fields succeeded; '{}' (model '{}') will skip them from now on",
                 sanitized_url_for_log(base_url), model
             );
             remember_rejection(key);
@@ -541,10 +561,12 @@ pub async fn fetch_models(
 
     debug!("Fetching models from: {}", sanitized_url_for_log(&url));
 
-    let client = create_client(provider, &api_key)?;
+    let (client, headers) = client_and_headers(provider, &api_key)?;
 
     let response = client
         .get(&url)
+        .headers(headers)
+        .timeout(Duration::from_secs(30))
         .send()
         .await
         .map_err(|e| report_reqwest_error("Failed to fetch models", &e))?;
@@ -641,6 +663,7 @@ mod tests {
                 content: "hi".to_string(),
             }],
             stream: false,
+            temperature: Some(0.0),
             response_format: None,
             reasoning,
         };
@@ -778,6 +801,7 @@ mod tests {
     fn requests_explicitly_disable_streaming() {
         let json = request_json(ReasoningParams::default());
         assert_eq!(json["stream"], false);
+        assert_eq!(json["temperature"], 0.0);
     }
 
     #[test]

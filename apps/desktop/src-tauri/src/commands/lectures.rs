@@ -1,4 +1,5 @@
 use crate::actions::process_transcription_output;
+use crate::audio_toolkit::quietest_cut;
 use crate::managers::{
     audio::AudioRecordingManager, history::HistoryManager, transcription::TranscriptionManager,
 };
@@ -7,7 +8,6 @@ use chrono::Local;
 use rodio::{Decoder, Source};
 use std::{
     fs::File,
-    io::Cursor,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -25,6 +25,8 @@ struct LectureProgress {
 
 const BINDING: &str = "lecture";
 const CHUNK_SAMPLES: usize = 16_000 * 120;
+// each part ends at the quietest moment of its last ten seconds
+const CUT_SEARCH_SAMPLES: usize = 16_000 * 10;
 static SESSION: OnceLock<Mutex<Option<(i64, PathBuf)>>> = OnceLock::new();
 static FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -239,23 +241,20 @@ pub async fn transcribe_long_audio(
     let mut raw = String::new();
     let mut cleaned = String::new();
     let key = if settings.stt_source == SttSource::Endpoint {
-        let url = settings.stt_base_url.clone();
-        tauri::async_runtime::spawn_blocking(move || crate::secrets::get_stt_key(&url))
-            .await
-            .ok()
-            .and_then(Result::ok)
-            .flatten()
-            .or_else(|| crate::secrets::stt_env_key(&settings.stt_base_url))
-            .unwrap_or_default()
+        crate::cloud_stt::stored_api_key(&settings.stt_base_url).await
     } else {
         String::new()
     };
     if settings.stt_source != SttSource::Endpoint {
         transcription.initiate_model_load();
     }
+    // audio after a cut, carried into the next part so no word is split
+    let mut carried = Vec::new();
+    let mut offset_samples = 0usize;
     for index in 0.. {
-        let mut samples = Vec::with_capacity(CHUNK_SAMPLES);
-        for _ in 0..CHUNK_SAMPLES {
+        let mut samples = std::mem::take(&mut carried);
+        samples.reserve(CHUNK_SAMPLES.saturating_sub(samples.len()));
+        while samples.len() < CHUNK_SAMPLES {
             match samples_iter.next() {
                 Some(Ok(sample)) => samples.push(sample as f32 / i16::MAX as f32),
                 Some(Err(error)) => return Err(format!("Could not read recording: {error}")),
@@ -265,8 +264,15 @@ pub async fn transcribe_long_audio(
         if samples.is_empty() {
             break;
         }
+        if samples.len() == CHUNK_SAMPLES {
+            carried = samples.split_off(quietest_cut(&samples, CUT_SEARCH_SAMPLES));
+        }
+        let part_offset = offset_samples;
+        offset_samples += samples.len();
+        let total = total.max(index + 1);
         let text = if settings.stt_source == SttSource::Endpoint {
-            let bytes = encode_chunk(&samples)?;
+            let bytes =
+                crate::cloud_stt::encode_wav(&samples).map_err(|error| error.to_string())?;
             let language = (settings.selected_language != "auto")
                 .then_some(settings.selected_language.as_str());
             crate::cloud_stt::transcribe_wav(
@@ -296,7 +302,7 @@ pub async fn transcribe_long_audio(
             );
             continue;
         }
-        let timestamp = format!("[{:02}:{:02}] ", index * 2, 0);
+        let timestamp = part_timestamp(part_offset);
         raw.push_str(&timestamp);
         raw.push_str(text.trim());
         raw.push_str("\n\n");
@@ -327,25 +333,10 @@ pub async fn transcribe_long_audio(
     Ok(())
 }
 
-fn encode_chunk(samples: &[f32]) -> Result<Vec<u8>, String> {
-    let mut cursor = Cursor::new(Vec::new());
-    let mut writer = hound::WavWriter::new(
-        &mut cursor,
-        hound::WavSpec {
-            channels: 1,
-            sample_rate: 16_000,
-            bits_per_sample: 16,
-            sample_format: hound::SampleFormat::Int,
-        },
-    )
-    .map_err(|error| error.to_string())?;
-    for sample in samples {
-        writer
-            .write_sample((sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16)
-            .map_err(|error| error.to_string())?;
-    }
-    writer.finalize().map_err(|error| error.to_string())?;
-    Ok(cursor.into_inner())
+/// Where a part starts in the recording, as the `[mm:ss] ` stamp before its text.
+fn part_timestamp(offset_samples: usize) -> String {
+    let seconds = offset_samples / 16_000;
+    format!("[{:02}:{:02}] ", seconds / 60, seconds % 60)
 }
 
 #[cfg(test)]
@@ -386,9 +377,15 @@ mod tests {
 
     #[test]
     fn endpoint_chunk_has_valid_wav_header() {
-        let bytes = encode_chunk(&vec![0.0; CHUNK_SAMPLES]).unwrap();
+        let bytes = crate::cloud_stt::encode_wav(&vec![0.0; CHUNK_SAMPLES]).unwrap();
         assert!(bytes.len() < 25_000_000);
-        let reader = hound::WavReader::new(Cursor::new(bytes)).unwrap();
+        let reader = hound::WavReader::new(std::io::Cursor::new(bytes)).unwrap();
         assert_eq!(reader.duration() as usize, CHUNK_SAMPLES);
+    }
+
+    #[test]
+    fn part_timestamps_follow_the_audio_offset() {
+        assert_eq!(part_timestamp(0), "[00:00] ");
+        assert_eq!(part_timestamp(16_000 * 117 + 8_000), "[01:57] ");
     }
 }

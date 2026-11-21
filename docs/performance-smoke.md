@@ -1,5 +1,7 @@
 # Linux native and inference smoke
 
+This is a historical record of the 26 September 2026 build. It measured local inference with Whisper Tiny on Vulkan and CPU. As of 21 November 2026 neither the PC nor the laptop has a local model installed. Both use an OpenRouter speech endpoint and OpenRouter cleanup, so these timings do not describe daily use. Across the 28 dictations the PC logged that month, the median take was 17 seconds and took 2.6 seconds to recognise, about 1 second to clean up and 1.3 seconds to type out.
+
 Tested 26 September 2026 on the CachyOS PC (`7.2.6-1-cachyos`) with a Ryzen 5 5600G, an RX 6600 XT (RADV), and an active Hyprland session. These are small synthetic checks, not representative quality or latency benchmarks.
 
 The desktop frontend built with pnpm. The Rust host passed `cargo check --locked`, `cargo build --locked`, a production `pnpm tauri build --no-bundle --ci`, and all 311 `cargo test --locked --lib` tests using the configured Vulkan backend. The PC had GTK, WebKitGTK, ALSA, D-Bus, GTK layer-shell, Vulkan and shader compiler dependencies. SPIR-V Headers were absent from system packages, so the build used a copy in the user's cache via `CMAKE_PREFIX_PATH` and `CPATH`; no system package was installed. The stripped release executable is 46,971,936 bytes; the staged `transcribe-libs/` directory adds about 73 MB. Running it directly needs those libraries on `LD_LIBRARY_PATH` and the host GUI libraries. It is not a portable release bundle.
