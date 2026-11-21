@@ -143,11 +143,12 @@ internal fun warmUpConnections(endpoints: List<URI>) {
                 request.requestMethod = "HEAD"
                 request.connectTimeout = 5_000
                 request.readTimeout = 5_000
-                request.responseCode
-                request.inputStream.close()
+                // these endpoints answer HEAD with 404 or 405. closing that reply cleanly
+                // hands the socket back to the pool, disconnect would close it
+                val reply = if (request.responseCode >= 400) request.errorStream else request.inputStream
+                reply?.close()
             } catch (_: IOException) {
-                // a 404 or 405 still leaves a pooled connection behind, and a real
-                // network failure will surface again on the actual request
+                // a real network failure will surface again on the actual request
                 request.disconnect()
             }
         }

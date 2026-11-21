@@ -2,6 +2,7 @@ package dev.local.murmur
 
 import android.app.ActivityManager
 import android.content.Context
+import android.os.Build
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -84,6 +85,21 @@ internal object LocalSpeechModels {
         manager.getMemoryInfo(info)
         return info.totalMem >= (model.minimumRamGb * 1024L - 512L) * 1024L * 1024L
     }
+
+    // the 64 bit engine is built for cores with dot product and half precision
+    // maths (see CMakeLists.txt). a phone without them would crash inside it
+    val cpuSupported: Boolean by lazy {
+        if (Build.SUPPORTED_ABIS.firstOrNull() != "arm64-v8a") true
+        else runCatching { File("/proc/cpuinfo").readLines() }.getOrDefault(emptyList()).let(::cpuHasEngineFeatures)
+    }
+
+    // an unreadable or unusual cpuinfo counts as supported, only a core that
+    // lists its features without these two is refused
+    internal fun cpuHasEngineFeatures(cpuinfo: List<String>): Boolean =
+        cpuinfo.filter { it.startsWith("Features") }.all { line ->
+            val features = line.substringAfter(':').trim().split(' ')
+            "asimddp" in features && "asimdhp" in features
+        }
 
     fun download(context: Context, model: DownloadableSpeechModel, progress: (Int) -> Unit) {
         val destination = file(context, model)
@@ -169,11 +185,11 @@ internal object LocalWhisper {
 
     private external fun nativeOpen(path: String): Long
     private external fun nativeClose(context: Long)
-    private external fun nativeTranscribe(context: Long, samples: FloatArray, language: String, translate: Boolean): ByteArray?
+    private external fun nativeTranscribe(context: Long, samples: FloatArray, language: String, translate: Boolean, threads: Int): ByteArray?
     private external fun nativeDetectedLanguage(context: Long): String?
     private external fun nativeOpenParakeet(path: String): Long
     private external fun nativeCloseParakeet(context: Long)
-    private external fun nativeTranscribeParakeet(context: Long, samples: FloatArray): ByteArray?
+    private external fun nativeTranscribeParakeet(context: Long, samples: FloatArray, threads: Int): ByteArray?
     private var loadedPath: String? = null
     private var loadedEngine = SpeechEngine.WHISPER
     private var context: Long = 0
@@ -182,6 +198,29 @@ internal object LocalWhisper {
         Thread(task, "murmur-whisper-idle").apply { isDaemon = true }
     }
     private const val IDLE_RELEASE_MS = 120_000L
+
+    // one thread per fast core of this phone, read once
+    private val threads: Int by lazy {
+        val cores = Runtime.getRuntime().availableProcessors()
+        fun read(file: String) = (0 until cores).mapNotNull { core ->
+            runCatching { File("/sys/devices/system/cpu/cpu$core/$file").readText().trim().toLong() }.getOrNull()
+        }
+        engineThreads(read("cpu_capacity"), read("cpufreq/cpuinfo_max_freq"), cores)
+            .also { Diagnostics.info("speech", "using $it of $cores cores") }
+    }
+
+    // slow cores hold the fast ones back, so they get no thread. never fewer than the
+    // four every phone used before this, and no more than six, which on a phone mostly
+    // buys heat. the kernel's capacity figure rates a core better than its clock speed,
+    // so it is preferred where the phone exposes it
+    internal fun engineThreads(capacities: List<Long>, frequencies: List<Long>, cores: Int): Int {
+        val fast = when {
+            capacities.size == cores && cores > 0 -> capacities.count { it * 2 >= capacities.max() }
+            frequencies.size == cores && cores > 0 -> frequencies.count { it > frequencies.min() }
+            else -> 0
+        }
+        return fast.coerceIn(4, 6).coerceAtMost(cores.coerceAtLeast(1))
+    }
     private const val PARAKEET_PIECE_SAMPLES = 20 * 16_000
     private const val PARAKEET_SEARCH_SAMPLES = 6 * 16_000
 
@@ -220,6 +259,7 @@ internal object LocalWhisper {
     }
 
     private fun load(model: File) {
+        check(LocalSpeechModels.cpuSupported) { "This phone's processor is too old for on-phone models." }
         lastUsedAt = System.nanoTime()
         if (loadedPath == model.absolutePath && context != 0L) return
         release()
@@ -253,7 +293,7 @@ internal object LocalWhisper {
         val samples = FloatArray((bytes.size - 44) / 2) { index -> header.getShort(44 + index * 2) / 32768f }
         load(model)
         return when (loadedEngine) {
-            SpeechEngine.WHISPER -> (nativeTranscribe(context, samples, language.substringBefore('-'), translate)
+            SpeechEngine.WHISPER -> (nativeTranscribe(context, samples, language.substringBefore('-'), translate, threads)
                 ?.toString(Charsets.UTF_8)?.trim()
                 ?: throw IOException("On-phone transcription failed."))
                 .also { if (language == "auto") nativeDetectedLanguage(context)?.let { code -> onLanguage?.invoke(code) } }
@@ -266,7 +306,7 @@ internal object LocalWhisper {
     // so lectures and long takes go through in pieces of at most 20 seconds
     private fun transcribeParakeet(samples: FloatArray): String =
         splitAtPauses(samples, PARAKEET_PIECE_SAMPLES, PARAKEET_SEARCH_SAMPLES).joinToString(" ") { piece ->
-            nativeTranscribeParakeet(context, samples.copyOfRange(piece.first, piece.last + 1))
+            nativeTranscribeParakeet(context, samples.copyOfRange(piece.first, piece.last + 1), threads)
                 ?.toString(Charsets.UTF_8)?.trim()
                 ?: throw IOException("On-phone transcription failed.")
         }.replace(Regex(" {2,}"), " ").trim()

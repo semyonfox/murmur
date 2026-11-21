@@ -148,7 +148,7 @@ private fun ModelRow(
 ) {
     val context = LocalContext.current
     val installed = remember(revision) { LocalSpeechModels.isInstalled(context, speechModel) }
-    val supported = remember(revision) { LocalSpeechModels.canRun(context, speechModel) }
+    val supported = remember(revision) { LocalSpeechModels.cpuSupported && LocalSpeechModels.canRun(context, speechModel) }
     val resumable = remember(revision) { File(LocalSpeechModels.file(context, speechModel).absolutePath + ".part").length() > 0 }
     val selected = model.settings.localModelId == speechModel.id
     val downloading = downloadingId == speechModel.id
@@ -157,6 +157,7 @@ private fun ModelRow(
         speechModel.label,
         when {
             downloading -> "Downloading · ${LocalSpeechModels.downloadPercent}%"
+            !LocalSpeechModels.cpuSupported -> "Needs a newer processor"
             !supported -> "Needs ${speechModel.minimumRamGb} GB RAM"
             installed -> "On this phone · $size"
             resumable -> "Partly downloaded · $size"

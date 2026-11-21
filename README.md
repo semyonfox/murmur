@@ -1,6 +1,6 @@
 # Murmur
 
-Murmur is a Handy-based desktop dictation MVP with local speech recognition, bring-your-own-key endpoints and optional transcript cleanup. The intended product covers Linux, Windows, macOS, iOS and Android. The desktop app and an initial native Android voice bubble with a keyboard fallback are implemented; iOS and the managed service remain future work. `Murmur` is a temporary name, with no name or trademark clearance.
+Murmur is a Handy-based desktop dictation MVP with local speech recognition, bring-your-own-key endpoints and optional transcript cleanup. The intended product covers Linux, Windows, macOS, iOS and Android. The desktop app and an initial native Android voice bubble are implemented; iOS and the managed service remain future work. `Murmur` is a temporary name, with no name or trademark clearance.
 
 Start with the [desktop setup guide](apps/desktop/README.md). The frontend and native Linux host build on the CachyOS PC. A native-Wayland AppImage passed synthetic local inference on Vulkan and CPU; a global shortcut started microphone capture and showed a layer-shell recording indicator on Hyprland. The settings window stayed at 680×570. The 27 September build adds a modifier-release guard before Linux insertion and is running on the PC. Text insertion and full live dictation still need physical QA, so this is not yet a verified daily replacement for Wispr Flow.
 

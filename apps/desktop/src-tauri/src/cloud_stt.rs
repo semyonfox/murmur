@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io::Cursor;
 use std::net::IpAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -5,18 +6,39 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Result};
 use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE};
-use reqwest::{Client, StatusCode, Url};
+use reqwest::{StatusCode, Url};
 use serde::Deserialize;
 
 const MAX_AUDIO_BYTES: usize = 25_000_000;
 const MAX_RESPONSE_BYTES: usize = 1_048_576;
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 static NEXT_BOUNDARY: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Deserialize)]
 struct TranscriptionResponse {
     text: String,
+}
+
+/// The server could not be reached or did not answer in time. A caller holding
+/// more audio for the same server should not send it and wait all over again.
+#[derive(Debug)]
+pub struct Unreachable;
+
+impl fmt::Display for Unreachable {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("speech server unreachable")
+    }
+}
+
+impl std::error::Error for Unreachable {}
+
+pub fn is_unreachable(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<Unreachable>().is_some()
+}
+
+/// Hosted servers answer a few seconds of speech in a second or two, so a short
+/// take should not sit on "Transcribing" for minutes when one stalls.
+fn request_timeout(audio: Duration) -> Duration {
+    (Duration::from_secs(15) + audio).clamp(Duration::from_secs(20), Duration::from_secs(120))
 }
 
 /// Transcribe WAV audio through an OpenAI-compatible audio transcription endpoint.
@@ -32,6 +54,22 @@ pub async fn transcribe_wav(
     wav: Vec<u8>,
     language: Option<&str>,
 ) -> Result<String> {
+    let text = transcribe_wav_piece(base_url, model, api_key, wav, language).await?;
+    if text.is_empty() {
+        return Err(anyhow!("Speech server returned an empty transcript"));
+    }
+    Ok(text)
+}
+
+/// Like [`transcribe_wav`], but an empty transcript is a valid answer: one piece
+/// of a longer take can hold a cough or a breath and no words.
+pub async fn transcribe_wav_piece(
+    base_url: &str,
+    model: &str,
+    api_key: &str,
+    wav: Vec<u8>,
+    language: Option<&str>,
+) -> Result<String> {
     let url = transcription_url(base_url)?;
     let model = validate_field("model", model, 256)?;
     let language = language
@@ -41,19 +79,16 @@ pub async fn transcribe_wav(
     if api_key.chars().any(char::is_control) {
         return Err(anyhow!("API key contains invalid characters"));
     }
-    validate_wav(&wav)?;
+    let audio = validate_wav(&wav)?;
 
     let boundary = new_boundary(&wav);
     let body = multipart_body(&boundary, model, language, &wav);
-    let client = Client::builder()
-        .connect_timeout(CONNECT_TIMEOUT)
-        .timeout(REQUEST_TIMEOUT)
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
+    let client = crate::http_client::client()
         .map_err(|_| anyhow!("Could not create the speech HTTP client"))?;
 
     let mut request = client
         .post(url)
+        .timeout(request_timeout(audio))
         .header(
             CONTENT_TYPE,
             format!("multipart/form-data; boundary={boundary}"),
@@ -79,11 +114,7 @@ pub async fn transcribe_wav(
     }
 
     let mut response_bytes = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|_| anyhow!("Could not read speech server response"))?
-    {
+    while let Some(chunk) = response.chunk().await.map_err(request_error)? {
         if chunk.len() > MAX_RESPONSE_BYTES.saturating_sub(response_bytes.len()) {
             return Err(anyhow!("Speech server response is too large"));
         }
@@ -92,11 +123,44 @@ pub async fn transcribe_wav(
 
     let parsed: TranscriptionResponse = serde_json::from_slice(&response_bytes)
         .map_err(|_| anyhow!("Speech server returned an invalid transcription response"))?;
-    let text = parsed.text.trim();
-    if text.is_empty() {
-        return Err(anyhow!("Speech server returned an empty transcript"));
+    Ok(parsed.text.trim().to_owned())
+}
+
+/// The key saved for this endpoint, or the one from the environment, or none
+/// for a local server that needs no key.
+pub async fn stored_api_key(base_url: &str) -> String {
+    let url = base_url.to_owned();
+    let stored = tauri::async_runtime::spawn_blocking(move || crate::secrets::get_stt_key(&url))
+        .await
+        .ok()
+        .and_then(Result::ok)
+        .flatten()
+        .filter(|key| !key.trim().is_empty());
+    if stored.is_none() {
+        log::debug!("No stored STT key; checking the environment key");
     }
-    Ok(text.to_owned())
+    stored
+        .or_else(|| crate::secrets::stt_env_key(base_url))
+        .unwrap_or_default()
+}
+
+/// 16 kHz mono samples as the 16 bit WAV these endpoints accept.
+pub fn encode_wav(samples: &[f32]) -> Result<Vec<u8>> {
+    let mut cursor = Cursor::new(Vec::with_capacity(44 + samples.len() * 2));
+    let mut writer = hound::WavWriter::new(
+        &mut cursor,
+        hound::WavSpec {
+            channels: 1,
+            sample_rate: 16_000,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        },
+    )?;
+    for sample in samples {
+        writer.write_sample((sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16)?;
+    }
+    writer.finalize()?;
+    Ok(cursor.into_inner())
 }
 
 pub(crate) fn transcription_url(base_url: &str) -> Result<Url> {
@@ -153,7 +217,8 @@ fn validate_field<'a>(name: &str, value: &'a str, max_len: usize) -> Result<&'a 
     Ok(value)
 }
 
-fn validate_wav(wav: &[u8]) -> Result<()> {
+/// Checks the upload and returns how much audio it holds.
+fn validate_wav(wav: &[u8]) -> Result<Duration> {
     if wav.len() > MAX_AUDIO_BYTES {
         return Err(anyhow!("Recording is too large for this speech endpoint"));
     }
@@ -162,7 +227,9 @@ fn validate_wav(wav: &[u8]) -> Result<()> {
     if reader.duration() == 0 {
         return Err(anyhow!("Recording contains no audio"));
     }
-    Ok(())
+    Ok(Duration::from_secs_f64(
+        f64::from(reader.duration()) / f64::from(reader.spec().sample_rate.max(1)),
+    ))
 }
 
 fn new_boundary(wav: &[u8]) -> String {
@@ -214,9 +281,9 @@ fn append_field(body: &mut Vec<u8>, boundary: &str, name: &str, value: &str) {
 
 fn request_error(error: reqwest::Error) -> anyhow::Error {
     if error.is_timeout() {
-        anyhow!("Speech server request timed out")
+        anyhow::Error::new(Unreachable).context("Speech server request timed out")
     } else if error.is_connect() {
-        anyhow!("Could not connect to speech server")
+        anyhow::Error::new(Unreachable).context("Could not connect to speech server")
     } else {
         anyhow!("Speech server request failed")
     }

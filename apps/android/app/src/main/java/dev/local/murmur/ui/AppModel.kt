@@ -68,7 +68,7 @@ internal class AppModel(val context: Context) {
 
     fun selectedLocalModel() = settings.localModelId
         ?.let { id -> LocalSpeechModels.catalog.firstOrNull { it.id == id } }
-        ?.takeIf { LocalSpeechModels.isInstalled(context, it) && LocalSpeechModels.canRun(context, it) }
+        ?.takeIf { LocalSpeechModels.cpuSupported && LocalSpeechModels.isInstalled(context, it) && LocalSpeechModels.canRun(context, it) }
 
     fun recognitionIssue(forSavedAudio: Boolean): String? {
         if (settings.useOnDeviceRecognition) {

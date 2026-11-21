@@ -341,8 +341,10 @@ fn create_audio_recorder(
             let router = stream_router;
             move |frame| {
                 router.feed(frame);
+                crate::live_stt::live().feed(frame);
             }
-        });
+        })
+        .with_silence_callback(|samples| crate::live_stt::live().silence(samples));
 
     Ok(recorder)
 }

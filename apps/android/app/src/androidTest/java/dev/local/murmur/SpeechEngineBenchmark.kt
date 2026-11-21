@@ -21,7 +21,8 @@ import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-// before/after comparison of the two on-device engines behind "phone speech service".
+// before/after comparison of the two on-device engines behind "phone speech service",
+// plus the downloaded models, so a change to the native build or its threads can be measured.
 // both get the same clip in real time through their pcm inputs. latency is the time from the
 // last audio byte (the moment a user taps stop) to the final text. run on a physical phone:
 //   ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=dev.local.murmur.SpeechEngineBenchmark
@@ -60,6 +61,34 @@ class SpeechEngineBenchmark {
             val text = session.finish()
             Trial(SystemClock.elapsedRealtime() - stopped, text)
         })
+    }
+
+    // every downloaded whisper and parakeet model on the whole clip, the way a short
+    // dictation reaches them. latency here is the full transcription time, so compare
+    // it with the clip length rather than with the streaming engines above.
+    // download the models in the app first, a phone with none skips this
+    @Test
+    fun localModels() {
+        val installed = LocalSpeechModels.catalog.filter { LocalSpeechModels.isInstalled(app, it) }
+        assumeTrue("no downloaded speech model", installed.isNotEmpty() && LocalSpeechModels.cpuSupported)
+        val clip = java.io.File.createTempFile("murmur-bench-", ".wav", app.cacheDir)
+        try {
+            clip.writeBytes(PcmRecorder.wavHeader(pcm.size) + pcm)
+            for (model in installed) {
+                val file = LocalSpeechModels.file(app, model)
+                val loading = SystemClock.elapsedRealtime()
+                LocalWhisper.preload(file)
+                Log.i(TAG, "${model.id} loaded in ${SystemClock.elapsedRealtime() - loading} ms, clip is ${pcm.size * 1000L / BYTES_PER_SECOND} ms")
+                report(model.id, List(TRIALS) {
+                    val started = SystemClock.elapsedRealtime()
+                    val text = LocalWhisper.transcribe(file, clip, "en", false)
+                    Trial(SystemClock.elapsedRealtime() - started, text)
+                })
+            }
+        } finally {
+            LocalWhisper.release()
+            clip.delete()
+        }
     }
 
     @RequiresApi(33)

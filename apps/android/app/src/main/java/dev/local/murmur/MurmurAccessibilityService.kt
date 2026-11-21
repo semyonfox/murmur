@@ -261,7 +261,7 @@ class MurmurAccessibilityService : AccessibilityService() {
         engine = endpoint.localModel?.name ?: endpoint.uri.host.orEmpty()
         val chunks = ChunkedTranscription(worker, TranscriptionClient(), endpoint)
         try {
-            capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled, chunkMinSeconds = chunks.minChunkSeconds, onChunk = { piece ->
+            capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled, chunkMinSeconds = chunks.minChunkSeconds, onChunk = { piece, _ ->
                 if (recordingSession == session && chunked === chunks) chunks.add(piece) else piece.delete()
             }) { result ->
                 capture = null
@@ -423,7 +423,8 @@ class MurmurAccessibilityService : AccessibilityService() {
     private fun prepareWhileRecording(endpoint: TranscriptionEndpoint?, cleanup: CleanupEndpoint?) {
         val model = endpoint?.localModel
         if (model != null) worker.submit { LocalWhisper.preload(model) }
-        warmUpConnections(listOfNotNull(endpoint?.uri?.takeIf { model == null }, cleanup?.uri))
+        warmUpConnections(listOfNotNull(endpoint?.uri?.takeIf { model == null }))
+        cleanup?.uri?.let(CleanupClient::warmUp)
     }
 
     private fun beginTranscription(
