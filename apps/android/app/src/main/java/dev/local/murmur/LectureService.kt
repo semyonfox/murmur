@@ -80,8 +80,6 @@ internal class LectureService : Service() {
         @Volatile var recordingDone = false
         @Volatile var discarded = false
         @Volatile var failure: Throwable? = null
-        // main thread only, the audio already handed to the worker
-        var queuedBytes = 0L
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -139,7 +137,7 @@ internal class LectureService : Service() {
             // longer than two, keep whisper's context and the timestamps useful
             val capture = PcmRecorder.start(this, File(filesDir, "lectures"), settings.noiseSuppressionEnabled,
                 maxSeconds = 28_800, preserveOnFailure = true,
-                onChunk = { piece -> livePiece(job, piece) }, chunkMinSeconds = 60, chunkMaxSeconds = 120,
+                onChunk = { piece, offsetMs -> livePiece(job, piece, offsetMs) }, chunkMinSeconds = 60, chunkMaxSeconds = 120,
                 onLevel = ::onLevel, onComplete = { result -> recordingComplete(job, result) })
             try {
                 val id = history.addLecture(capture.file,
@@ -160,13 +158,11 @@ internal class LectureService : Service() {
     }
 
     // runs on the main thread, in the order the recorder cut the pieces
-    private fun livePiece(job: Job, piece: File) {
+    private fun livePiece(job: Job, piece: File, offsetMs: Long) {
         if (job.discarded) {
             piece.delete()
             return
         }
-        val offsetMs = job.queuedBytes * 1000L / BYTES_PER_SECOND
-        job.queuedBytes += (piece.length() - WAV_HEADER_BYTES).coerceAtLeast(0L)
         val index = job.pieces++
         enqueue(job.id) {
             try {
@@ -301,10 +297,10 @@ internal class LectureService : Service() {
     // the whole saved file in fixed parts, for imports, retries and short recordings
     private fun transcribeWhole(job: Job, file: File) {
         try {
-            LectureAudio.forEachChunk(file, cacheDir) { chunk, index, total ->
+            LectureAudio.forEachChunk(file, cacheDir) { chunk, index, total, offsetMs ->
                 check(!job.discarded) { "Lecture was deleted." }
                 showPart(job.id, index, total)
-                transcribeInto(job, chunk, index * LectureAudio.CHUNK_SECONDS * 1000L, index, total)
+                transcribeInto(job, chunk, offsetMs, index, total)
                 mutable.update { it.copy(part = index + 1) }
             }
             complete(job)
@@ -461,7 +457,8 @@ internal class LectureService : Service() {
             }
             return
         }
-        if (settings.localModelId != null) LocalWhisper.release()
+        // dictation keeps the model warm between takes, so let it go idle instead of freeing it now
+        if (settings.localModelId != null) LocalWhisper.releaseWhenIdle()
         mutable.update { it.copy(transcribingId = 0L, part = 0, parts = 0, queuedIds = emptyList()) }
         stopForeground(STOP_FOREGROUND_REMOVE)
         foregroundType = 0
@@ -581,8 +578,6 @@ internal class LectureService : Service() {
         private const val EXTRA_ID = "lecture_id"
         private const val EXTRA_TITLE = "lecture_title"
         private const val EXTRA_LANGUAGE = "lecture_language"
-        private const val BYTES_PER_SECOND = 32_000
-        private const val WAV_HEADER_BYTES = 44
         private const val CHANNEL_ID = "lecture"
         private const val NOTIFICATION_ID = 103
 

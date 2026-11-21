@@ -16,13 +16,16 @@ internal object LectureAudio {
     private const val SAMPLE_RATE = 16_000
     private const val BYTES_PER_SECOND = SAMPLE_RATE * 2
     private const val HEADER_BYTES = 44
-    const val CHUNK_SECONDS = 120
-    private const val CHUNK_BYTES = BYTES_PER_SECOND * CHUNK_SECONDS
+    private const val CHUNK_BYTES = BYTES_PER_SECOND * 120
+    private const val FRAME_BYTES = 640
+    private const val SEARCH_BYTES = BYTES_PER_SECOND * 10
     private const val MAX_SAMPLES = SAMPLE_RATE * 28_800L
 
     fun durationMs(file: File): Long = ((file.length() - HEADER_BYTES).coerceAtLeast(0) * 1000L) / BYTES_PER_SECOND
 
-    fun forEachChunk(file: File, cacheDir: File, consume: (File, Int, Int) -> Unit) {
+    // parts of about two minutes. each one ends at the quietest moment of its last
+    // ten seconds, so a word is not split between two requests
+    fun forEachChunk(file: File, cacheDir: File, consume: (chunk: File, index: Int, total: Int, offsetMs: Long) -> Unit) {
         RandomAccessFile(file, "r").use { source ->
             val header = ByteArray(HEADER_BYTES)
             source.readFully(header)
@@ -34,29 +37,50 @@ internal object LectureAudio {
                 spec.getShort(34).toInt() == 16) { "Recording is not 16 kHz mono audio." }
             val available = source.length() - HEADER_BYTES
             require(available > 0 && available % 2L == 0L) { "Recording is empty or incomplete." }
-            val total = ((available + CHUNK_BYTES - 1) / CHUNK_BYTES).toInt()
-            var remaining = available
-            for (index in 0 until total) {
+            val window = ByteArray(CHUNK_BYTES)
+            var position = 0L
+            var index = 0
+            while (position < available) {
                 check(!Thread.currentThread().isInterrupted) { "Transcription stopped." }
+                val left = available - position
+                val read = minOf(left, CHUNK_BYTES.toLong()).toInt()
+                source.seek(HEADER_BYTES + position)
+                source.readFully(window, 0, read)
+                val length = if (left > CHUNK_BYTES) quietestCut(window) else read
+                val total = index + 1 + ((left - length + CHUNK_BYTES - 1) / CHUNK_BYTES).toInt()
                 val chunk = File.createTempFile("murmur-lecture-part-", ".wav", cacheDir)
                 try {
-                    WavSink(chunk).use { sink ->
-                        val buffer = ByteArray(16 * 1024)
-                        var left = minOf(remaining, CHUNK_BYTES.toLong())
-                        while (left > 0) {
-                            val count = minOf(buffer.size.toLong(), left).toInt()
-                            source.readFully(buffer, 0, count)
-                            sink.writePcm(buffer, count)
-                            left -= count
-                        }
-                    }
-                    consume(chunk, index, total)
+                    WavSink(chunk).use { it.writePcm(window, length) }
+                    consume(chunk, index, total, position * 1000L / BYTES_PER_SECOND)
                 } finally {
                     chunk.delete()
                 }
-                remaining -= minOf(remaining, CHUNK_BYTES.toLong())
+                position += length
+                index++
             }
         }
+    }
+
+    // the middle of the quietest 20 ms in the last ten seconds of a full window
+    private fun quietestCut(window: ByteArray): Int {
+        var cut = window.size
+        var quietest = Long.MAX_VALUE
+        var frame = window.size - FRAME_BYTES
+        while (frame >= window.size - SEARCH_BYTES) {
+            var energy = 0L
+            var index = frame
+            while (index < frame + FRAME_BYTES) {
+                val sample = (window[index].toInt() and 0xff) or (window[index + 1].toInt() shl 8)
+                energy += sample.toLong() * sample
+                index += 2
+            }
+            if (energy < quietest) {
+                quietest = energy
+                cut = frame + FRAME_BYTES / 2
+            }
+            frame -= FRAME_BYTES
+        }
+        return cut
     }
 
     fun import(context: Context, uri: Uri, destination: File) {

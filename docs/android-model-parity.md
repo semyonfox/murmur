@@ -1,10 +1,10 @@
 # Android and desktop model settings
 
-The two apps use the same choices where a phone can perform the work. Android keeps three speech paths separate: the phone's installed speech service, a downloaded Whisper model, and an explicit endpoint. The installed service does not expose a selectable model and cannot transcribe a saved lecture file.
+The two apps use the same choices where a phone can perform the work. Android keeps three speech paths separate: the phone's speech service (with Google's ML Kit model streamed live where the phone supports it), a downloaded Whisper or Parakeet model, and an explicit endpoint. The installed service does not expose a selectable model and cannot transcribe a saved lecture file.
 
 | Setting or action | Desktop | Android |
 | --- | --- | --- |
-| Local speech models | Download, select and delete from the desktop catalog | Download, resume, cancel, select and delete four Whisper sizes; size and SHA-256 verified before use |
+| Local speech models | Download, select and delete from the desktop catalog | Download, resume, cancel, select and delete four Whisper sizes and two Parakeet v3 files; size and SHA-256 verified before use. The 64 bit engine needs a processor with dot product and half precision support (Cortex-A55 or A75 and newer) |
 | Speech endpoint | OpenRouter, OpenAI, Groq and custom URL with model and key | Same choices, with encrypted keys and remembered model IDs per URL |
 | Language | Auto or a selected language | Auto or language code; passed to downloaded Whisper, the installed speech service and compatible endpoints |
 | Translate to English | Available on models that support it | Available on downloaded multilingual Whisper models |
@@ -17,4 +17,4 @@ The two apps use the same choices where a phone can perform the work. Android ke
 | Dictionary | Preferred spelling terms | Same terms, supplied to cleanup as spelling data |
 | Provider usage | OpenRouter key totals in Stats | Same weekly, monthly and all-time key totals in Stats; direct provider and local usage are outside these totals |
 
-The desktop catalog includes additional native engines and filters. Android's current catalog is four multilingual Whisper models with RAM checks. Adding other phone runtimes needs a device benchmark and a model-license check. The Android APK and JVM tests passed; local inference, large downloads, battery use, long lectures and insertion after transcription still need device tests. No Android device was attached during this change.
+The desktop catalog includes additional native engines and filters. Android's current catalog is four multilingual Whisper models and Parakeet v3 in two sizes, with RAM and processor checks. Adding other phone runtimes needs a device benchmark and a model-license check. The Android APK and JVM tests passed; local inference, large downloads, battery use, long lectures and insertion after transcription still need device tests. No Android device was attached during this change.

@@ -185,6 +185,7 @@ internal class AppSettings(context: Context) {
     fun activeEndpointOrNull(): TranscriptionEndpoint? {
         val id = localModelId ?: return endpointOrNull()
         val selected = LocalSpeechModels.catalog.firstOrNull { it.id == id } ?: return null
+        require(LocalSpeechModels.cpuSupported) { "This phone's processor is too old for on-phone models. Choose the phone speech service or an online service." }
         require(LocalSpeechModels.canRun(appContext, selected)) { "This phone does not have enough memory for the selected model." }
         require(LocalSpeechModels.isInstalled(appContext, selected)) { "Download the selected speech model first." }
         return TranscriptionEndpoint(URI("murmur-local://speech/audio/transcriptions"), id, null,

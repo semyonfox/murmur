@@ -8,6 +8,8 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
+import kotlin.math.ln
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 private const val FRAME_SAMPLES = 320
@@ -41,9 +43,25 @@ internal fun splitAtPauses(samples: FloatArray, maxSamples: Int, searchSamples: 
     return pieces
 }
 
+// a cut piece of the recording and where it started, so a dropped silent piece
+// does not shift the timestamps of the pieces after it
+internal class AudioPiece(val pcm: ByteArray, val offsetBytes: Long)
+
+// frames quieter than this are a pause wherever they fall, on a 16 bit scale
+private const val QUIET_LEVEL = 60
+// a piece needs this much sound above the pause level to be worth transcribing
+private const val SPEECH_FRAMES = 10
+// how long a level must last to count as the speaker's, so a slammed door or a
+// bumped phone does not make ordinary speech look like a pause
+private const val SUSTAINED_FRAMES = 25
+private const val LEVEL_BUCKETS = 64
+private const val MIN_TAIL_BYTES = BYTES_PER_SECOND / 5
+
 // cuts live 16 kHz mono PCM into pieces at natural pauses while recording continues.
-// a pause is a run of frames well below the loudest speech heard in the piece, which
-// adapts to quiet microphones and noise suppression better than a fixed level
+// a pause is a run of frames well below the speech level of the piece, which adapts
+// to quiet microphones and noise suppression better than a fixed level. pieces with
+// no sound above the pause level are dropped, because whisper tends to invent words
+// like "thank you" for silent clips and an endpoint bills for them
 internal class PauseChunker(
     minSeconds: Int,
     private val maxBytes: Int = 25 * BYTES_PER_SECOND,
@@ -52,41 +70,48 @@ internal class PauseChunker(
     private val minBytes = minSeconds * BYTES_PER_SECOND
     private var data = ByteArray(maxBytes + 64 * 1024)
     private var size = 0
+    private var cutBytes = 0L
     private val frameLevels = ArrayList<Int>()
+    // frame levels of the current piece in quarter-octave buckets
+    private val histogram = IntArray(LEVEL_BUCKETS)
     private var quietRun = 0
-    private var loudest = 0
-    private var overallLoudest = 0
 
-    fun add(buffer: ByteArray, count: Int): List<ByteArray> {
+    fun add(buffer: ByteArray, count: Int): List<AudioPiece> {
         if (size + count > data.size) data = data.copyOf(maxOf(data.size * 2, size + count))
         System.arraycopy(buffer, 0, data, size, count)
         size += count
-        val pieces = mutableListOf<ByteArray>()
+        val pieces = mutableListOf<AudioPiece>()
         while ((frameLevels.size + 1) * FRAME_BYTES <= size) {
             val level = frameLevel(frameLevels.size * FRAME_BYTES)
             frameLevels += level
-            loudest = maxOf(loudest, level)
-            overallLoudest = maxOf(overallLoudest, level)
-            quietRun = if (isQuiet(level)) quietRun + 1 else 0
+            histogram[bucketOf(level)]++
+            quietRun = if (level < maxOf(QUIET_LEVEL, speechLevel() / 8)) quietRun + 1 else 0
             val analysed = frameLevels.size * FRAME_BYTES
             val cutFrame = when {
                 analysed >= minBytes && quietRun >= pauseFrames -> frameLevels.size - quietRun / 2
                 analysed >= maxBytes -> quietestFrame(frameLevels.size - 5 * BYTES_PER_SECOND / FRAME_BYTES)
                 else -> null
             }
-            if (cutFrame != null) pieces += cut(cutFrame)
+            if (cutFrame != null) cut(cutFrame)?.let { pieces += it }
         }
         return pieces
     }
 
-    // the remainder after the last cut, or null when it holds no speech, because
-    // whisper tends to invent words like "thank you" for silent clips
-    fun finish(): ByteArray? {
-        if (size < BYTES_PER_SECOND / 2 || loudest * 4 < overallLoudest) return null
-        return data.copyOf(size)
+    // the remainder after the last cut, or null when it holds no speech
+    fun finish(): AudioPiece? {
+        if (size < MIN_TAIL_BYTES || !hasSpeech(frameLevels)) return null
+        return AudioPiece(data.copyOf(size), cutBytes)
     }
 
-    private fun isQuiet(level: Int): Boolean = level < maxOf(60, loudest / 8)
+    // the loudest level the piece has held for half a second in total
+    private fun speechLevel(): Int {
+        var frames = 0
+        for (bucket in LEVEL_BUCKETS - 1 downTo 1) {
+            frames += histogram[bucket]
+            if (frames >= SUSTAINED_FRAMES) return bucketFloor(bucket)
+        }
+        return 0
+    }
 
     private fun quietestFrame(from: Int): Int {
         var best = frameLevels.size
@@ -100,13 +125,15 @@ internal class PauseChunker(
         return best
     }
 
-    private fun cut(frame: Int): ByteArray {
+    private fun cut(frame: Int): AudioPiece? {
         val bytes = frame * FRAME_BYTES
-        val piece = data.copyOf(bytes)
+        val piece = if (hasSpeech(frameLevels.subList(0, frame))) AudioPiece(data.copyOf(bytes), cutBytes) else null
         System.arraycopy(data, bytes, data, 0, size - bytes)
         size -= bytes
+        cutBytes += bytes
         frameLevels.subList(0, frame).clear()
-        loudest = frameLevels.maxOrNull() ?: 0
+        histogram.fill(0)
+        for (level in frameLevels) histogram[bucketOf(level)]++
         quietRun = 0
         return piece
     }
@@ -122,6 +149,16 @@ internal class PauseChunker(
         return sqrt(sum / FRAME_SAMPLES).toInt()
     }
 }
+
+// a short word lasts about a fifth of a second, so anything with less sound
+// than that above the pause level is silence or a click
+private fun hasSpeech(levels: List<Int>): Boolean =
+    levels.count { it >= QUIET_LEVEL } >= minOf(SPEECH_FRAMES, maxOf(1, levels.size / 4))
+
+private fun bucketOf(level: Int): Int =
+    if (level <= 0) 0 else minOf(LEVEL_BUCKETS - 1, 1 + (4 * ln(level.toDouble()) / ln(2.0)).toInt())
+
+private fun bucketFloor(bucket: Int): Int = 2.0.pow((bucket - 1) / 4.0).toInt()
 
 // transcribes pieces of a dictation while the user is still speaking, so stopping
 // only waits for the last few seconds instead of the whole recording

@@ -9,6 +9,13 @@ set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+# without this ggml builds for the 2011 ARMv8.0 baseline and leaves out the dot
+# product kernels the quantised models run on. every 64 bit core since the
+# Cortex-A55 and A75 has both features, and LocalSpeechModels.cpuSupported keeps
+# older phones away from the models instead of letting them crash
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+fp16" CACHE STRING "" FORCE)
+endif()
 if(ANDROID_ABI STREQUAL "arm64-v8a" OR ANDROID_ABI STREQUAL "x86_64")
     add_link_options(-Wl,-z,max-page-size=16384)
 endif()

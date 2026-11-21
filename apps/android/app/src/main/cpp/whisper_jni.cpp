@@ -21,7 +21,7 @@ Java_dev_local_murmur_LocalWhisper_nativeClose(JNIEnv *, jobject, jlong context_
 
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_dev_local_murmur_LocalWhisper_nativeTranscribe(
-    JNIEnv *env, jobject, jlong context_ptr, jfloatArray samples, jstring language, jboolean translate) {
+    JNIEnv *env, jobject, jlong context_ptr, jfloatArray samples, jstring language, jboolean translate, jint threads) {
     auto *context = reinterpret_cast<whisper_context *>(context_ptr);
     if (!context) return nullptr;
     const char *lang = env->GetStringUTFChars(language, nullptr);
@@ -43,7 +43,7 @@ Java_dev_local_murmur_LocalWhisper_nativeTranscribe(
     // through audio longer than one 30 second window, as in lectures
     full.no_timestamps = length <= 30 * WHISPER_SAMPLE_RATE;
     full.print_special = false;
-    full.n_threads = 4;
+    full.n_threads = threads;
     const int status = whisper_full(context, full, data, length);
     env->ReleaseFloatArrayElements(samples, data, JNI_ABORT);
     env->ReleaseStringUTFChars(language, lang);
@@ -88,14 +88,14 @@ Java_dev_local_murmur_LocalWhisper_nativeCloseParakeet(JNIEnv *, jobject, jlong 
 }
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_dev_local_murmur_LocalWhisper_nativeTranscribeParakeet(JNIEnv *env, jobject, jlong context_ptr, jfloatArray samples) {
+Java_dev_local_murmur_LocalWhisper_nativeTranscribeParakeet(JNIEnv *env, jobject, jlong context_ptr, jfloatArray samples, jint threads) {
     auto *context = reinterpret_cast<parakeet_context *>(context_ptr);
     if (!context) return nullptr;
     jfloat *data = env->GetFloatArrayElements(samples, nullptr);
     if (!data) return nullptr;
     const jsize length = env->GetArrayLength(samples);
     auto full = parakeet_full_default_params(PARAKEET_SAMPLING_GREEDY);
-    full.n_threads = 4;
+    full.n_threads = threads;
     const int status = parakeet_full(context, full, data, length);
     env->ReleaseFloatArrayElements(samples, data, JNI_ABORT);
     if (status != 0) return nullptr;

@@ -22,7 +22,7 @@ internal class PcmRecorder private constructor(
     private val noiseSuppressor: NoiseSuppressor?,
     private val maxPcmBytes: Int,
     private val preserveOnFailure: Boolean,
-    private val onChunk: ((File) -> Unit)?,
+    private val onChunk: ((piece: File, offsetMs: Long) -> Unit)?,
     private val chunkMinSeconds: Int,
     private val chunkMaxSeconds: Int,
     private val onLevel: ((level: Float, recordedMs: Long) -> Unit)?,
@@ -134,10 +134,11 @@ internal class PcmRecorder private constructor(
         }
     }
 
-    private fun emitChunk(pcm: ByteArray) {
-        val chunk = pcmToWav(pcm, file.parentFile ?: return)
+    private fun emitChunk(piece: AudioPiece) {
+        val chunk = pcmToWav(piece.pcm, file.parentFile ?: return)
+        val offsetMs = piece.offsetBytes * 1000L / (SAMPLE_RATE * BYTES_PER_SAMPLE)
         mainHandler.post {
-            if (discard.get()) chunk.delete() else onChunk?.invoke(chunk) ?: chunk.delete()
+            if (discard.get()) chunk.delete() else onChunk?.invoke(chunk, offsetMs) ?: chunk.delete()
         }
     }
 
@@ -186,7 +187,8 @@ internal class PcmRecorder private constructor(
             suppressNoise: Boolean,
             maxSeconds: Int = DEFAULT_MAX_SECONDS,
             preserveOnFailure: Boolean = false,
-            onChunk: ((File) -> Unit)? = null,
+            // called on the main thread with each piece that holds speech and where it starts
+            onChunk: ((piece: File, offsetMs: Long) -> Unit)? = null,
             chunkMinSeconds: Int = 3,
             chunkMaxSeconds: Int = 25,
             onLevel: ((level: Float, recordedMs: Long) -> Unit)? = null,
