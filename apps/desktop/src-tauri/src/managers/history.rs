@@ -130,6 +130,21 @@ impl StatsBucket {
     }
 }
 
+#[derive(Debug)]
+struct UnsupportedHistoryVersion(i32);
+
+impl std::fmt::Display for UnsupportedHistoryVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "History database version {} is newer than supported",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for UnsupportedHistoryVersion {}
+
 pub struct HistoryManager {
     app_handle: AppHandle,
     recordings_dir: PathBuf,
@@ -149,7 +164,7 @@ impl Drop for HistoryWork {
 }
 
 impl HistoryManager {
-    pub fn new(app_handle: &AppHandle) -> Result<Self> {
+    pub fn new(app_handle: &AppHandle) -> Result<(Self, Option<PathBuf>)> {
         // Create recordings directory in app data dir
         let app_data_dir = crate::portable::app_data_dir(app_handle)?;
         let recordings_dir = app_data_dir.join("recordings");
@@ -168,20 +183,39 @@ impl HistoryManager {
             active_entries: Arc::default(),
         };
 
-        // Initialize database and run migrations synchronously
-        manager.init_database()?;
+        let backup = Self::prepare_database(&manager.db_path)?;
         manager.prune_after_work();
-        Ok(manager)
+        Ok((manager, backup))
     }
 
-    fn init_database(&self) -> Result<()> {
-        info!("Initializing database at {:?}", self.db_path);
+    fn prepare_database(db_path: &Path) -> Result<Option<PathBuf>> {
+        match Self::init_database(db_path) {
+            Ok(()) => Ok(None),
+            Err(error) if is_unusable_history_database(&error) => {
+                let directory = db_path
+                    .parent()
+                    .context("History database has no directory")?;
+                let backup = move_history_database_aside(directory)
+                    .context("Could not preserve the existing history database")?;
+                log::warn!(
+                    "Preserved unreadable history database in {}: {error}",
+                    backup.display()
+                );
+                Self::init_database(db_path)?;
+                Ok(Some(backup))
+            }
+            Err(error) => Err(error),
+        }
+    }
 
-        let mut conn = Connection::open(&self.db_path)?;
+    fn init_database(db_path: &Path) -> Result<()> {
+        info!("Initializing database at {:?}", db_path);
+
+        let mut conn = Connection::open(db_path)?;
 
         // Handle migration from tauri-plugin-sql to rusqlite_migration
         // tauri-plugin-sql used _sqlx_migrations table, rusqlite_migration uses user_version pragma
-        self.migrate_from_tauri_plugin_sql(&conn)?;
+        Self::migrate_from_tauri_plugin_sql(&conn)?;
 
         // Create migrations object and run to latest version
         let migrations = Migrations::new(MIGRATIONS.to_vec());
@@ -193,6 +227,9 @@ impl HistoryManager {
         // Get current version before migration
         let version_before: i32 =
             conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        if version_before > MIGRATIONS.len() as i32 {
+            return Err(UnsupportedHistoryVersion(version_before).into());
+        }
         debug!("Database version before migration: {}", version_before);
 
         // Apply any pending migrations
@@ -217,15 +254,13 @@ impl HistoryManager {
     /// tauri-plugin-sql used a _sqlx_migrations table, while rusqlite_migration uses
     /// SQLite's user_version pragma. This function checks if the old system was in use
     /// and sets the user_version accordingly so migrations don't re-run.
-    fn migrate_from_tauri_plugin_sql(&self, conn: &Connection) -> Result<()> {
+    fn migrate_from_tauri_plugin_sql(conn: &Connection) -> Result<()> {
         // Check if the old _sqlx_migrations table exists
-        let has_sqlx_migrations: bool = conn
-            .query_row(
-                "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name='_sqlx_migrations'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap_or(false);
+        let has_sqlx_migrations: bool = conn.query_row(
+            "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name='_sqlx_migrations'",
+            [],
+            |row| row.get(0),
+        )?;
 
         if !has_sqlx_migrations {
             return Ok(());
@@ -1008,6 +1043,57 @@ impl HistoryManager {
     }
 }
 
+fn is_unusable_history_database(error: &anyhow::Error) -> bool {
+    error.is::<UnsupportedHistoryVersion>()
+        || error.chain().any(|cause| {
+            cause
+                .downcast_ref::<rusqlite::Error>()
+                .is_some_and(|error| {
+                    matches!(
+                        error.sqlite_error_code(),
+                        Some(
+                            rusqlite::ErrorCode::DatabaseCorrupt
+                                | rusqlite::ErrorCode::NotADatabase
+                        )
+                    )
+                })
+        })
+}
+
+fn move_history_database_aside(directory: &Path) -> std::io::Result<PathBuf> {
+    let backup = tempfile::Builder::new()
+        .prefix("history-recovery-")
+        .tempdir_in(directory)?
+        .keep();
+    let mut moved = Vec::new();
+    // move the database last so a sidecar failure can leave the main file in place
+    for name in [
+        "history.db-wal",
+        "history.db-shm",
+        "history.db-journal",
+        "history.db",
+    ] {
+        if let Err(error) = fs::rename(directory.join(name), backup.join(name)) {
+            if name != "history.db" && error.kind() == ErrorKind::NotFound {
+                continue;
+            }
+            for moved_name in moved {
+                if let Err(rollback) =
+                    fs::rename(backup.join(moved_name), directory.join(moved_name))
+                {
+                    error!(
+                        "Could not restore {moved_name} from {}: {rollback}",
+                        backup.display()
+                    );
+                }
+            }
+            return Err(error);
+        }
+        moved.push(name);
+    }
+    Ok(backup)
+}
+
 fn open_archive_audio(recordings_dir: &Path, file_name: &str) -> Result<Option<fs::File>> {
     let mut components = Path::new(file_name).components();
     if !matches!(
@@ -1096,6 +1182,33 @@ mod tests {
     use chrono::TimeZone;
     use hound::{SampleFormat, WavSpec, WavWriter};
     use rusqlite::{params, Connection};
+
+    #[test]
+    fn startup_preserves_bad_or_newer_databases_and_opens_an_empty_history() {
+        for corrupt in [true, false] {
+            let directory = tempfile::tempdir().unwrap();
+            let path = directory.path().join("history.db");
+            if corrupt {
+                fs::write(&path, b"This is not SQLite").unwrap();
+            } else {
+                let conn = Connection::open(&path).unwrap();
+                conn.execute_batch("PRAGMA user_version = 500; CREATE TABLE future_data (id INT);")
+                    .unwrap();
+            }
+            let before = fs::read(&path).unwrap();
+
+            let backup = HistoryManager::prepare_database(&path).unwrap().unwrap();
+
+            assert_eq!(fs::read(backup.join("history.db")).unwrap(), before);
+            let conn = Connection::open(path).unwrap();
+            let rows: i64 = conn
+                .query_row("SELECT count(*) FROM transcription_history", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert_eq!(rows, 0);
+        }
+    }
 
     fn setup_conn() -> Connection {
         let conn = Connection::open_in_memory().expect("open in-memory db");

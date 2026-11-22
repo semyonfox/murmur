@@ -24,14 +24,26 @@ pub fn migrate_legacy_data(app: &AppHandle) -> io::Result<()> {
         return Ok(());
     }
 
-    copy_data_dir(&legacy, &current)?;
+    match copy_data_dir(&legacy, &current) {
+        Ok(()) => log::info!("Migrated previous Murmur data to {}", current.display()),
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+            log::warn!("Keeping current data after a legacy migration conflict: {error}");
+        }
+        Err(error) => return Err(error),
+    }
     fs::write(current.join(MIGRATION_MARKER), b"complete\n")?;
-    log::info!("Migrated previous Murmur data to {}", current.display());
     Ok(())
 }
 
 fn copy_data_dir(source: &Path, target: &Path) -> io::Result<()> {
-    fs::create_dir_all(target)?;
+    visit_data_dir(source, target, false)?;
+    visit_data_dir(source, target, true)
+}
+
+fn visit_data_dir(source: &Path, target: &Path, copy: bool) -> io::Result<()> {
+    if copy {
+        fs::create_dir_all(target)?;
+    }
 
     for entry in fs::read_dir(source)? {
         let entry = entry?;
@@ -53,9 +65,9 @@ fn copy_data_dir(source: &Path, target: &Path) -> io::Result<()> {
                     format!("Migration destination is a file: {}", target_path.display()),
                 ));
             }
-            copy_data_dir(&source_path, &target_path)?;
+            visit_data_dir(&source_path, &target_path, copy)?;
         } else if file_type.is_file() {
-            copy_file(&source_path, &target_path)?;
+            copy_file(&source_path, &target_path, copy)?;
         } else {
             return Err(io::Error::other(format!(
                 "Cannot migrate unsupported file type: {}",
@@ -67,7 +79,7 @@ fn copy_data_dir(source: &Path, target: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn copy_file(source: &Path, target: &Path) -> io::Result<()> {
+fn copy_file(source: &Path, target: &Path, copy: bool) -> io::Result<()> {
     if target.exists() {
         if files_match(source, target)? {
             return Ok(());
@@ -79,6 +91,10 @@ fn copy_file(source: &Path, target: &Path) -> io::Result<()> {
                 target.display()
             ),
         ));
+    }
+
+    if !copy {
+        return Ok(());
     }
 
     let temporary = target.with_extension(format!("murmur-migration-{}", std::process::id()));

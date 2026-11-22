@@ -433,9 +433,10 @@ impl AudioRecordingManager {
             cached_device: Arc::new(Mutex::new(None)),
         };
 
-        // Always-on?  Open immediately.
         if matches!(mode, MicrophoneMode::AlwaysOn) {
-            manager.start_microphone_stream()?;
+            if let Err(error) = manager.start_microphone_stream() {
+                warn!("Could not open the always-on microphone at startup: {error}");
+            }
         }
 
         Ok(manager)

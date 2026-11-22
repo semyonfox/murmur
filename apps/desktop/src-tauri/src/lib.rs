@@ -194,7 +194,7 @@ fn should_force_show_permissions_window(app: &AppHandle) -> bool {
     false
 }
 
-fn initialize_core_logic(app_handle: &AppHandle) {
+fn initialize_core_logic(app_handle: &AppHandle) -> anyhow::Result<()> {
     // Note: Enigo (keyboard/mouse simulation) is NOT initialized here.
     // The frontend is responsible for calling the `initialize_enigo` command
     // after onboarding completes. This avoids triggering permission dialogs
@@ -213,8 +213,20 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         AudioRecordingManager::new(app_handle, transcription_manager.stream_router())
             .expect("Failed to initialize recording manager"),
     );
-    let history_manager =
-        Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));
+    let (history_manager, history_backup) = HistoryManager::new(app_handle)?;
+    let history_manager = Arc::new(history_manager);
+    if let Some(backup) = history_backup {
+        use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+        app_handle
+            .dialog()
+            .message(format!(
+                "Murmur could not open your previous history and started with an empty history. Your previous database was preserved in {}. Your recordings are still in the recordings folder.",
+                backup.display()
+            ))
+            .title("History database preserved")
+            .kind(MessageDialogKind::Warning)
+            .show(|_| {});
+    }
 
     // Initialize the transcribe-cpp native backend (logging + backend module
     // registration) once, before any whisper model is loaded.
@@ -379,6 +391,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
+    Ok(())
 }
 
 #[tauri::command]
@@ -1036,7 +1049,7 @@ pub fn run(cli_args: CliArgs) {
             let app_handle = app.handle().clone();
             app.manage(TranscriptionCoordinator::new(app_handle.clone()));
 
-            initialize_core_logic(&app_handle);
+            initialize_core_logic(&app_handle)?;
 
             // Secure Input monitor (macOS): detects stuck secure input that
             // silently blocks keyed shortcuts, warns the user, and activates
