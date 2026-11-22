@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "Il database della cronologia richiede una versione più recente",
+    "newerHistoryMessage": "Una versione più recente di Murmur ha scritto questo database. Aggiorna Murmur per aprire la cronologia."
+  },
   "tray": {
     "settings": "Impostazioni...",
     "checkUpdates": "Verifica aggiornamenti...",

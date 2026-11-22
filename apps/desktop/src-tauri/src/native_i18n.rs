@@ -1,32 +1,22 @@
-//! Tray menu internationalization
-//!
-//! Everything is auto-generated at compile time by build.rs from the
-//! frontend locale files (src/i18n/locales/*/translation.json).
-//!
-//! The English translation.json is the single source of truth:
-//! - TrayStrings struct fields are derived from the English "tray" keys
-//! - All languages are auto-discovered from the locales directory
-//!
-//! To add a new tray menu item:
-//! 1. Add the key to en/translation.json under "tray"
-//! 2. Add translations to other locale files
-//! 3. Update tray.rs to use the new field (e.g., strings.new_field)
+//! Translations for the tray and native startup dialogs, generated from the frontend locales.
 
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
-// Include the auto-generated TrayStrings struct and TRANSLATIONS static
 include!(concat!(env!("OUT_DIR"), "/tray_translations.rs"));
+include!(concat!(env!("OUT_DIR"), "/startup_translations.rs"));
 
-/// Get localized tray menu strings based on the system locale.
-///
-/// Lookup order: exact locale → Chinese script/region fallback → language code → English.
 pub fn get_tray_translations(locale: Option<String>) -> TrayStrings {
-    let normalized = locale
-        .as_deref()
-        .unwrap_or("en")
-        .to_lowercase()
-        .replace('_', "-");
+    translations_for(&TRAY_TRANSLATIONS, locale.as_deref()).clone()
+}
+
+pub fn get_startup_translations(locale: Option<&str>) -> &'static StartupStrings {
+    translations_for(&STARTUP_TRANSLATIONS, locale)
+}
+
+/// Lookup order: exact locale → Chinese script/region fallback → language code → English.
+fn translations_for<'a, T>(translations: &'a HashMap<&str, T>, locale: Option<&str>) -> &'a T {
+    let normalized = locale.unwrap_or("en").to_lowercase().replace('_', "-");
     let subtags: Vec<_> = normalized.split('-').collect();
     let language = subtags.first().copied().unwrap_or("en");
     let is_hant = subtags.contains(&"hant");
@@ -35,7 +25,7 @@ pub fn get_tray_translations(locale: Option<String>) -> TrayStrings {
         .iter()
         .any(|region| subtags.contains(region));
 
-    let exact_match = TRANSLATIONS
+    let exact_match = translations
         .iter()
         .find_map(|(code, strings)| code.eq_ignore_ascii_case(&normalized).then_some(strings));
     let fallback = match language {
@@ -47,15 +37,14 @@ pub fn get_tray_translations(locale: Option<String>) -> TrayStrings {
     };
 
     exact_match
-        .or_else(|| TRANSLATIONS.get(fallback))
-        .or_else(|| TRANSLATIONS.get("en"))
-        .cloned()
+        .or_else(|| translations.get(fallback))
+        .or_else(|| translations.get("en"))
         .expect("English translations must exist")
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{get_tray_translations, TRANSLATIONS};
+    use super::{get_tray_translations, TRAY_TRANSLATIONS};
 
     #[test]
     fn resolves_locale_fallbacks() {
@@ -74,7 +63,7 @@ mod tests {
         ] {
             assert_eq!(
                 format!("{:?}", get_tray_translations(Some(locale.into()))),
-                format!("{:?}", TRANSLATIONS[expected]),
+                format!("{:?}", TRAY_TRANSLATIONS[expected]),
                 "{locale} should resolve to {expected}"
             );
         }

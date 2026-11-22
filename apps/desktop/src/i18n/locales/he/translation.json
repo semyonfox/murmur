@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "מסד הנתונים של ההיסטוריה דורש גרסה חדשה יותר",
+    "newerHistoryMessage": "גרסה חדשה יותר של Murmur כתבה את מסד הנתונים הזה. יש לעדכן את Murmur כדי לפתוח את ההיסטוריה."
+  },
   "tray": {
     "settings": "הגדרות...",
     "checkUpdates": "בדוק עדכונים...",

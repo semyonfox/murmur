@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "履歴データベースには新しいバージョンが必要です",
+    "newerHistoryMessage": "この履歴データベースは、より新しいバージョンの Murmur で書き込まれました。履歴を開くには Murmur を更新してください。"
+  },
   "tray": {
     "settings": "設定…",
     "checkUpdates": "アップデートを確認…",

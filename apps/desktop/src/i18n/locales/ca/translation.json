@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "La base de dades de l’historial requereix una versió més recent",
+    "newerHistoryMessage": "Una versió més recent de Murmur ha escrit aquesta base de dades de l’historial. Actualitza Murmur per obrir l’historial."
+  },
   "tray": {
     "settings": "Configuració...",
     "checkUpdates": "Comprova si hi ha actualitzacions...",

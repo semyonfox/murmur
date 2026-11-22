@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "De geschiedenisdatabase vereist een nieuwere versie",
+    "newerHistoryMessage": "Een nieuwere versie van Murmur heeft deze database geschreven. Werk Murmur bij om je geschiedenis te openen."
+  },
   "tray": {
     "settings": "Instellingen...",
     "checkUpdates": "Controleren op updates...",

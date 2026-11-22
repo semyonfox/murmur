@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "Basis data riwayat memerlukan versi yang lebih baru",
+    "newerHistoryMessage": "Basis data riwayat ini ditulis oleh versi Murmur yang lebih baru. Perbarui Murmur untuk membuka riwayat Anda."
+  },
   "tray": {
     "settings": "Pengaturan...",
     "checkUpdates": "Periksa Pembaruan...",

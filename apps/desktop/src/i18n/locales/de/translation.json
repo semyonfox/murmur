@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "Die Verlaufsdatenbank erfordert eine neuere Version",
+    "newerHistoryMessage": "Eine neuere Version von Murmur hat diese Verlaufsdatenbank geschrieben. Aktualisiere Murmur, um deinen Verlauf zu öffnen."
+  },
   "tray": {
     "settings": "Einstellungen...",
     "checkUpdates": "Nach Updates suchen...",

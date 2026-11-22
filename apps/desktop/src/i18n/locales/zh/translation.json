@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "历史记录数据库需要较新的版本",
+    "newerHistoryMessage": "此历史记录数据库由较新版本的 Murmur 写入。请更新 Murmur 以打开历史记录。"
+  },
   "tray": {
     "settings": "设置...",
     "checkUpdates": "检查更新...",

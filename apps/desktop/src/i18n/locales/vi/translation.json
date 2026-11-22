@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "Cơ sở dữ liệu lịch sử cần phiên bản mới hơn",
+    "newerHistoryMessage": "Một phiên bản Murmur mới hơn đã ghi cơ sở dữ liệu lịch sử này. Hãy cập nhật Murmur để mở lịch sử của bạn."
+  },
   "tray": {
     "settings": "Cài đặt...",
     "checkUpdates": "Kiểm tra cập nhật...",

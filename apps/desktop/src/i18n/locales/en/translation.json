@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "History database requires a newer version",
+    "newerHistoryMessage": "A newer version of Murmur wrote this history database. Update Murmur to open your history."
+  },
   "tray": {
     "settings": "Settings...",
     "checkUpdates": "Check for Updates...",

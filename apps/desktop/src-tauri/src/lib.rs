@@ -21,6 +21,7 @@ mod llm_client;
 mod managers;
 mod memory;
 mod migration;
+mod native_i18n;
 mod overlay;
 mod paste_tx;
 pub mod portable;
@@ -31,7 +32,6 @@ mod shortcut;
 mod signal_handle;
 mod transcription_coordinator;
 mod tray;
-mod tray_i18n;
 mod utils;
 
 pub use cli::CliArgs;
@@ -194,7 +194,11 @@ fn should_force_show_permissions_window(app: &AppHandle) -> bool {
     false
 }
 
-fn initialize_core_logic(app_handle: &AppHandle) -> anyhow::Result<()> {
+fn initialize_core_logic(
+    app_handle: &AppHandle,
+    history_manager: HistoryManager,
+    history_backup: Option<std::path::PathBuf>,
+) -> anyhow::Result<()> {
     // Note: Enigo (keyboard/mouse simulation) is NOT initialized here.
     // The frontend is responsible for calling the `initialize_enigo` command
     // after onboarding completes. This avoids triggering permission dialogs
@@ -213,7 +217,6 @@ fn initialize_core_logic(app_handle: &AppHandle) -> anyhow::Result<()> {
         AudioRecordingManager::new(app_handle, transcription_manager.stream_router())
             .expect("Failed to initialize recording manager"),
     );
-    let (history_manager, history_backup) = HistoryManager::new(app_handle)?;
     let history_manager = Arc::new(history_manager);
     if let Some(backup) = history_backup {
         use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
@@ -978,6 +981,26 @@ pub fn run(cli_args: CliArgs) {
                 return Ok(());
             }
 
+            let (history_manager, history_backup) = match HistoryManager::new(app.handle()) {
+                Ok(history) => history,
+                Err(error) if error.is::<managers::history::UnsupportedHistoryVersion>() => {
+                    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+
+                    log::error!("{error}");
+                    let settings = get_settings(app.handle());
+                    let strings =
+                        native_i18n::get_startup_translations(Some(&settings.app_language));
+                    let handle = app.handle().clone();
+                    app.dialog()
+                        .message(&strings.newer_history_message)
+                        .title(&strings.newer_history_title)
+                        .kind(MessageDialogKind::Error)
+                        .show(move |_| handle.exit(1));
+                    return Ok(());
+                }
+                Err(error) => return Err(error.into()),
+            };
+
             // Create main window programmatically so we can set data_directory
             // for portable mode (redirects WebView2 cache to portable Data dir)
             let mut win_builder =
@@ -1049,7 +1072,7 @@ pub fn run(cli_args: CliArgs) {
             let app_handle = app.handle().clone();
             app.manage(TranscriptionCoordinator::new(app_handle.clone()));
 
-            initialize_core_logic(&app_handle)?;
+            initialize_core_logic(&app_handle, history_manager, history_backup)?;
 
             // Secure Input monitor (macOS): detects stuck secure input that
             // silently blocks keyed shortcuts, warns the user, and activates

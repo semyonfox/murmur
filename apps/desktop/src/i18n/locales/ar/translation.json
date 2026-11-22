@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "قاعدة بيانات السجل تتطلب إصداراً أحدث",
+    "newerHistoryMessage": "كتب إصدار أحدث من Murmur قاعدة بيانات السجل هذه. حدّث Murmur لفتح سجلك."
+  },
   "tray": {
     "settings": "...الإعدادات",
     "checkUpdates": "...التحقق من وجود تحديثات",

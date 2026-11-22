@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "Baza danych historii wymaga nowszej wersji",
+    "newerHistoryMessage": "Tę bazę danych historii zapisała nowsza wersja Murmur. Zaktualizuj Murmur, aby otworzyć historię."
+  },
   "tray": {
     "settings": "Ustawienia...",
     "checkUpdates": "Sprawdź aktualizacje...",

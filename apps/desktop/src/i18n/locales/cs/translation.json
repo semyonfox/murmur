@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "Databáze historie vyžaduje novější verzi",
+    "newerHistoryMessage": "Tuto databázi historie zapsala novější verze aplikace Murmur. Chcete-li otevřít historii, aktualizujte Murmur."
+  },
   "tray": {
     "settings": "Nastavení...",
     "checkUpdates": "Zkontrolovat aktualizace...",

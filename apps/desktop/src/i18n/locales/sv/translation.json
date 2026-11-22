@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "Historikdatabasen kräver en nyare version",
+    "newerHistoryMessage": "En nyare version av Murmur skrev den här historikdatabasen. Uppdatera Murmur för att öppna din historik."
+  },
   "tray": {
     "settings": "Inställningar...",
     "checkUpdates": "Sök efter uppdateringar...",

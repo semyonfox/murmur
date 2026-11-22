@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "Geçmiş veritabanı daha yeni bir sürüm gerektiriyor",
+    "newerHistoryMessage": "Bu geçmiş veritabanını Murmur’un daha yeni bir sürümü yazdı. Geçmişinizi açmak için Murmur’u güncelleyin."
+  },
   "tray": {
     "settings": "Ayarlar...",
     "checkUpdates": "Güncellemeleri Kontrol Et...",

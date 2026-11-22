@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, Utc};
 use flate2::{write::GzEncoder, Compression};
 use log::{debug, error, info};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{config::DbConfig, params, Connection, OptionalExtension};
 use rusqlite_migration::{Migrations, M};
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -18,7 +18,7 @@ use tauri_specta::Event;
 /// Each migration is applied in order. The library tracks which migrations
 /// have been applied using SQLite's user_version pragma.
 ///
-/// Note: For users upgrading from tauri-plugin-sql, migrate_from_tauri_plugin_sql()
+/// Note: For users upgrading from tauri-plugin-sql, initialisation
 /// converts the old _sqlx_migrations table tracking to the user_version pragma,
 /// ensuring migrations don't re-run on existing databases.
 static MIGRATIONS: &[M] = &[
@@ -133,7 +133,7 @@ impl StatsBucket {
 }
 
 #[derive(Debug)]
-struct UnsupportedHistoryVersion(i32);
+pub(crate) struct UnsupportedHistoryVersion(i32);
 
 impl std::fmt::Display for UnsupportedHistoryVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -218,9 +218,28 @@ impl HistoryManager {
 
         let mut conn = Connection::open(db_path)?;
 
-        // Handle migration from tauri-plugin-sql to rusqlite_migration
-        // tauri-plugin-sql used _sqlx_migrations table, rusqlite_migration uses user_version pragma
-        Self::migrate_from_tauri_plugin_sql(&conn)?;
+        // don't checkpoint a newer database when the connection closes
+        conn.set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true)?;
+        let version_before: i32 =
+            conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        if version_before > MIGRATIONS.len() as i32 {
+            return Err(UnsupportedHistoryVersion(version_before).into());
+        }
+        let legacy_version = Self::legacy_database_version(&conn, version_before)?;
+        let version_before = if legacy_version > 0 {
+            legacy_version
+        } else {
+            version_before
+        };
+        if version_before > MIGRATIONS.len() as i32 {
+            return Err(UnsupportedHistoryVersion(version_before).into());
+        }
+        conn.set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, false)?;
+        if legacy_version > 0 {
+            conn.pragma_update(None, "user_version", legacy_version)?;
+            info!("Converted tauri-plugin-sql migration tracking at version {legacy_version}");
+        }
+        debug!("Database version before migration: {}", version_before);
 
         // Create migrations object and run to latest version
         let migrations = Migrations::new(MIGRATIONS.to_vec());
@@ -228,14 +247,6 @@ impl HistoryManager {
         // Validate migrations in debug builds
         #[cfg(debug_assertions)]
         migrations.validate().expect("Invalid migrations");
-
-        // Get current version before migration
-        let version_before: i32 =
-            conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
-        if version_before > MIGRATIONS.len() as i32 {
-            return Err(UnsupportedHistoryVersion(version_before).into());
-        }
-        debug!("Database version before migration: {}", version_before);
 
         // Apply any pending migrations
         migrations.to_latest(&mut conn)?;
@@ -255,59 +266,24 @@ impl HistoryManager {
         Ok(())
     }
 
-    /// Migrate from tauri-plugin-sql's migration tracking to rusqlite_migration's.
-    /// tauri-plugin-sql used a _sqlx_migrations table, while rusqlite_migration uses
-    /// SQLite's user_version pragma. This function checks if the old system was in use
-    /// and sets the user_version accordingly so migrations don't re-run.
-    fn migrate_from_tauri_plugin_sql(conn: &Connection) -> Result<()> {
-        // Check if the old _sqlx_migrations table exists
+    fn legacy_database_version(conn: &Connection, current_version: i32) -> Result<i32> {
         let has_sqlx_migrations: bool = conn.query_row(
             "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name='_sqlx_migrations'",
             [],
             |row| row.get(0),
         )?;
 
-        if !has_sqlx_migrations {
-            return Ok(());
+        if !has_sqlx_migrations || current_version > 0 {
+            return Ok(0);
         }
 
-        // Check current user_version
-        let current_version: i32 =
-            conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
-
-        if current_version > 0 {
-            // Already migrated to rusqlite_migration system
-            return Ok(());
-        }
-
-        // Get the highest version from the old migrations table
-        let old_version: i32 = conn
+        Ok(conn
             .query_row(
                 "SELECT COALESCE(MAX(version), 0) FROM _sqlx_migrations WHERE success = 1",
                 [],
                 |row| row.get(0),
             )
-            .unwrap_or(0);
-
-        if old_version > 0 {
-            info!(
-                "Migrating from tauri-plugin-sql (version {}) to rusqlite_migration",
-                old_version
-            );
-
-            // Set user_version to match the old migration state
-            conn.pragma_update(None, "user_version", old_version)?;
-
-            // Optionally drop the old migrations table (keeping it doesn't hurt)
-            // conn.execute("DROP TABLE IF EXISTS _sqlx_migrations", [])?;
-
-            info!(
-                "Migration tracking converted: user_version set to {}",
-                old_version
-            );
-        }
-
-        Ok(())
+            .unwrap_or(0))
     }
 
     fn get_connection(&self) -> Result<Connection> {
@@ -1087,20 +1063,16 @@ impl HistoryManager {
 }
 
 fn is_unusable_history_database(error: &anyhow::Error) -> bool {
-    error.is::<UnsupportedHistoryVersion>()
-        || error.chain().any(|cause| {
-            cause
-                .downcast_ref::<rusqlite::Error>()
-                .is_some_and(|error| {
-                    matches!(
-                        error.sqlite_error_code(),
-                        Some(
-                            rusqlite::ErrorCode::DatabaseCorrupt
-                                | rusqlite::ErrorCode::NotADatabase
-                        )
-                    )
-                })
-        })
+    error.chain().any(|cause| {
+        cause
+            .downcast_ref::<rusqlite::Error>()
+            .is_some_and(|error| {
+                matches!(
+                    error.sqlite_error_code(),
+                    Some(rusqlite::ErrorCode::DatabaseCorrupt | rusqlite::ErrorCode::NotADatabase)
+                )
+            })
+    })
 }
 
 fn move_history_database_aside(directory: &Path) -> std::io::Result<PathBuf> {
@@ -1226,30 +1198,43 @@ mod tests {
     use rusqlite::{params, Connection};
 
     #[test]
-    fn startup_preserves_bad_or_newer_databases_and_opens_an_empty_history() {
-        for corrupt in [true, false] {
-            let directory = tempfile::tempdir().unwrap();
-            let path = directory.path().join("history.db");
-            if corrupt {
-                fs::write(&path, b"This is not SQLite").unwrap();
-            } else {
-                let conn = Connection::open(&path).unwrap();
-                conn.execute_batch("PRAGMA user_version = 500; CREATE TABLE future_data (id INT);")
-                    .unwrap();
-            }
-            let before = fs::read(&path).unwrap();
+    fn startup_preserves_unreadable_database_and_opens_an_empty_history() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("history.db");
+        let contents = b"This is not SQLite";
+        fs::write(&path, contents).unwrap();
 
-            let backup = HistoryManager::prepare_database(&path).unwrap().unwrap();
+        let backup = HistoryManager::prepare_database(&path).unwrap().unwrap();
 
-            assert_eq!(fs::read(backup.join("history.db")).unwrap(), before);
-            let conn = Connection::open(path).unwrap();
-            let rows: i64 = conn
-                .query_row("SELECT count(*) FROM transcription_history", [], |row| {
-                    row.get(0)
-                })
-                .unwrap();
-            assert_eq!(rows, 0);
-        }
+        assert_eq!(fs::read(backup.join("history.db")).unwrap(), contents);
+        let conn = Connection::open(path).unwrap();
+        let rows: i64 = conn
+            .query_row("SELECT count(*) FROM transcription_history", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(rows, 0);
+    }
+
+    #[test]
+    fn startup_leaves_newer_database_and_wal_in_place() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("history.db");
+        let wal = path.with_extension("db-wal");
+        let conn = Connection::open(&path).unwrap();
+        conn.set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true)
+            .unwrap();
+        conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA user_version = 500;")
+            .unwrap();
+        drop(conn);
+        let before = fs::read(&path).unwrap();
+        let wal_before = fs::read(&wal).unwrap();
+
+        let error = HistoryManager::prepare_database(&path).unwrap_err();
+
+        assert!(error.is::<UnsupportedHistoryVersion>());
+        assert_eq!(fs::read(&path).unwrap(), before);
+        assert_eq!(fs::read(&wal).unwrap(), wal_before);
     }
 
     fn setup_conn() -> Connection {

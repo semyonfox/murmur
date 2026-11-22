@@ -23,8 +23,8 @@
 use crate::managers::history::{HistoryEntry, HistoryManager};
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::TranscriptionManager;
+use crate::native_i18n::get_tray_translations;
 use crate::settings;
-use crate::tray_i18n::get_tray_translations;
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
 use std::path::PathBuf;

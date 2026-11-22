@@ -1,4 +1,8 @@
 {
+  "startup": {
+    "newerHistoryTitle": "इतिहास डेटाबेस के लिए नया संस्करण चाहिए",
+    "newerHistoryMessage": "यह इतिहास डेटाबेस Murmur के नए संस्करण ने लिखा है। अपना इतिहास खोलने के लिए Murmur अपडेट करें।"
+  },
   "tray": {
     "settings": "सेटिंग...",
     "checkUpdates": "अपडेट जांचें...",
