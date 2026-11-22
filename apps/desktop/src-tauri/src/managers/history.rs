@@ -686,6 +686,7 @@ impl HistoryManager {
         cleanup_succeeded: Option<bool>,
     ) -> Result<()> {
         let keep_previous = cleanup_succeeded == Some(false)
+            && raw.trim() == previous.transcription_text.trim()
             && (previous.post_process_prompt.is_some()
                 || previous
                     .cleanup_succeeded

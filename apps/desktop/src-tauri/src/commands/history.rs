@@ -116,7 +116,7 @@ pub async fn retry_history_entry_transcription(
             &app,
             &history_manager,
             &transcription_manager,
-            entry,
+            entry.id,
             &audio_path,
             work,
         )
