@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import android.util.JsonWriter
 import android.util.JsonReader
 import java.io.File
+import java.text.BreakIterator
 import java.util.Calendar
 import java.util.TimeZone
 import kotlin.math.roundToInt
@@ -355,14 +356,15 @@ internal fun calculateStats(
     var recordingsWithDuration = 0
     var dictations = 0
 
+    val boundaries = BreakIterator.getWordInstance()
     for (record in records) {
-        val words = countWords(record.finalText)
+        val words = countWords(record.finalText, boundaries)
         if (words == 0) continue
         totalWords += words
         dictations++
         val bucket = buckets[mondayOf(record.timestamp)]
         if (bucket != null) bucket.words += words
-        val rawCount = countWords(record.raw)
+        val rawCount = countWords(record.raw, boundaries)
         if (record.durationMs > 0 && rawCount > 0) {
             rawWords += rawCount
             durationMs += record.durationMs
@@ -394,6 +396,23 @@ internal fun calculateStats(
     )
 }
 
-private fun countWords(value: String): Int = value.split(Regex("\\s+")).count { token ->
-    token.any(Char::isLetterOrDigit)
+private fun countWords(value: String, boundaries: BreakIterator): Int {
+    boundaries.setText(value)
+    var count = 0
+    var start = boundaries.first()
+    var end = boundaries.next()
+    while (end != BreakIterator.DONE) {
+        var index = start
+        while (index < end) {
+            val codePoint = value.codePointAt(index)
+            if (Character.isLetterOrDigit(codePoint)) {
+                count++
+                break
+            }
+            index += Character.charCount(codePoint)
+        }
+        start = end
+        end = boundaries.next()
+    }
+    return count
 }
