@@ -239,7 +239,7 @@ internal class AppSettings(context: Context) {
     }
 
     private fun saveKey(name: String, key: String) {
-        require(key.isNotBlank() && key.length <= 8192 && key.none { Character.isISOControl(it) }) {
+        require(key.isNotBlank() && key.length <= 8192 && key.all { it in ' '..'~' }) {
             "Enter a valid API key."
         }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -383,7 +383,9 @@ internal class AppSettings(context: Context) {
             getOrCreateKey(),
             GCMParameterSpec(128, payload.copyOfRange(0, GCM_IV_BYTES)),
         )
-        return String(cipher.doFinal(payload, GCM_IV_BYTES, payload.size - GCM_IV_BYTES), StandardCharsets.UTF_8)
+        return String(cipher.doFinal(payload, GCM_IV_BYTES, payload.size - GCM_IV_BYTES), StandardCharsets.UTF_8).also { key ->
+            require(key.isNotBlank() && key.all { it in ' '..'~' }) { "Stored API key is invalid. Re-enter it in Murmur." }
+        }
     }
 
     private fun getOrCreateKey(): SecretKey {

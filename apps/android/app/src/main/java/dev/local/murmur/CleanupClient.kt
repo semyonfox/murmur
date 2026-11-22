@@ -270,6 +270,7 @@ internal class CleanupClient(
             .header("Accept", "application/json")
             .apply {
                 config.apiKey?.let { key ->
+                    require(key.isNotBlank() && key.all { it in ' '..'~' }) { "Invalid cleanup API key. Re-enter it in Murmur." }
                     if (anthropic) {
                         header("x-api-key", key)
                         header("anthropic-version", "2023-06-01")
