@@ -737,6 +737,7 @@
         "invalidOutput": "El proveïdor ha retornat una transcripció inutilitzable.",
         "timeout": "El proveïdor ha trigat massa a respondre.",
         "reasoning": "Aquest model necessita tenir el raonament activat. Tria un altre model.",
+        "credentialStore": "La revisió no ha pogut accedir al magatzem de credencials del sistema.",
         "configuration": "La sol·licitud s’ha rebutjat. Comprova la configuració del proveïdor i del model."
       },
       "failed": "Ha fallat la correcció amb IA",

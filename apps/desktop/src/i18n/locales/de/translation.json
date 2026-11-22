@@ -737,6 +737,7 @@
         "invalidOutput": "Der Anbieter hat eine unbrauchbare Transkription zurückgegeben.",
         "timeout": "Der Anbieter hat zu lange für die Antwort gebraucht.",
         "reasoning": "Dieses Modell funktioniert nur mit aktiviertem Schlussfolgern. Wählen Sie ein anderes Modell.",
+        "credentialStore": "Die Textbereinigung konnte nicht auf den Anmeldedatenspeicher des Systems zugreifen.",
         "configuration": "Die Anfrage wurde abgelehnt. Prüfen Sie die Anbieter- und Modelleinstellungen."
       },
       "failed": "KI-Textkorrektur fehlgeschlagen",

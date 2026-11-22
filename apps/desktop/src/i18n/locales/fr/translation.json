@@ -737,6 +737,7 @@
         "invalidOutput": "Le fournisseur a renvoyé une transcription inutilisable.",
         "timeout": "Le fournisseur a mis trop de temps à répondre.",
         "reasoning": "Ce modèle ne peut pas fonctionner avec le raisonnement désactivé. Choisissez un autre modèle.",
+        "credentialStore": "La correction n’a pas pu accéder au gestionnaire d’identifiants du système.",
         "configuration": "La requête a été rejetée. Vérifiez les réglages du fournisseur et du modèle."
       },
       "failed": "Échec de la correction par IA",

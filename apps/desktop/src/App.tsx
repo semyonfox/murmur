@@ -234,6 +234,9 @@ function App() {
           defaultValue:
             "This cleanup model cannot run with reasoning disabled. Choose another model.",
         }),
+        credential_store: t("murmur.cleanup.errors.credentialStore", {
+          defaultValue: "Cleanup could not access the system credential store.",
+        }),
         configuration: t("murmur.cleanup.errors.configuration", {
           defaultValue:
             "The cleanup request was rejected. Check the provider and model settings.",

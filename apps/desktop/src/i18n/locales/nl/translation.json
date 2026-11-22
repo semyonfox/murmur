@@ -737,6 +737,7 @@
         "invalidOutput": "De aanbieder gaf een onbruikbare transcriptie terug.",
         "timeout": "De aanbieder reageerde niet op tijd.",
         "reasoning": "Dit model kan alleen werken met redeneren ingeschakeld. Kies een ander model.",
+        "credentialStore": "De tekstcorrectie kon de referentieopslag van het systeem niet openen.",
         "configuration": "Het verzoek is geweigerd. Controleer de instellingen van de aanbieder en het model."
       },
       "failed": "Tekstcorrectie met AI mislukt",

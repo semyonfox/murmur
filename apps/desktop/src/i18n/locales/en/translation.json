@@ -737,6 +737,7 @@
         "invalidOutput": "The cleanup provider returned an unusable transcript.",
         "timeout": "The cleanup provider took too long to respond.",
         "reasoning": "This cleanup model cannot run with reasoning disabled. Choose another model.",
+        "credentialStore": "Cleanup could not access the system credential store.",
         "configuration": "The cleanup request was rejected. Check the provider and model settings."
       },
       "failed": "AI cleanup failed",

@@ -737,6 +737,7 @@
         "invalidOutput": "服務供應商傳回的轉錄文字無法使用。",
         "timeout": "服務供應商回應逾時。",
         "reasoning": "此模型無法在停用推理時執行，請選擇其他模型。",
+        "credentialStore": "文字潤飾無法存取系統認證資訊儲存區。",
         "configuration": "請求遭拒絕，請檢查服務供應商和模型設定。"
       },
       "failed": "AI 文字潤飾失敗",

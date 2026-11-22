@@ -737,6 +737,7 @@
         "invalidOutput": "服务商返回的转写文本无法使用。",
         "timeout": "服务商响应超时。",
         "reasoning": "此模型无法在关闭推理时运行，请选择其他模型。",
+        "credentialStore": "文本润色无法访问系统凭据存储。",
         "configuration": "请求被拒绝，请检查服务商和模型设置。"
       },
       "failed": "AI 文本润色失败",

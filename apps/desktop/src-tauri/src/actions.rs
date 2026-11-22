@@ -383,8 +383,14 @@ async fn post_process_transcription(
             crate::secrets::get_cleanup_key(&provider_id, origin.as_deref())
         })
         .await
-        .map_err(|_| CleanupFailure::Configuration)?
-        .map_err(|_| CleanupFailure::Authentication)?
+        .map_err(|error| {
+            warn!("Cleanup credential store task failed: {error}");
+            CleanupFailure::CredentialStore
+        })?
+        .map_err(|error| {
+            warn!("Cleanup credential store lookup failed: {error}");
+            CleanupFailure::CredentialStore
+        })?
         .unwrap_or_default()
     };
 

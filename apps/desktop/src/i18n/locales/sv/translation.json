@@ -737,6 +737,7 @@
         "invalidOutput": "Leverantören returnerade en oanvändbar transkription.",
         "timeout": "Leverantören svarade inte i tid.",
         "reasoning": "Den här modellen kräver att resonemang är aktiverat. Välj en annan modell.",
+        "credentialStore": "Textbearbetningen kunde inte komma åt systemets lagring för autentiseringsuppgifter.",
         "configuration": "Förfrågan avvisades. Kontrollera inställningarna för leverantören och modellen."
       },
       "failed": "Textkorrigering med AI misslyckades",

@@ -737,6 +737,7 @@
         "invalidOutput": "Udbyderen returnerede en ubrugelig transskription.",
         "timeout": "Udbyderen svarede ikke i tide.",
         "reasoning": "Denne model kræver aktiveret ræsonnering. Vælg en anden model.",
+        "credentialStore": "Tekstoprydningen kunne ikke få adgang til systemets lager for loginoplysninger.",
         "configuration": "Anmodningen blev afvist. Kontrollér indstillingerne for udbyderen og modellen."
       },
       "failed": "Tekstrettelse med AI mislykkedes",

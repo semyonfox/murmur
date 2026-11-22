@@ -737,6 +737,7 @@
         "invalidOutput": "O fornecedor devolveu uma transcrição inutilizável.",
         "timeout": "O fornecedor demorou demasiado tempo a responder.",
         "reasoning": "Este modelo requer o raciocínio ativo. Escolha outro modelo.",
+        "credentialStore": "A revisão não conseguiu aceder ao armazenamento de credenciais do sistema.",
         "configuration": "O pedido foi rejeitado. Verifique as definições do fornecedor e do modelo."
       },
       "failed": "A revisão por IA falhou",

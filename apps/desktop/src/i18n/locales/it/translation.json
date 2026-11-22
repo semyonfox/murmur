@@ -737,6 +737,7 @@
         "invalidOutput": "Il fornitore ha restituito una trascrizione inutilizzabile.",
         "timeout": "Il fornitore ha impiegato troppo tempo a rispondere.",
         "reasoning": "Questo modello richiede il ragionamento attivo. Scegli un altro modello.",
+        "credentialStore": "La revisione non ha potuto accedere all’archivio delle credenziali di sistema.",
         "configuration": "La richiesta è stata rifiutata. Controlla le impostazioni del fornitore e del modello."
       },
       "failed": "Correzione con IA non riuscita",

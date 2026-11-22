@@ -737,6 +737,7 @@
         "invalidOutput": "Poskytovatel vrátil nepoužitelný přepis.",
         "timeout": "Poskytovatel neodpověděl včas.",
         "reasoning": "Tento model vyžaduje zapnuté uvažování. Vyberte jiný model.",
+        "credentialStore": "Při úpravě se nepodařilo získat přístup k systémovému úložišti přihlašovacích údajů.",
         "configuration": "Požadavek byl zamítnut. Zkontrolujte nastavení poskytovatele a modelu."
       },
       "failed": "Úprava textu pomocí AI se nezdařila",

@@ -737,6 +737,7 @@
         "invalidOutput": "Nhà cung cấp trả về bản chép lời không dùng được.",
         "timeout": "Nhà cung cấp phản hồi quá thời gian cho phép.",
         "reasoning": "Mô hình này yêu cầu bật chế độ suy luận. Hãy chọn mô hình khác.",
+        "credentialStore": "Tính năng chỉnh sửa văn bản không truy cập được kho thông tin xác thực của hệ thống.",
         "configuration": "Yêu cầu bị từ chối. Hãy kiểm tra cài đặt nhà cung cấp và mô hình."
       },
       "failed": "Không thể chỉnh sửa văn bản bằng AI",

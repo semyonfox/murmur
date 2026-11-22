@@ -737,6 +737,7 @@
         "invalidOutput": "Penyedia layanan mengembalikan transkripsi yang tidak dapat digunakan.",
         "timeout": "Penyedia layanan tidak merespons tepat waktu.",
         "reasoning": "Model ini memerlukan penalaran aktif. Pilih model lain.",
+        "credentialStore": "Perapian teks tidak dapat mengakses penyimpanan kredensial sistem.",
         "configuration": "Permintaan ditolak. Periksa pengaturan penyedia layanan dan model."
       },
       "failed": "Perbaikan teks dengan AI gagal",

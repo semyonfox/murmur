@@ -737,6 +737,7 @@
         "invalidOutput": "Dostawca zwrócił transkrypcję, której nie można użyć.",
         "timeout": "Dostawca nie odpowiedział na czas.",
         "reasoning": "Ten model wymaga włączonego rozumowania. Wybierz inny model.",
+        "credentialStore": "Korekta nie mogła uzyskać dostępu do systemowego magazynu poświadczeń.",
         "configuration": "Żądanie zostało odrzucone. Sprawdź ustawienia dostawcy i modelu."
       },
       "failed": "Korekta tekstu przez AI nie powiodła się",

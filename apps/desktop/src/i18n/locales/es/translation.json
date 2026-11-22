@@ -737,6 +737,7 @@
         "invalidOutput": "El proveedor devolvió una transcripción inutilizable.",
         "timeout": "El proveedor tardó demasiado en responder.",
         "reasoning": "Este modelo necesita el razonamiento activado. Elige otro modelo.",
+        "credentialStore": "La corrección no pudo acceder al almacén de credenciales del sistema.",
         "configuration": "La solicitud fue rechazada. Revisa la configuración del proveedor y del modelo."
       },
       "failed": "Falló la corrección con IA",

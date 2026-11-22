@@ -1,5 +1,5 @@
 use crate::settings::PostProcessProvider;
-use log::debug;
+use log::{debug, warn};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -112,6 +112,7 @@ pub enum CleanupFailure {
     Timeout,
     Reasoning,
     Configuration,
+    CredentialStore,
 }
 
 impl std::fmt::Display for CleanupFailure {
@@ -125,6 +126,7 @@ impl std::fmt::Display for CleanupFailure {
             Self::Timeout => "Cleanup provider timed out",
             Self::Reasoning => "Cleanup provider rejected disabling reasoning",
             Self::Configuration => "Cleanup request or configuration was rejected",
+            Self::CredentialStore => "Cleanup could not access the system credential store",
         })
     }
 }
@@ -141,7 +143,28 @@ impl CleanupFailure {
         }
     }
 
-    fn transport(error: reqwest::Error) -> Self {
+    fn transport(error: reqwest::Error, request_url: &str) -> Self {
+        let kind = if error.is_timeout() {
+            "timeout"
+        } else if error.is_connect() {
+            "connect"
+        } else if error.is_body() {
+            "body"
+        } else if error.is_decode() {
+            "decode"
+        } else if error.is_request() {
+            "request"
+        } else {
+            "other"
+        };
+        let fallback = reqwest::Url::parse(request_url).ok();
+        let host = error
+            .url()
+            .or(fallback.as_ref())
+            .and_then(reqwest::Url::host_str)
+            .unwrap_or("<unknown>");
+        warn!("Cleanup transport failure ({kind}) at {host}");
+
         if error.is_timeout() {
             Self::Timeout
         } else {
@@ -170,7 +193,11 @@ async fn bounded_response(
         return Err(CleanupFailure::InvalidOutput);
     }
     let mut bytes = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(CleanupFailure::transport)? {
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| CleanupFailure::transport(error, response.url().as_str()))?
+    {
         if chunk.len() > limit - bytes.len() {
             return Err(CleanupFailure::InvalidOutput);
         }
@@ -527,7 +554,7 @@ pub async fn send_chat_completion_with_schema(
             .json(&request)
             .send()
             .await
-            .map_err(CleanupFailure::transport)?;
+            .map_err(|error| CleanupFailure::transport(error, &url))?;
         let status = response.status();
 
         if status.is_success() {
@@ -598,7 +625,7 @@ pub async fn fetch_models(
         .timeout(Duration::from_secs(30))
         .send()
         .await
-        .map_err(|error| CleanupFailure::transport(error).to_string())?;
+        .map_err(|error| CleanupFailure::transport(error, &url).to_string())?;
 
     let status = response.status();
     if !status.is_success() {

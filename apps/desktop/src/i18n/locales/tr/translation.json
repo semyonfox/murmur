@@ -737,6 +737,7 @@
         "invalidOutput": "Sağlayıcı kullanılamayan bir döküm döndürdü.",
         "timeout": "Sağlayıcı zamanında yanıt vermedi.",
         "reasoning": "Bu model için akıl yürütmenin açık olması gerekir. Başka bir model seçin.",
+        "credentialStore": "Metin düzenleme, sistemin kimlik bilgisi deposuna erişemedi.",
         "configuration": "İstek reddedildi. Sağlayıcı ve model ayarlarını kontrol edin."
       },
       "failed": "Yapay zekâyla metin düzeltilemedi",
