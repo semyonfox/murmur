@@ -181,6 +181,11 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
         }
     }
 
+    fun updateDictation(id: Long, finalText: String) {
+        writableDatabase.update("dictations", ContentValues().apply { put("final_text", finalText) },
+            "id = ?", arrayOf(id.toString()))
+    }
+
     fun delete(id: Long) {
         writableDatabase.delete("dictations", "id = ?", arrayOf(id.toString()))
     }

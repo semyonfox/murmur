@@ -473,6 +473,10 @@ class MurmurAccessibilityService : AccessibilityService() {
         target: FocusTarget, durationMs: Long, client: TranscriptionClient?,
     ) {
         if (recordingSession != session || (client != null && request !== client)) return
+        val historyId = runCatching { history.add(raw, raw, durationMs) }
+            .onFailure { Diagnostics.error("bubble", "could not save the dictation to history", it) }
+            .getOrNull()
+        settings.saveTranscript(raw, null, historyId)
         val cleaner = cleanup?.let { CleanupClient().also { cleanupRequest = it } }
         if (recordingSession != session || destroyed) {
             cleaner?.cancel()
@@ -493,10 +497,9 @@ class MurmurAccessibilityService : AccessibilityService() {
         val transcript = cleaned ?: prepared
         mainHandler.post {
             if (recordingSession != session || destroyed || (client != null && request !== client)) return@post
-            val historyId = runCatching { history.add(raw, transcript, durationMs) }
-                .onFailure { Diagnostics.error("bubble", "could not save the dictation to history", it) }
-                .getOrNull()
-            settings.saveTranscript(raw, transcript, historyId)
+            if (historyId != null) runCatching { history.updateDictation(historyId, transcript) }
+                .onFailure { Diagnostics.error("bubble", "could not update the dictation in history", it) }
+            settings.updateLatestTranscript(historyId, raw, transcript)
             if (cleaner != null) settings.lastCleanupFailure = cleanupFailure
             cleanupRequest = null
             if (client == null) requestTask = null

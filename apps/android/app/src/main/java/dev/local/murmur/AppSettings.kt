@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URI
@@ -161,6 +162,12 @@ internal class AppSettings(context: Context) {
             .putLong(LATEST_TRANSCRIPT_TIME, System.currentTimeMillis())
             .apply { if (historyId != null) putLong(LATEST_HISTORY_ID, historyId) else remove(LATEST_HISTORY_ID) }
             .apply()
+    }
+
+    fun updateLatestTranscript(historyId: Long?, raw: String, cleaned: String) {
+        if (latestHistoryId == historyId && latestRawTranscript == raw) {
+            preferences.edit { putString(LATEST_TRANSCRIPT, cleaned) }
+        }
     }
 
     fun saveEndpoint(url: String, modelId: String) {
