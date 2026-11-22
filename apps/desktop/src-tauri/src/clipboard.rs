@@ -554,11 +554,15 @@ fn type_text_via_kwtype(text: &str) -> Result<(), String> {
 /// write text to the Wayland clipboard without exposing a transcript in argv
 #[cfg(target_os = "linux")]
 fn write_clipboard_via_wl_copy(text: &str) -> Result<(), String> {
-    run_clipboard_command("wl-copy", text, Duration::from_secs(3))
+    run_clipboard_command(Command::new("wl-copy"), text, Duration::from_secs(3))
 }
 
 #[cfg(target_os = "linux")]
-fn run_clipboard_command(program: &str, text: &str, timeout: Duration) -> Result<(), String> {
+fn run_clipboard_command(
+    mut command: Command,
+    text: &str,
+    timeout: Duration,
+) -> Result<(), String> {
     use std::io::{Seek, SeekFrom, Write};
     use std::process::Stdio;
 
@@ -572,7 +576,8 @@ fn run_clipboard_command(program: &str, text: &str, timeout: Duration) -> Result
         .seek(SeekFrom::Start(0))
         .map_err(|e| format!("Failed to rewind clipboard input: {e}"))?;
 
-    let mut child = Command::new(program)
+    let program = command.get_program().to_string_lossy().into_owned();
+    let mut child = command
         .stdin(Stdio::from(input))
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -913,16 +918,6 @@ mod tests {
     use std::cell::Cell;
 
     #[cfg(target_os = "linux")]
-    fn clipboard_test_script(dir: &std::path::Path, body: &str) -> std::path::PathBuf {
-        use std::os::unix::fs::PermissionsExt;
-
-        let path = dir.join("copy-helper");
-        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
-        path
-    }
-
-    #[cfg(target_os = "linux")]
     #[test]
     fn multiline_dotool_text_keeps_blank_and_trailing_lines() {
         let mut actions = Vec::new();
@@ -938,11 +933,16 @@ mod tests {
     fn clipboard_command_reads_exact_text_from_stdin() {
         let dir = tempfile::tempdir().unwrap();
         let output = dir.path().join("copied.txt");
-        let body = format!("[ \"$#\" -eq 0 ] || exit 12\ncat > '{}'", output.display());
-        let script = clipboard_test_script(dir.path(), &body);
+        let mut command = Command::new("sh");
+        command
+            .args([
+                "-c",
+                r#"[ "$#" -eq 1 ] || exit 12; cat > "$1""#,
+                "copy-helper",
+            ])
+            .arg(&output);
         let text = "- with a bit of OghmaNotes 💡\n";
-
-        run_clipboard_command(script.to_str().unwrap(), text, Duration::from_secs(1)).unwrap();
+        run_clipboard_command(command, text, Duration::from_secs(1)).unwrap();
 
         assert_eq!(std::fs::read(output).unwrap(), text.as_bytes());
     }
@@ -950,12 +950,9 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn clipboard_command_times_out_and_reaps_child() {
-        let dir = tempfile::tempdir().unwrap();
-        let script = clipboard_test_script(dir.path(), "exec sleep 10");
-
-        let error =
-            run_clipboard_command(script.to_str().unwrap(), "text", Duration::from_millis(30))
-                .unwrap_err();
+        let mut command = Command::new("sleep");
+        command.arg("10");
+        let error = run_clipboard_command(command, "text", Duration::from_millis(30)).unwrap_err();
 
         assert!(error.contains("timed out"));
     }
