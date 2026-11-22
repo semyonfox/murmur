@@ -66,6 +66,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import dev.local.murmur.Diagnostics
+import dev.local.murmur.LectureAudio
 import dev.local.murmur.LectureExport
 import dev.local.murmur.LectureService
 import dev.local.murmur.LectureTranscript
@@ -111,6 +112,9 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
             exporting = false
         }
     }
+    val audioFile = file.takeUnless { state.recordingId == id }
+    val player = rememberPlayer(audioFile)
+    val durationMs = player?.duration?.toLong() ?: record.durationMs
     val saveAudio = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/mp4")) { uri: Uri? ->
         val source = file ?: return@rememberLauncherForActivityResult
         if (uri != null) export("Audio saved.") {
@@ -127,9 +131,8 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
         if (uri != null) export("Transcript saved.") { writeToUri(context, uri, stamped + "\n") }
     }
     val saveSubtitles = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/x-subrip")) { uri: Uri? ->
-        if (uri != null) export("Subtitles saved.") { writeToUri(context, uri, LectureExport.srt(stamped, record.durationMs)) }
+        if (uri != null) export("Subtitles saved.") { writeToUri(context, uri, LectureExport.srt(stamped, durationMs)) }
     }
-    val player = rememberPlayer(file)
     var showRaw by rememberSaveable { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
@@ -210,7 +213,7 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
             Text(
                 listOfNotNull(
                     DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT).format(Date(record.timestamp)),
-                    record.durationMs.takeIf { it > 0 }?.let(::durationLabel),
+                    durationMs.takeIf { it > 0 }?.let(::durationLabel),
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -424,6 +427,7 @@ internal class LecturePlayer(private val media: MediaPlayer) {
 private fun rememberPlayer(file: File?): LecturePlayer? {
     val player = remember(file) {
         if (file == null || !file.exists() || file.length() <= 44) null else runCatching {
+            LectureAudio.recoverRecording(file)
             val media = MediaPlayer().apply {
                 setAudioAttributes(AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_MEDIA)

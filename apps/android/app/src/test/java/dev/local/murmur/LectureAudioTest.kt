@@ -58,6 +58,23 @@ class LectureAudioTest {
         }
     }
 
+    @Test fun recoversAudioAfterAMissingOrStaleCheckpoint() {
+        val source = File.createTempFile("lecture-interrupted-", ".wav")
+        try {
+            val pcm = ByteArray(6 * 32_000) { it.toByte() }
+            for (stale in listOf(ByteArray(44), header(0), header(5 * 32_000))) {
+                source.writeBytes(stale + pcm)
+                LectureAudio.forEachChunk(source, source.parentFile!!) { part, _, _, _ ->
+                    assertTrue((header(pcm.size) + pcm).contentEquals(part.readBytes()))
+                }
+                assertTrue((header(pcm.size) + pcm).contentEquals(source.readBytes()))
+                assertEquals(6_000L, LectureAudio.durationMs(source))
+            }
+        } finally {
+            source.delete()
+        }
+    }
+
     private fun header(pcmBytes: Int) = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN).apply {
         put("RIFF".toByteArray())
         putInt(36 + pcmBytes)

@@ -64,7 +64,7 @@ internal class PcmRecorder private constructor(
             var chunks = 0
             RandomAccessFile(file, "rw").use { output ->
                 output.setLength(0)
-                output.write(ByteArray(WAV_HEADER_BYTES))
+                output.write(wavHeader(0))
                 val buffer = ByteArray(bufferSize)
                 // small reads give the level meter about 25 updates a second
                 val readSize = if (onLevel != null) minOf(bufferSize, LEVEL_READ_BYTES) else bufferSize

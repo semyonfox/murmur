@@ -251,7 +251,7 @@ internal class LectureService : Service() {
             require(file.exists()) { "Saved audio is missing." }
             val endpoint = requireEndpoint().let { if (language != null) it.withLanguage(language) else it }
             val job = Job(id, endpoint, settings.cleanupEndpointOrNull(), retry = true)
-                .apply { durationMs = LectureAudio.durationMs(file) }
+                .apply { durationMs = LectureAudio.recoverRecording(file) }
             enqueue(id) { transcribeWhole(job, file) }
         }.onFailure { error ->
             Diagnostics.error("lecture", "retry could not start", error)

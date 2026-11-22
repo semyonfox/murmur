@@ -23,20 +23,31 @@ internal object LectureAudio {
 
     fun durationMs(file: File): Long = ((file.length() - HEADER_BYTES).coerceAtLeast(0) * 1000L) / BYTES_PER_SECOND
 
+    // interrupted captures can have a zero or stale header, but their PCM is usable
+    fun recoverRecording(file: File): Long = RandomAccessFile(file, "rw").use { source ->
+        val available = source.length() - HEADER_BYTES
+        val pcmBytes = available - available % 2
+        require(pcmBytes in 2..MAX_SAMPLES * 2) { "Recording is empty or incomplete." }
+        val header = ByteArray(HEADER_BYTES)
+        source.readFully(header)
+        val expected = PcmRecorder.wavHeader(pcmBytes.toInt())
+        require(header.all { it == 0.toByte() } || header.indices.all { index ->
+            index in 4..7 || index in 40..43 || header[index] == expected[index]
+        }) { "Recording is not a supported WAV file." }
+        if (!header.contentEquals(expected)) {
+            source.seek(0)
+            source.write(expected)
+        }
+        if (available != pcmBytes) source.setLength(HEADER_BYTES + pcmBytes)
+        pcmBytes * 1000L / BYTES_PER_SECOND
+    }
+
     // parts of about two minutes. each one ends at the quietest moment of its last
     // ten seconds, so a word is not split between two requests
     fun forEachChunk(file: File, cacheDir: File, consume: (chunk: File, index: Int, total: Int, offsetMs: Long) -> Unit) {
+        recoverRecording(file)
         RandomAccessFile(file, "r").use { source ->
-            val header = ByteArray(HEADER_BYTES)
-            source.readFully(header)
-            require(String(header, 0, 4, Charsets.US_ASCII) == "RIFF" &&
-                String(header, 8, 4, Charsets.US_ASCII) == "WAVE" &&
-                String(header, 36, 4, Charsets.US_ASCII) == "data") { "Recording is not a supported WAV file." }
-            val spec = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
-            require(spec.getShort(22).toInt() == 1 && spec.getInt(24) == SAMPLE_RATE &&
-                spec.getShort(34).toInt() == 16) { "Recording is not 16 kHz mono audio." }
             val available = source.length() - HEADER_BYTES
-            require(available > 0 && available % 2L == 0L) { "Recording is empty or incomplete." }
             val window = ByteArray(CHUNK_BYTES)
             var position = 0L
             var index = 0
