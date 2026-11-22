@@ -293,6 +293,11 @@ fn status_error(status: StatusCode) -> anyhow::Error {
     match status.as_u16() {
         400 => anyhow!("Speech server rejected the request (HTTP 400); check the model and audio"),
         401 | 403 => anyhow!("Speech server authentication failed (HTTP {status})"),
+        // openrouter also sends this while some balance is left, because it holds
+        // back the worst-case cost of the request before running it
+        402 => anyhow!(
+            "Speech provider account is out of credit (HTTP 402); add credit or use another key"
+        ),
         404 => anyhow!("Speech endpoint or model was not found (HTTP 404)"),
         413 => anyhow!("Recording exceeds the speech server upload limit (HTTP 413)"),
         429 => anyhow!("Speech server rate limit or quota reached (HTTP 429)"),
