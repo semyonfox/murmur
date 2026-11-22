@@ -27,6 +27,12 @@ internal class CleanupEndpoint(
     val dictionary: List<String>, val customInstructions: String?,
 )
 
+private fun String.isValidApiKey(): Boolean = length <= 8192 && isNotBlank() && all { it in ' '..'~' }
+
+internal fun requireValidApiKey(key: String) {
+    require(key.isValidApiKey()) { "API key is invalid. Re-enter it in Murmur." }
+}
+
 internal class AppSettings(context: Context) {
     private val appContext = context.applicationContext
     val cleanupPrompts = CleanupPrompts(context)
@@ -250,7 +256,7 @@ internal class AppSettings(context: Context) {
     }
 
     private fun saveKey(name: String, key: String) {
-        require(key.isNotBlank() && key.length <= 8192 && key.all { it in ' '..'~' }) {
+        require(key.isValidApiKey()) {
             "Enter a valid API key."
         }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -394,9 +400,8 @@ internal class AppSettings(context: Context) {
             getOrCreateKey(),
             GCMParameterSpec(128, payload.copyOfRange(0, GCM_IV_BYTES)),
         )
-        return String(cipher.doFinal(payload, GCM_IV_BYTES, payload.size - GCM_IV_BYTES), StandardCharsets.UTF_8).also { key ->
-            require(key.isNotBlank() && key.all { it in ' '..'~' }) { "Stored API key is invalid. Re-enter it in Murmur." }
-        }
+        return String(cipher.doFinal(payload, GCM_IV_BYTES, payload.size - GCM_IV_BYTES), StandardCharsets.UTF_8)
+            .also(::requireValidApiKey)
     }
 
     private fun getOrCreateKey(): SecretKey {

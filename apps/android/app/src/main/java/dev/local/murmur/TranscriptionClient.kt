@@ -79,7 +79,7 @@ internal class TranscriptionClient {
             .header("Accept", "application/json")
             .apply {
                 endpoint.apiKey?.let { key ->
-                    require(key.isNotBlank() && key.all { it in ' '..'~' }) { "Invalid speech API key. Re-enter it in Murmur." }
+                    requireValidApiKey(key)
                     header("Authorization", "Bearer $key")
                 }
             }.build()
