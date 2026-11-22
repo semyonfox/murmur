@@ -13,6 +13,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.FutureTask
+import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicLong
@@ -30,6 +31,8 @@ internal object LectureAudio {
     private const val MAX_IMPORT_BYTES = 1024L * 1024 * 1024
     private val importOpenTimeoutNs = TimeUnit.MINUTES.toNanos(10)
     private const val IMPORT_STALL_NS = 30_000_000_000L
+    // a provider can block both the copy and the cancellation call
+    private val stagingSlots = Semaphore(2)
 
     fun removeTemporaryRecordings(lectureDirectory: File, cacheDirectory: File) {
         val liveChunk = Regex("murmur-chunk-[A-Za-z0-9-]+\\.wav")
@@ -125,7 +128,6 @@ internal object LectureAudio {
         val signal = CancellationSignal()
         val deadline = AtomicLong(System.nanoTime() + importOpenTimeoutNs)
         source.outputStream().use { output ->
-            // the import queue can move on even if a provider ignores cancellation
             val copy = FutureTask {
                 val asset = context.contentResolver.openAssetFileDescriptor(uri, "r", signal)
                     ?: error("Could not open the selected audio file.")
@@ -150,8 +152,24 @@ internal object LectureAudio {
                     }
                 }
             }
-            thread(isDaemon = true, name = "murmur-import-source") { copy.run() }
+            val worker = thread(start = false, isDaemon = true, name = "murmur-import-source") {
+                try {
+                    copy.run()
+                } finally {
+                    stagingSlots.release()
+                }
+            }
+            val canceller = thread(start = false, isDaemon = true, name = "murmur-import-cancel") {
+                try {
+                    signal.cancel()
+                } finally {
+                    stagingSlots.release()
+                }
+            }
+            importSignal.throwIfCanceled()
+            check(stagingSlots.tryAcquire(2)) { "The previous audio provider is still busy. Try again later." }
             try {
+                worker.start()
                 while (true) {
                     importSignal.throwIfCanceled()
                     val remaining = deadline.get() - System.nanoTime()
@@ -166,8 +184,12 @@ internal object LectureAudio {
                     }
                 }
             } finally {
-                if (copy.cancel(true)) {
-                    thread(isDaemon = true, name = "murmur-import-cancel") { signal.cancel() }
+                try {
+                    if (worker.state == Thread.State.NEW) stagingSlots.release()
+                    else if (copy.cancel(true)) canceller.start()
+                    else worker.join()
+                } finally {
+                    if (canceller.state == Thread.State.NEW) stagingSlots.release()
                 }
             }
         }
