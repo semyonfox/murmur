@@ -10,10 +10,12 @@ import java.net.NoRouteToHostException
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.URI
+import java.net.UnknownHostException
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLException
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -23,6 +25,8 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.Response
+import okhttp3.internal.http2.ErrorCode
+import okhttp3.internal.http2.StreamResetException
 import okio.BufferedSink
 
 internal class TranscriptionClient {
@@ -57,6 +61,18 @@ internal class TranscriptionClient {
         } catch (error: Exception) {
             if (!cancelled) Diagnostics.warn("speech", "$source failed after ${elapsedMs(started)} ms on ${audioMs / 1000.0}s of audio", error)
             throw error
+        }
+    }
+
+    fun retryLecturePart(transcribe: () -> String): String = try {
+        transcribe()
+    } catch (error: IOException) {
+        when (error) {
+            is SpeechConnectionDropped, is ConnectException, is NoRouteToHostException, is UnknownHostException -> {
+                if (cancellation.await(5, TimeUnit.SECONDS)) throw error
+                transcribe()
+            }
+            else -> throw error
         }
     }
 
@@ -161,6 +177,13 @@ internal class SpeechConnectionDropped(cause: IOException) : IOException(cause.m
 private fun connectionDropped(error: IOException): Boolean = when (error) {
     is ConnectException, is NoRouteToHostException, is InterruptedIOException -> false
     is SocketException, is EOFException -> true
+    // refused streams are safe to resend because the peer did not process them
+    is StreamResetException -> error.errorCode == ErrorCode.REFUSED_STREAM
+    is SSLException -> when (val cause = error.cause) {
+        is ConnectException, is NoRouteToHostException -> false
+        is SocketException, is EOFException -> true
+        else -> false
+    }
     // okhttp wraps an eof before the response headers in an io exception
     else -> error.cause is EOFException
 }

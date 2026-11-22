@@ -404,7 +404,9 @@ internal class LectureService : Service() {
     private fun transcribePart(job: Job, chunk: File): String {
         var detected: String? = null
         val endpoint = job.endpoint
-        val text = speechClient.transcribe(endpoint, chunk, allowEmpty = true) { detected = it }
+        val text = speechClient.retryLecturePart {
+            speechClient.transcribe(endpoint, chunk, allowEmpty = true) { detected = it }
+        }
         val code = detected
         if (code != null && text.isNotBlank() && endpoint.language == SpeechLanguages.AUTO) {
             job.endpoint = endpoint.withLanguage(code)
