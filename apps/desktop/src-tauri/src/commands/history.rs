@@ -71,7 +71,9 @@ pub async fn get_audio_file_path(
     history_manager: State<'_, Arc<HistoryManager>>,
     file_name: String,
 ) -> Result<String, String> {
-    let path = history_manager.get_audio_file_path(&file_name);
+    let path = history_manager
+        .get_audio_file_path(&file_name)
+        .map_err(|e| e.to_string())?;
     path.to_str()
         .ok_or_else(|| "Invalid file path".to_string())
         .map(|s| s.to_string())
@@ -98,53 +100,49 @@ pub async fn retry_history_entry_transcription(
     transcription_manager: State<'_, Arc<TranscriptionManager>>,
     id: i64,
 ) -> Result<(), String> {
+    let work = history_manager
+        .begin_entry_work(id)
+        .map_err(|error| error.to_string())?;
     let entry = history_manager
         .get_entry_by_id(id)
-        .await
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("History entry {} not found", id))?;
 
-    let audio_path = history_manager.get_audio_file_path(&entry.file_name);
-    if entry.title.starts_with("Lecture · ") || entry.title.starts_with("Import · ") {
-        return super::lectures::transcribe_long_audio(
+    let audio_path = history_manager
+        .get_audio_file_path(&entry.file_name)
+        .map_err(|e| e.to_string())?;
+    if entry.file_name.starts_with("lecture-") {
+        return super::lectures::retry_lecture_transcription(
             &app,
             &history_manager,
             &transcription_manager,
-            id,
-            audio_path,
+            entry,
+            &audio_path,
+            work,
         )
         .await;
     }
     let settings = crate::settings::get_settings(&app);
+    let samples = crate::audio_toolkit::read_wav_samples(&audio_path)
+        .map_err(|error| format!("Could not read the saved recording: {error}"))?;
+    if samples.is_empty() {
+        return Err("Recording has no audio samples".into());
+    }
     let transcription = if settings.stt_source == SttSource::Endpoint {
-        let wav = tokio::fs::read(&audio_path)
-            .await
-            .map_err(|_| "Could not read the saved recording".to_string())?;
-        let key_url = settings.stt_base_url.clone();
-        let stored_key =
-            tauri::async_runtime::spawn_blocking(move || crate::secrets::get_stt_key(&key_url))
-                .await;
-        let key = match stored_key {
-            Ok(Ok(Some(key))) if !key.trim().is_empty() => key,
-            _ => crate::secrets::stt_env_key(&settings.stt_base_url).unwrap_or_default(),
-        };
+        let key = crate::cloud_stt::stored_api_key(&settings.stt_base_url).await;
         let language =
             (settings.selected_language != "auto").then_some(settings.selected_language.as_str());
-        crate::cloud_stt::transcribe_wav(
+        crate::cloud_stt::transcribe_samples(
             &settings.stt_base_url,
             &settings.stt_model,
             &key,
-            wav,
+            &samples,
             language,
         )
         .await
+        .map(crate::managers::transcription::Recognition::from)
         .map_err(|error| error.to_string())?
     } else {
-        let samples = crate::audio_toolkit::read_wav_samples(&audio_path)
-            .map_err(|e| format!("Failed to load audio: {}", e))?;
-        if samples.is_empty() {
-            return Err("Recording has no audio samples".to_string());
-        }
         transcription_manager.initiate_model_load();
         let tm = Arc::clone(&transcription_manager);
         tauri::async_runtime::spawn_blocking(move || tm.transcribe(samples))
@@ -153,21 +151,24 @@ pub async fn retry_history_entry_transcription(
             .map_err(|e| e.to_string())?
     };
 
-    if transcription.is_empty() {
+    if transcription.raw.trim().is_empty() {
         return Err("Recording contains no speech".to_string());
     }
 
     let processed =
         process_transcription_output(&app, &transcription, entry.post_process_requested).await;
-    history_manager
-        .update_transcription(
-            id,
-            transcription,
+    let result = history_manager
+        .update_after_retry(
+            entry,
+            transcription.raw,
             processed.post_processed_text,
             processed.post_process_prompt,
+            processed.cleanup_succeeded,
         )
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string());
+    drop(work);
+    history_manager.prune_after_work();
+    result
 }
 
 #[tauri::command]

@@ -93,10 +93,12 @@ export const HistorySettings: React.FC = () => {
     entriesRef.current = entries;
   }, [entries]);
 
+  const deletedDuringLoad = useRef(new Set<number>());
   const loadPage = useCallback(async (cursor?: number) => {
     const isFirstPage = cursor === undefined;
     if (loadingRef.current) return;
     loadingRef.current = true;
+    deletedDuringLoad.current.clear();
     const restoringFocus =
       document.activeElement?.hasAttribute("data-history-retry");
 
@@ -109,8 +111,11 @@ export const HistorySettings: React.FC = () => {
       );
       if (result.status === "ok") {
         const { entries: newEntries, has_more } = result.data;
+        const currentEntries = newEntries.filter(
+          (entry) => !deletedDuringLoad.current.has(entry.id),
+        );
         setEntries((prev) =>
-          isFirstPage ? newEntries : [...prev, ...newEntries],
+          isFirstPage ? currentEntries : [...prev, ...currentEntries],
         );
         setHasMore(has_more);
         setLoadError(false);
@@ -171,9 +176,10 @@ export const HistorySettings: React.FC = () => {
         setEntries((prev) =>
           prev.map((e) => (e.id === payload.entry.id ? payload.entry : e)),
         );
+      } else if (payload.action === "deleted") {
+        if (loadingRef.current) deletedDuringLoad.current.add(payload.id);
+        setEntries((prev) => prev.filter((entry) => entry.id !== payload.id));
       }
-      // "deleted" and "toggled" are handled by optimistic updates only,
-      // so we intentionally ignore them here to avoid double-mutation.
     });
 
     return () => {
@@ -472,12 +478,22 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const [deleting, setDeleting] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
 
-  const cleanedText = entry.post_processed_text?.trim()
-    ? entry.post_processed_text
-    : null;
+  const processedText =
+    entry.post_processed_text?.trim() &&
+    entry.post_processed_text.trim() !== entry.transcription_text.trim()
+      ? entry.post_processed_text
+      : null;
+  const cleanupSucceeded =
+    entry.cleanup_succeeded ??
+    (entry.post_process_requested || !!entry.post_process_prompt);
+  const cleanupFailed =
+    entry.cleanup_succeeded === false ||
+    (entry.cleanup_succeeded == null &&
+      entry.post_process_requested &&
+      !processedText);
   const displayText = showRaw
     ? entry.transcription_text
-    : (cleanedText ?? entry.transcription_text);
+    : (processedText ?? entry.transcription_text);
   const hasTranscription = displayText.trim().length > 0;
   const busy = retrying || deleting;
 
@@ -633,14 +649,18 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         </div>
       </div>
 
-      {cleanedText ? (
+      {processedText && (
         <div className="flex items-center gap-3 text-xs">
           <span className="text-mid-gray">
             {showRaw
               ? t("murmur.history.raw", { defaultValue: "Raw transcript" })
-              : t("murmur.history.cleaned", {
-                  defaultValue: "Cleaned transcript",
-                })}
+              : cleanupSucceeded
+                ? t("murmur.history.cleaned", {
+                    defaultValue: "Cleaned transcript",
+                  })
+                : t("murmur.history.processed", {
+                    defaultValue: "Processed transcript",
+                  })}
           </span>
           <button
             type="button"
@@ -653,20 +673,24 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
             className="rounded-md px-2 py-1 text-logo-primary hover:bg-mid-gray/10 cursor-pointer focus-visible:ring-2 focus-visible:ring-logo-primary max-sm:min-h-11"
           >
             {showRaw
-              ? t("murmur.history.showCleaned", {
-                  defaultValue: "Show cleaned text",
-                })
+              ? cleanupSucceeded
+                ? t("murmur.history.showCleaned", {
+                    defaultValue: "Show cleaned text",
+                  })
+                : t("murmur.history.showProcessed", {
+                    defaultValue: "Show processed text",
+                  })
               : t("murmur.history.showRaw", { defaultValue: "Show raw text" })}
           </button>
         </div>
-      ) : entry.post_process_requested && hasTranscription ? (
+      )}
+      {cleanupFailed && hasTranscription && (
         <p className="text-xs text-mid-gray">
           {t("murmur.history.rawFallback", {
-            defaultValue:
-              "Cleanup is unavailable for this entry. The raw transcript is preserved below.",
+            defaultValue: "AI cleanup was unavailable for this entry.",
           })}
         </p>
-      ) : null}
+      )}
 
       <p
         className={`italic text-sm pb-2 ${

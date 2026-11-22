@@ -79,16 +79,18 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   // Use settings directly as single source of truth
   const baseUrl = selectedProvider?.base_url ?? "";
   const apiKey = "";
-  const apiKeyConfigured = keyStatus[selectedProviderId] ?? null;
+  const keyStatusId =
+    selectedProviderId === "custom" ? baseUrl : selectedProviderId;
+  const apiKeyConfigured = keyStatus[keyStatusId] ?? null;
   const model = settings?.post_process_models?.[selectedProviderId] ?? "";
 
   useEffect(() => {
     if (!settings) return;
     const requestVersion =
-      (keyStatusRequestVersion.current[selectedProviderId] ?? 0) + 1;
-    keyStatusRequestVersion.current[selectedProviderId] = requestVersion;
+      (keyStatusRequestVersion.current[keyStatusId] ?? 0) + 1;
+    keyStatusRequestVersion.current[keyStatusId] = requestVersion;
     if (selectedProviderId === "ollama" || isAppleProvider) {
-      setKeyStatus((current) => ({ ...current, [selectedProviderId]: false }));
+      setKeyStatus((current) => ({ ...current, [keyStatusId]: false }));
       return;
     }
 
@@ -99,22 +101,22 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
       .then((configured) => {
         if (
           active &&
-          requestVersion === keyStatusRequestVersion.current[selectedProviderId]
+          requestVersion === keyStatusRequestVersion.current[keyStatusId]
         ) {
           setKeyStatus((current) => ({
             ...current,
-            [selectedProviderId]: configured,
+            [keyStatusId]: configured,
           }));
         }
       })
       .catch((error) => {
         if (
           active &&
-          requestVersion === keyStatusRequestVersion.current[selectedProviderId]
+          requestVersion === keyStatusRequestVersion.current[keyStatusId]
         ) {
           setKeyStatus((current) => ({
             ...current,
-            [selectedProviderId]: null,
+            [keyStatusId]: null,
           }));
           toast.error(`Could not check API key: ${String(error)}`);
         }
@@ -123,7 +125,13 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     return () => {
       active = false;
     };
-  }, [selectedProviderId, isAppleProvider, settings !== null, apiKeysVersion]);
+  }, [
+    selectedProviderId,
+    keyStatusId,
+    isAppleProvider,
+    settings !== null,
+    apiKeysVersion,
+  ]);
 
   const providerOptions = useMemo<DropdownOption[]>(() => {
     return providers.map((provider) => ({
@@ -203,8 +211,8 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     async (value: string) => {
       if (keyUpdateInFlight.current) return;
       keyUpdateInFlight.current = true;
-      keyStatusRequestVersion.current[selectedProviderId] =
-        (keyStatusRequestVersion.current[selectedProviderId] ?? 0) + 1;
+      keyStatusRequestVersion.current[keyStatusId] =
+        (keyStatusRequestVersion.current[keyStatusId] ?? 0) + 1;
       setIsApiKeyUpdating(true);
       try {
         await invoke<void>("change_post_process_api_key_setting", {
@@ -213,7 +221,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
         });
         setKeyStatus((current) => ({
           ...current,
-          [selectedProviderId]: value.length > 0,
+          [keyStatusId]: value.length > 0,
         }));
         setApiKeyInputVersion((version) => version + 1);
         bumpApiKeysVersion();
@@ -224,7 +232,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
         setIsApiKeyUpdating(false);
       }
     },
-    [selectedProviderId, bumpApiKeysVersion],
+    [selectedProviderId, keyStatusId, bumpApiKeysVersion],
   );
 
   const handleApiKeyChange = useCallback(

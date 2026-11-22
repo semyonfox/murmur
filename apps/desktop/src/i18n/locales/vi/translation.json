@@ -1,4 +1,10 @@
 {
+  "startup": {
+    "legacyConflictTitle": "Không thể chuyển dữ liệu Murmur trước đây",
+    "legacyConflictMessage": "Dữ liệu Murmur trước đây xung đột với dữ liệu hiện tại. Dữ liệu trước đây vẫn nằm ở {{path}}.",
+    "newerHistoryTitle": "Cơ sở dữ liệu lịch sử cần phiên bản mới hơn",
+    "newerHistoryMessage": "Một phiên bản Murmur mới hơn đã ghi cơ sở dữ liệu lịch sử này. Hãy cập nhật Murmur để mở lịch sử của bạn.\n\n{{path}}\n\nĐể bắt đầu với lịch sử trống, hãy đóng Murmur rồi chuyển cơ sở dữ liệu và mọi tệp có tên khớp với mẫu history.db-* sang thư mục khác."
+  },
   "tray": {
     "settings": "Cài đặt...",
     "checkUpdates": "Kiểm tra cập nhật...",
@@ -118,7 +124,10 @@
         "checkFailed": "Không thể kiểm tra quyền. Vui lòng thử lại.",
         "requestFailed": "Không thể yêu cầu quyền. Vui lòng thử lại."
       }
-    }
+    },
+    "configureEndpoint": "Dùng dịch vụ nhận dạng giọng nói",
+    "configureEndpointDescription": "Cấu hình một nhà cung cấp trực tuyến hoặc máy chủ của riêng bạn trong mục Mô hình.",
+    "noModels": "Hiện chưa có mô hình nào để tải xuống."
   },
   "modelSelector": {
     "custom": "Tùy chỉnh",
@@ -660,7 +669,10 @@
     "open": "Mở",
     "copy": "Sao chép",
     "clear": "Xóa",
-    "noOptionsFound": "Không tìm thấy tùy chọn"
+    "noOptionsFound": "Không tìm thấy tùy chọn",
+    "download": "Tải xuống",
+    "retry": "Thử lại",
+    "cancel": "Hủy"
   },
   "accessibility": {
     "permissionsDescription": "Murmur cần quyền truy cập để gõ văn bản đã chuyển đổi.",
@@ -714,5 +726,390 @@
     "learnMore": "Cách khắc phục",
     "recorderBlocked": "Hiện không thể ghi phím tắt — Secure Input của macOS đang chặn các sự kiện phím. Hãy xử lý cảnh báo Secure Input trước.",
     "dismiss": "Bỏ qua"
+  },
+  "murmur": {
+    "cleanup": {
+      "errors": {
+        "authentication": "Xác thực thất bại. Hãy kiểm tra khóa API.",
+        "credit": "Tài khoản tại nhà cung cấp đã hết số dư. Hãy kiểm tra phần thanh toán.",
+        "rateLimit": "Đã đạt giới hạn yêu cầu. Hãy thử lại sau.",
+        "server": "Nhà cung cấp hiện không khả dụng. Hãy thử lại sau.",
+        "invalidOutput": "Nhà cung cấp trả về bản chép lời không dùng được.",
+        "timeout": "Nhà cung cấp phản hồi quá thời gian cho phép.",
+        "reasoning": "Mô hình này yêu cầu bật chế độ suy luận. Hãy chọn mô hình khác.",
+        "credentialStore": "Tính năng chỉnh sửa văn bản không truy cập được kho thông tin xác thực của hệ thống.",
+        "configuration": "Yêu cầu bị từ chối. Hãy kiểm tra cài đặt nhà cung cấp và mô hình."
+      },
+      "failed": "Không thể chỉnh sửa văn bản bằng AI",
+      "removeKey": "Xóa khóa",
+      "keyStatusUnknown": "Đang kiểm tra kho thông tin xác thực của hệ thống…",
+      "keyStored": "Đã lưu khóa trong kho thông tin xác thực của hệ thống",
+      "keyMissing": "Chưa lưu khóa",
+      "formality": {
+        "veryCasual": "Rất thoải mái",
+        "casual": "Thoải mái",
+        "natural": "Tự nhiên",
+        "professional": "Chuyên nghiệp",
+        "formal": "Trang trọng",
+        "title": "Giọng văn",
+        "description": "Chọn mức chỉnh dấu câu và ngữ pháp. Mức nào cũng giữ nguyên lời của bạn."
+      },
+      "basic": {
+        "title": "Trên thiết bị này",
+        "description": "Luôn chạy cục bộ, kể cả khi đã tắt chỉnh sửa văn bản bằng AI."
+      },
+      "title": "Chỉnh sửa văn bản bằng AI",
+      "description": "Sửa dấu câu và lỗi rõ ràng, chia đoạn nhập bằng giọng nói dài thành các câu dễ đọc mà vẫn giữ lời của bạn. Nhà cung cấp đám mây chỉ nhận bản chép lời, không nhận bản ghi âm.",
+      "instructions": {
+        "title": "Hướng dẫn tùy chỉnh",
+        "description": "Không bắt buộc. Thêm yêu cầu cho mô hình chỉnh sửa."
+      },
+      "model": {
+        "none": "Chưa chọn nhà cung cấp"
+      }
+    },
+    "app": {
+      "loading": "Đang tải Murmur…",
+      "skip": "Chuyển đến cài đặt",
+      "appearance": {
+        "title": "Giao diện"
+      },
+      "startup": {
+        "title": "Khởi động và khay hệ thống"
+      },
+      "performance": {
+        "title": "Hiệu năng"
+      }
+    },
+    "nav": {
+      "dictation": "Nhập bằng giọng nói",
+      "lectures": "Bài giảng",
+      "dictionary": "Từ điển",
+      "insertion": "Chèn văn bản",
+      "stats": "Thống kê",
+      "privacy": "Quyền riêng tư",
+      "app": "Ứng dụng",
+      "label": "Cài đặt"
+    },
+    "pages": {
+      "dictation": {
+        "description": "Phím tắt, micrô và ngôn ngữ nói của bạn, cùng những gì bạn thấy và nghe khi ghi âm."
+      },
+      "lectures": {
+        "description": "Ghi âm bài giảng hoặc nhập tệp âm thanh. Bản chép lời sẽ xuất hiện trong lịch sử."
+      },
+      "models": {
+        "description": "Chọn công cụ chuyển giọng nói thành văn bản. Mọi khóa API đã lưu cũng được liệt kê ở đây."
+      },
+      "cleanup": {
+        "description": "Làm gọn bản chép lời trước khi chèn: từ đệm, mô hình AI và khóa, giọng văn và hướng dẫn."
+      },
+      "dictionary": {
+        "description": "Tên riêng và thuật ngữ mà Murmur nên viết theo cách của bạn."
+      },
+      "insertion": {
+        "description": "Cách văn bản hoàn chỉnh được đưa vào ứng dụng bạn đang gõ và điều gì xảy ra sau đó."
+      },
+      "stats": {
+        "description": "Số từ, tốc độ nói, thời lượng âm thanh đã lưu và chi phí nhà cung cấp."
+      },
+      "history": {
+        "description": "Các mục nhập bằng giọng nói trước đây, thời gian lưu giữ và xuất bản nén."
+      },
+      "privacy": {
+        "description": "Những gì rời khỏi máy tính này, những gì ở lại và trong bao lâu."
+      },
+      "app": {
+        "description": "Giao diện, ngôn ngữ hiển thị, khởi động và hiệu năng."
+      },
+      "about": {
+        "description": "Phiên bản, ghi công và nơi Murmur lưu tệp của mình."
+      },
+      "debug": {
+        "description": "Thông tin chẩn đoán để khắc phục sự cố."
+      }
+    },
+    "onboarding": {
+      "checking": "Đang kiểm tra quyền…",
+      "checkFailed": "Kiểm tra quyền thất bại. Dùng thao tác cấp quyền bên dưới để thử lại. Cài đặt hệ thống của bạn chưa bị thay đổi.",
+      "microphoneWaiting": "Bật quyền truy cập micrô trong cài đặt hệ thống rồi quay lại đây. Murmur sẽ tự động kiểm tra lại.",
+      "recheck": "Kiểm tra lại",
+      "accessibilityWaiting": "Bật Murmur trong cài đặt trợ năng của hệ thống rồi quay lại đây. Murmur sẽ tự động kiểm tra lại."
+    },
+    "models": {
+      "downloadNamed": "Tải xuống {{model}}",
+      "browse": "Duyệt {{count}} mô hình để tải xuống",
+      "local": {
+        "title": "Mô hình trên thiết bị"
+      },
+      "cleanup": {
+        "title": "Mô hình chỉnh sửa",
+        "on": "Chỉnh sửa văn bản bằng AI đang bật",
+        "off": "Chỉnh sửa văn bản bằng AI đang tắt",
+        "change": "Thay đổi trong Xử lý sau"
+      }
+    },
+    "dictionary": {
+      "saveError": "Không thể lưu mục từ điển này.",
+      "search": "Tìm từ đã lưu",
+      "count": "Đã lưu {{count}} thuật ngữ",
+      "noMatches": "Không có từ phù hợp.",
+      "title": "Từ của bạn",
+      "description": "Được nhận dạng trên thiết bị và chỉnh sửa văn bản bằng AI dùng để viết đúng tên riêng và thuật ngữ ít gặp."
+    },
+    "history": {
+      "limit": {
+        "confirmMessage": "Giữ lại {{count}} mục nhập bằng giọng nói gần nhất? Các mục cũ hơn chưa đánh dấu sao và bản ghi âm của chúng sẽ bị xoá vĩnh viễn.",
+        "confirmTitle": "Giảm giới hạn lịch sử"
+      },
+      "retention": {
+        "confirmMessage": "Thay đổi thời gian lưu giữ có thể xóa vĩnh viễn các bản ghi âm và bản chép lời vượt quá giới hạn mới. Tiếp tục?",
+        "confirmTitle": "Thay đổi thời gian lưu giữ lịch sử"
+      },
+      "playbackError": "Không phát được bản ghi âm. Hãy thử Phát lại hoặc khôi phục bản chép lời ở trên.",
+      "saveError": "Không thể thay đổi việc giữ lại mục này. Hãy thử lại.",
+      "folderError": "Không thể mở thư mục bản ghi âm. Bản chép lời của bạn vẫn có ở đây.",
+      "archive": {
+        "partial": "Đã lưu trữ {{count}} mục, nhưng {{missing}} bản ghi âm đã bị thiếu từ trước.",
+        "complete": "Đã lưu trữ {{count}} mục. Bản gốc không thay đổi.",
+        "error": "Không thể xuất lịch sử.",
+        "working": "Đang tạo tệp lưu trữ…",
+        "action": "Xuất tệp lưu trữ nén",
+        "note": "Nén không mất dữ liệu giữ nguyên âm thanh WAV gốc. Tệp lưu trữ không được mã hóa và việc xuất không bao giờ xóa lịch sử cục bộ."
+      },
+      "loadError": "Không thể tải lịch sử. Các mục đã lưu của bạn chưa bị xóa.",
+      "retryLoad": "Tải lại",
+      "storage": {
+        "title": "Dung lượng và lưu trữ",
+        "description": "Chọn thời gian giữ bản ghi âm và bản chép lời. Khi cần lưu trữ lâu dài, hãy xuất một bản sao nén chứa cả văn bản gốc và văn bản đã chỉnh sửa."
+      },
+      "copied": "Đã sao chép bản chép lời đang hiển thị.",
+      "deleteMessage": "Thao tác này xóa vĩnh viễn văn bản gốc, văn bản đã chỉnh sửa và bản ghi âm của mục.",
+      "deleteTitle": "Xóa mục nhập bằng giọng nói?",
+      "retryFinished": "Yêu cầu chép lời đã xong. Hãy xem kết quả trong mục này.",
+      "raw": "Bản chép lời gốc",
+      "cleaned": "Bản chép lời đã chỉnh sửa",
+      "processed": "Bản chép lời đã xử lý",
+      "showCleaned": "Hiện văn bản đã chỉnh sửa",
+      "showProcessed": "Hiện văn bản đã xử lý",
+      "showRaw": "Hiện văn bản gốc",
+      "rawFallback": "Mục này không dùng được tính năng chỉnh sửa văn bản bằng AI.",
+      "stats": {
+        "noPreviousWeek": "Không có tuần trước để so sánh",
+        "totalWords": "Số từ được giữ lại",
+        "thisWeek": "Tuần này",
+        "recordedPace": "Tốc độ ghi âm",
+        "wpm": "từ/phút",
+        "minutes": "phút",
+        "retainedOnly": "Dựa trên lịch sử được giữ lại. Các mục đã xóa không được tính.",
+        "stale": "Không thể làm mới thống kê. Số liệu này có thể đã cũ.",
+        "loading": "Đang tải thống kê…",
+        "unavailable": "Hiện không có thống kê.",
+        "weeklyWords": "Số từ mỗi tuần",
+        "vsPrevious": "so với tuần đầy đủ trước",
+        "weekBar": "{{date}}: {{count}} từ",
+        "weeklyPace": "Tốc độ ghi âm mỗi tuần",
+        "weekPaceUnavailable": "{{date}}: không có dữ liệu ghi âm",
+        "weekPaceValue": "{{date}}: {{wpm}} từ mỗi phút",
+        "method": "Tốc độ dựa trên âm thanh đã lưu của {{covered}}/{{count}} bản ghi âm. Khoảng lặng bị lọc khi ghi không được tính. Tuần này vẫn đang diễn ra."
+      }
+    },
+    "lectures": {
+      "saved": "Đã lưu bản chép lời bài giảng vào Lịch sử",
+      "imported": "Đã lưu bản chép lời âm thanh vào Lịch sử",
+      "importFailed": "Nhập hoặc chép lời thất bại: {{error}}",
+      "recordTitle": "Ghi âm bài giảng",
+      "recordDescription": "Ghi từ micrô của bạn. Âm thanh được lưu trong khi ghi, rồi được chép lời khi bạn kết thúc.",
+      "finish": "Kết thúc và chép lời",
+      "record": "Ghi âm bài giảng",
+      "recordingSince": "Đang ghi từ {{time}}",
+      "earlier": "trước đó",
+      "progress": "Đang chép lời phần {{completed}}/{{total}}",
+      "working": "Đang xử lý…",
+      "importTitle": "Chép lời tệp âm thanh",
+      "importDescription": "Chọn một bản ghi âm để thêm vào Lịch sử. Murmur dùng nhà cung cấp nhận dạng giọng nói và chỉnh sửa bạn đã chọn.",
+      "choose": "Chọn tệp âm thanh",
+      "privacy": "Âm thanh gốc và bản chép lời tuân theo cài đặt lưu giữ của Lịch sử. Nhà cung cấp đám mây chỉ nhận âm thanh khi bạn chọn chế độ nhận dạng qua dịch vụ."
+    },
+    "dictation": {
+      "resetMicrophone": "Đặt lại micrô về mặc định",
+      "indicator": {
+        "visibility": "Hiện chỉ báo ghi âm",
+        "description": "Lựa chọn trực quan thay cho âm báo. Khả năng hiển thị tùy thuộc vào môi trường máy tính và quyền của nó."
+      },
+      "previewSounds": "Nghe thử chủ đề âm thanh: bắt đầu rồi dừng",
+      "status": {
+        "hold": "Giữ {{shortcut}} để nói, thả ra để kết thúc",
+        "toggle": "Nhấn {{shortcut}} để bắt đầu, nhấn lần nữa để kết thúc",
+        "holdOrToggle": "Giữ {{shortcut}}, hoặc nhấn để bắt đầu và nhấn lần nữa để kết thúc",
+        "speechCloud": "Âm thanh được gửi tới {{host}} để chép lời",
+        "speechLocal": "Âm thanh ở lại trên thiết bị này ({{model}})",
+        "noModel": "chưa chọn mô hình",
+        "cleanupOff": "Chỉnh sửa văn bản bằng AI đang tắt",
+        "cleanupLocal": "Chỉnh sửa văn bản bằng AI chạy cục bộ với {{provider}}",
+        "cleanupCloud": "Bản chép lời được gửi tới {{provider}} để chỉnh sửa",
+        "unavailable": "Không có trạng thái micrô",
+        "chooseModel": "Chọn một mô hình nhận dạng để bắt đầu",
+        "checking": "Đang kiểm tra trạng thái nhập bằng giọng nói…",
+        "change": "Đổi mô hình",
+        "captureOnly": "Đã tắt thu âm từ micrô. Nhận dạng hoặc chỉnh sửa có thể vẫn đang chạy, hãy xem chỉ báo ghi âm hoặc Lịch sử để biết kết quả.",
+        "release": "Thả phím tắt để kết thúc.",
+        "pressAgain": "Nhấn phím tắt lần nữa để kết thúc.",
+        "releaseOrPress": "Thả ra nếu đang giữ, hoặc nhấn phím tắt lần nữa để kết thúc."
+      },
+      "shortcut": {
+        "title": "Phím tắt"
+      },
+      "microphone": {
+        "title": "Micrô"
+      },
+      "sounds": {
+        "title": "Âm thanh",
+        "theme": "Âm thanh",
+        "themeDescription": "Âm báo ghi âm dùng đầu ra và âm lượng của hệ thống."
+      },
+      "language": {
+        "title": "Ngôn ngữ nói",
+        "model": "Các tùy chọn phụ thuộc vào mô hình đang dùng, {{model}}."
+      }
+    },
+    "download": {
+      "pending": "Đang tải xuống…",
+      "multiple": "Đang tải xuống {{count}} mục…"
+    },
+    "about": {
+      "versionDescription": "Phiên bản hiện tại của Murmur",
+      "ggml": {
+        "details": "Murmur dùng transcribe.cpp và ggml để nhận dạng giọng nói cục bộ. Cảm ơn Georgi Gerganov và những người đóng góp."
+      }
+    },
+    "general": {
+      "status": {
+        "recording": "Đang ghi âm",
+        "idle": "Không ghi âm"
+      },
+      "indicator": {
+        "title": "Chỉ báo ghi âm"
+      }
+    },
+    "insertion": {
+      "method": {
+        "title": "Chèn văn bản",
+        "description": "Nếu bản chép lời có trong Lịch sử nhưng không xuất hiện trong ứng dụng, hãy thử phương thức khác ở đây."
+      },
+      "after": {
+        "title": "Sau khi chèn"
+      }
+    },
+    "keys": {
+      "removed": "Đã xóa khóa của {{name}}",
+      "title": "Khóa API đã lưu",
+      "description": "Khóa được giữ trong kho thông tin xác thực của hệ thống, không bao giờ nằm trong tệp cài đặt của Murmur.",
+      "unavailable": "Không lấy được trạng thái kho thông tin xác thực. Các khóa đã lưu chưa bị xóa.",
+      "loading": "Đang kiểm tra kho thông tin xác thực…",
+      "none": "Chưa lưu khóa API nào.",
+      "speech": "Nhận dạng giọng nói",
+      "cleanup": "Chỉnh sửa văn bản bằng AI",
+      "remove": "Xóa"
+    },
+    "stt": {
+      "inUse": "Đang dùng",
+      "keySaved": "Đã lưu khóa API nhận dạng giọng nói",
+      "keyRemoved": "Đã xóa khóa API nhận dạng giọng nói",
+      "saved": "Đã lưu nguồn nhận dạng giọng nói",
+      "refreshFailed": "Đã lưu nguồn nhận dạng giọng nói, nhưng không thể tải lại cài đặt. Hãy thử tải lại cài đặt.",
+      "title": "Nhận dạng giọng nói",
+      "description": "Chọn nơi chuyển giọng nói của bạn thành văn bản.",
+      "source": "Nguồn chép lời",
+      "local": {
+        "title": "Trên thiết bị này",
+        "description": "Chọn hoặc tải xuống một mô hình bên dưới. Âm thanh không bao giờ rời khỏi máy tính này."
+      },
+      "endpoint": {
+        "title": "API đám mây hoặc máy chủ của bạn",
+        "description": "OpenAI, Groq hoặc bất kỳ dịch vụ nào tương thích OpenAI. Cần khóa API trừ khi dịch vụ chạy cục bộ.",
+        "notice": "Mỗi bản ghi âm được gửi tới dịch vụ này và dịch vụ có thể tính phí sử dụng. Murmur không bao giờ tự chuyển sang dịch vụ khác."
+      },
+      "service": "Dịch vụ",
+      "presetOther": "hoặc nhập máy chủ tương thích bất kỳ bên dưới",
+      "baseUrl": "URL gốc của API",
+      "baseUrlHelp": "Với máy chủ trên máy tính này, hãy thử http://127.0.0.1:8000/v1. URL /audio/transcriptions đầy đủ cũng dùng được.",
+      "model": "ID mô hình",
+      "modelHelp": "Dùng tên mô hình mà máy chủ nhận dạng giọng nói của bạn chấp nhận.",
+      "apiKey": "Khóa API",
+      "apiKeyPlaceholder": "Dán khóa của bạn",
+      "saveKey": "Lưu khóa",
+      "removeKey": "Xóa",
+      "keySavedWithSource": "Khóa của bạn được lưu cùng URL và mô hình khi bạn nhấn Lưu.",
+      "keyStored": "Đã có khóa cho dịch vụ này trong kho thông tin xác thực của hệ thống.",
+      "noKey": "Chưa lưu khóa. Chỉ để trống nếu máy chủ không cần khóa.",
+      "keyStatusError": "Không thể kiểm tra kho thông tin xác thực của hệ thống. Hãy thử lại bên dưới.",
+      "keyStatusUnknown": "Đang kiểm tra kho thông tin xác thực của hệ thống…",
+      "retryKeyCheck": "Kiểm tra khóa lại",
+      "retryRefresh": "Tải lại cài đặt",
+      "saving": "Đang lưu…",
+      "save": "Lưu"
+    },
+    "privacy": {
+      "loading": "Không thể dùng cài đặt quyền riêng tư khi cấu hình đang tải. Nhấn Thử lại để kiểm tra lại.",
+      "change": "Thay đổi",
+      "reporting": "Dữ liệu sử dụng và lỗi ẩn danh",
+      "reportingSwitch": "Chia sẻ dữ liệu sử dụng và lỗi ẩn danh",
+      "reportingNotice": "Chỉ gồm số lượt xem màn hình/thao tác lưu trên máy chủ tự vận hành và các loại lỗi cố định. Không theo dõi người dùng, không có bản ghi âm, bản chép lời, từ trong từ điển hay khóa API. Tắt cho đến khi chủ sở hữu cấu hình dịch vụ nhận. Do Not Track và Global Privacy Control được ưu tiên hơn công tắc này. Số liệu hết hạn sau 30 ngày, lỗi sau 14 ngày.",
+      "reportingUnconfigured": "Bản dựng này chưa cấu hình báo cáo. Không có gì được gửi.",
+      "reportingSaveError": "Không thể lưu tùy chọn báo cáo. Báo cáo sẽ tắt cho đến khi đọc được tùy chọn.",
+      "leaves": {
+        "title": "Những gì rời khỏi máy tính này",
+        "description": "Giọng nói và văn bản của bạn chỉ được gửi tới dịch vụ bạn chọn. Murmur không bao giờ tự chuyển sang dịch vụ khác."
+      },
+      "speech": {
+        "title": "Giọng nói của bạn",
+        "cloud": "Mỗi bản ghi âm được gửi tới {{host}} để chép lời.",
+        "local": "Được chép lời trên máy tính này. Bản ghi âm không bao giờ được tải lên."
+      },
+      "cleanup": {
+        "title": "Bản chép lời của bạn",
+        "off": "Chỉnh sửa văn bản bằng AI đang tắt nên bản chép lời ở lại đây.",
+        "local": "Được {{provider}} chỉnh sửa trên máy tính này.",
+        "cloud": "Bản chép lời và từ trong từ điển của bạn được gửi tới {{provider}} để chỉnh sửa. Âm thanh thì không."
+      },
+      "stored": {
+        "title": "Những gì ở lại trên máy tính này"
+      },
+      "history": {
+        "title": "Bản ghi âm và bản chép lời",
+        "detail": "Giữ: {{period}}. Các mục được gắn sao luôn được giữ lại."
+      },
+      "keys": {
+        "title": "Khóa API",
+        "detail": "Đã lưu {{count}} khóa trong kho thông tin xác thực của hệ thống, không bao giờ trong tệp cài đặt của Murmur."
+      },
+      "manage": "Quản lý"
+    },
+    "stats": {
+      "providerCost": "Chi phí nhà cung cấp",
+      "openrouterKeys": "Mức sử dụng OpenRouter của các khóa bạn đã cấu hình",
+      "refresh": "Làm mới",
+      "costStale": "Không thể làm mới mức sử dụng của nhà cung cấp. Số liệu này có thể đã cũ.",
+      "costLoading": "Đang kiểm tra mức sử dụng OpenRouter…",
+      "costUnavailable": "Không lấy được mức sử dụng OpenRouter. Hãy kiểm tra kết nối và khóa, rồi thử lại.",
+      "noOpenrouterKey": "Thêm khóa OpenRouter cho nhận dạng giọng nói trong Mô hình hoặc khóa chỉnh sửa trong Xử lý sau để xem mức sử dụng ở đây.",
+      "costWeek": "Tuần này",
+      "costMonth": "Tháng này",
+      "costAll": "Toàn thời gian",
+      "byokValue": "OpenRouter cũng ghi nhận {{value}} mức sử dụng mô hình BYOK trong tháng này. Nhà cung cấp của bạn tính phí khoản đó riêng.",
+      "costScope": "Các tổng này bao gồm {{count}} khóa OpenRouter đã cấu hình, kể cả mức sử dụng ngoài Murmur. Mô hình cục bộ và khóa nhà cung cấp trực tiếp không được tính.",
+      "totalWordsDescription": "Số từ trong các mục đã lưu",
+      "thisWeekDescription": "Số từ đã lưu từ thứ Hai",
+      "recordedDescription": "Dựa trên âm thanh đã lưu sau khi lọc khoảng lặng",
+      "recordedMinutes": "Số phút âm thanh đã lưu",
+      "title": "Thống kê nhập bằng giọng nói",
+      "unavailableHelp": "Hãy thử lại khi Murmur đã khởi động xong.",
+      "position": "Thống kê {{current}}/{{total}}",
+      "swipeHint": "Kéo hoặc vuốt để xem",
+      "metricCards": "Thẻ thống kê nhập bằng giọng nói",
+      "noAudioShort": "Không có âm thanh được giữ lại",
+      "noAudio": "Không có bản ghi âm nào được giữ lại kèm âm thanh, nên không thể tính tốc độ và số phút ghi âm. Tuần này vẫn đang diễn ra."
+    }
   }
 }

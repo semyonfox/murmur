@@ -541,13 +541,15 @@ pub struct AppSettings {
     /// `overlay_position` (position `none` → style `None`).
     #[serde(default = "default_overlay_style")]
     pub overlay_style: OverlayStyle,
+    #[serde(default = "default_overlay_style")]
+    pub overlay_style_when_visible: OverlayStyle,
 }
 
 fn default_model() -> String {
     "".to_string()
 }
 
-const CURRENT_SETTINGS_SCHEMA_VERSION: u32 = 3;
+const CURRENT_SETTINGS_SCHEMA_VERSION: u32 = 4;
 
 fn default_settings_schema_version() -> u32 {
     CURRENT_SETTINGS_SCHEMA_VERSION
@@ -1077,6 +1079,7 @@ pub fn get_default_settings() -> AppSettings {
         vad_enabled: default_vad_enabled(),
         vad_backend: VadBackend::default(),
         overlay_style: default_overlay_style(),
+        overlay_style_when_visible: default_overlay_style(),
     }
 }
 
@@ -1150,6 +1153,11 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
 
         if updated {
             store.set("settings", serde_json::to_value(&settings).unwrap());
+            if stored_settings_schema_version(&settings_value) < 4 {
+                tauri::async_runtime::spawn_blocking(
+                    crate::secrets::retire_unscoped_custom_cleanup_key,
+                );
+            }
         }
 
         settings
@@ -1204,6 +1212,13 @@ fn salvage_settings(stored: &serde_json::Value) -> AppSettings {
     })
 }
 
+fn stored_settings_schema_version(settings_value: &serde_json::Value) -> u64 {
+    settings_value
+        .get("settings_schema_version")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0)
+}
+
 fn apply_settings_migrations(
     settings: &mut AppSettings,
     settings_value: &serde_json::Value,
@@ -1243,10 +1258,7 @@ fn apply_settings_migrations(
         }
     }
 
-    let stored_schema_version = settings_value
-        .get("settings_schema_version")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
+    let stored_schema_version = stored_settings_schema_version(settings_value);
     if stored_schema_version < 1 {
         // Before schema 1 this was a UI ordinal. Preserve the original safety
         // migration: a positive selection was ambiguous even in 0.1.

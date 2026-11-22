@@ -1,4 +1,10 @@
 {
+  "startup": {
+    "legacyConflictTitle": "Nie udało się przenieść wcześniejszych danych Murmur",
+    "legacyConflictMessage": "Wcześniejsze dane Murmur kolidują z bieżącymi. Wcześniejsze dane nadal znajdują się w {{path}}.",
+    "newerHistoryTitle": "Baza danych historii wymaga nowszej wersji",
+    "newerHistoryMessage": "Tę bazę danych historii zapisała nowsza wersja Murmur. Zaktualizuj Murmur, aby otworzyć historię.\n\n{{path}}\n\nAby zacząć z pustą historią, zamknij Murmur i przenieś bazę danych oraz wszystkie pliki o nazwach pasujących do wzorca history.db-* do innego folderu."
+  },
   "tray": {
     "settings": "Ustawienia...",
     "checkUpdates": "Sprawdź aktualizacje...",
@@ -118,7 +124,10 @@
         "checkFailed": "Nie udało się sprawdzić uprawnień. Spróbuj ponownie.",
         "requestFailed": "Nie udało się poprosić o uprawnienie. Spróbuj ponownie."
       }
-    }
+    },
+    "configureEndpoint": "Użyj endpointu mowy",
+    "configureEndpointDescription": "Skonfiguruj dostawcę online lub własny serwer w sekcji Modele.",
+    "noModels": "Obecnie nie ma modeli do pobrania."
   },
   "modelSelector": {
     "custom": "Własny",
@@ -660,7 +669,10 @@
     "open": "Otwórz",
     "copy": "Kopiuj",
     "clear": "Wyczyść",
-    "noOptionsFound": "Nie znaleziono opcji"
+    "noOptionsFound": "Nie znaleziono opcji",
+    "download": "Pobierz",
+    "retry": "Spróbuj ponownie",
+    "cancel": "Anuluj"
   },
   "accessibility": {
     "permissionsDescription": "Murmur potrzebuje uprawnień dostępności, aby wpisywać transkrybowany tekst.",
@@ -714,5 +726,390 @@
     "learnMore": "Jak to naprawić",
     "recorderBlocked": "Nie można teraz nagrać skrótu — Secure Input w macOS blokuje zdarzenia klawiszy. Najpierw rozwiąż ostrzeżenie o Secure Input.",
     "dismiss": "Odrzuć"
+  },
+  "murmur": {
+    "cleanup": {
+      "errors": {
+        "authentication": "Uwierzytelnianie nie powiodło się. Sprawdź klucz API.",
+        "credit": "Środki u dostawcy zostały wyczerpane. Sprawdź ustawienia rozliczeń.",
+        "rateLimit": "Osiągnięto limit zapytań. Spróbuj ponownie później.",
+        "server": "Dostawca jest niedostępny. Spróbuj ponownie później.",
+        "invalidOutput": "Dostawca zwrócił transkrypcję, której nie można użyć.",
+        "timeout": "Dostawca nie odpowiedział na czas.",
+        "reasoning": "Ten model wymaga włączonego rozumowania. Wybierz inny model.",
+        "credentialStore": "Korekta nie mogła uzyskać dostępu do systemowego magazynu poświadczeń.",
+        "configuration": "Żądanie zostało odrzucone. Sprawdź ustawienia dostawcy i modelu."
+      },
+      "failed": "Korekta tekstu przez AI nie powiodła się",
+      "removeKey": "Usuń klucz",
+      "keyStatusUnknown": "Sprawdzanie systemowego magazynu poświadczeń…",
+      "keyStored": "Klucz zapisany w systemowym magazynie poświadczeń",
+      "keyMissing": "Brak zapisanego klucza",
+      "formality": {
+        "veryCasual": "Bardzo swobodny",
+        "casual": "Swobodny",
+        "natural": "Naturalny",
+        "professional": "Profesjonalny",
+        "formal": "Formalny",
+        "title": "Ton",
+        "description": "Wybierz stopień poprawy interpunkcji i gramatyki. Każdy poziom zachowuje Twoje słowa."
+      },
+      "basic": {
+        "title": "Na tym urządzeniu",
+        "description": "Zawsze działa lokalnie, nawet gdy korekta AI jest wyłączona."
+      },
+      "title": "Korekta tekstu przez AI",
+      "description": "Poprawia interpunkcję i oczywiste błędy oraz dzieli długie dyktowanie na czytelne zdania, zachowując Twoje słowa. Dostawcy w chmurze otrzymują transkrypcję, nie nagranie.",
+      "instructions": {
+        "title": "Własne instrukcje",
+        "description": "Opcjonalnie. Przekaż modelowi korekty dodatkowe wskazówki."
+      },
+      "model": {
+        "none": "Nie wybrano dostawcy"
+      }
+    },
+    "app": {
+      "loading": "Wczytywanie Murmur…",
+      "skip": "Przejdź do ustawień",
+      "appearance": {
+        "title": "Wygląd"
+      },
+      "startup": {
+        "title": "Uruchamianie i zasobnik systemowy"
+      },
+      "performance": {
+        "title": "Wydajność"
+      }
+    },
+    "nav": {
+      "dictation": "Dyktowanie",
+      "lectures": "Wykłady",
+      "dictionary": "Słownik",
+      "insertion": "Wstawianie tekstu",
+      "stats": "Statystyki",
+      "privacy": "Prywatność",
+      "app": "Aplikacja",
+      "label": "Ustawienia"
+    },
+    "pages": {
+      "dictation": {
+        "description": "Skrót, mikrofon i język mowy oraz to, co widzisz i słyszysz podczas nagrywania."
+      },
+      "lectures": {
+        "description": "Nagraj wykład lub zaimportuj plik dźwiękowy. Transkrypcja pojawi się w historii."
+      },
+      "models": {
+        "description": "Wybierz, co zamienia Twoją mowę na tekst. Są tu też wszystkie zapisane klucze API."
+      },
+      "cleanup": {
+        "description": "Porządkowanie transkrypcji przed wstawieniem: wtrącenia, model AI i klucz, ton oraz instrukcje."
+      },
+      "dictionary": {
+        "description": "Nazwy i terminy, które Murmur ma zapisywać po Twojemu."
+      },
+      "insertion": {
+        "description": "Jak gotowy tekst trafia do aplikacji, w której piszesz, i co dzieje się potem."
+      },
+      "stats": {
+        "description": "Słowa, tempo mówienia, długość zapisanego dźwięku i koszt u dostawców."
+      },
+      "history": {
+        "description": "Wcześniejsze dyktowania, okres przechowywania i skompresowany eksport."
+      },
+      "privacy": {
+        "description": "Co opuszcza ten komputer, co na nim zostaje i jak długo."
+      },
+      "app": {
+        "description": "Wygląd, język interfejsu, uruchamianie i wydajność."
+      },
+      "about": {
+        "description": "Wersja, podziękowania i miejsce, gdzie Murmur trzyma swoje pliki."
+      },
+      "debug": {
+        "description": "Diagnostyka do rozwiązywania problemów."
+      }
+    },
+    "onboarding": {
+      "checking": "Sprawdzanie uprawnień…",
+      "checkFailed": "Sprawdzenie uprawnień nie powiodło się. Użyj przycisku uprawnień poniżej, aby spróbować ponownie. Ustawienia systemowe nie zostały zmienione.",
+      "microphoneWaiting": "Włącz dostęp do mikrofonu w ustawieniach systemowych i wróć tutaj. Murmur sprawdzi to ponownie automatycznie.",
+      "recheck": "Sprawdź ponownie",
+      "accessibilityWaiting": "Włącz Murmur w systemowych ustawieniach ułatwień dostępu i wróć tutaj. Murmur sprawdzi to ponownie automatycznie."
+    },
+    "models": {
+      "downloadNamed": "Pobierz {{model}}",
+      "browse": "Przeglądaj modele do pobrania ({{count}})",
+      "local": {
+        "title": "Modele na urządzeniu"
+      },
+      "cleanup": {
+        "title": "Model korekty",
+        "on": "Korekta AI jest włączona",
+        "off": "Korekta AI jest wyłączona",
+        "change": "Zmień w sekcji Korekta"
+      }
+    },
+    "dictionary": {
+      "saveError": "Nie udało się zapisać tego wpisu w słowniku.",
+      "search": "Szukaj zapisanych słów",
+      "count": "Zapisane terminy: {{count}}",
+      "noMatches": "Brak pasujących słów.",
+      "title": "Twoje słowa",
+      "description": "Używane przez rozpoznawanie na urządzeniu i korektę AI do poprawnej pisowni nietypowych nazw i terminów."
+    },
+    "history": {
+      "limit": {
+        "confirmMessage": "Zachować ostatnie {{count}} dyktowań? Starsze dyktowania bez gwiazdki i ich nagrania zostaną trwale usunięte.",
+        "confirmTitle": "Zmniejsz limit historii"
+      },
+      "retention": {
+        "confirmMessage": "Zmiana okresu przechowywania może trwale usunąć istniejące nagrania i transkrypcje, które przekraczają nowy limit. Kontynuować?",
+        "confirmTitle": "Zmień okres przechowywania historii"
+      },
+      "playbackError": "Nie można odtworzyć nagrania. Spróbuj odtworzyć je ponownie lub odzyskaj transkrypcję powyżej.",
+      "saveError": "Nie udało się zmienić, czy to dyktowanie ma być zachowane. Spróbuj ponownie.",
+      "folderError": "Nie udało się otworzyć folderu z nagraniami. Transkrypcje są nadal dostępne tutaj.",
+      "archive": {
+        "partial": "Zarchiwizowano dyktowania: {{count}}, ale brakowało już nagrań: {{missing}}.",
+        "complete": "Zarchiwizowano dyktowania: {{count}}. Oryginały pozostały bez zmian.",
+        "error": "Nie udało się wyeksportować historii.",
+        "working": "Tworzenie archiwum…",
+        "action": "Eksportuj skompresowane archiwum",
+        "note": "Kompresja bezstratna zachowuje oryginalny dźwięk WAV. Archiwum nie jest szyfrowane, a eksport nigdy nie usuwa lokalnej historii."
+      },
+      "loadError": "Nie udało się wczytać historii. Zapisane dyktowania nie zostały usunięte.",
+      "retryLoad": "Wczytaj ponownie",
+      "storage": {
+        "title": "Przechowywanie i archiwum",
+        "description": "Wybierz, jak długo przechowywać nagrania i transkrypcje. Wyeksportuj skompresowaną kopię z tekstem surowym i poprawionym, gdy potrzebujesz archiwum długoterminowego."
+      },
+      "copied": "Skopiowano wyświetlaną transkrypcję.",
+      "deleteMessage": "Spowoduje to trwałe usunięcie tekstu surowego i poprawionego oraz nagrania.",
+      "deleteTitle": "Usunąć dyktowanie?",
+      "retryFinished": "Żądanie transkrypcji zakończone. Sprawdź wynik w tym wpisie.",
+      "raw": "Surowa transkrypcja",
+      "cleaned": "Poprawiona transkrypcja",
+      "processed": "Przetworzona transkrypcja",
+      "showCleaned": "Pokaż poprawiony tekst",
+      "showProcessed": "Pokaż przetworzony tekst",
+      "showRaw": "Pokaż surowy tekst",
+      "rawFallback": "Korekta tekstu przez AI nie była dostępna dla tego wpisu.",
+      "stats": {
+        "noPreviousWeek": "Brak poprzedniego tygodnia do porównania",
+        "totalWords": "Zachowane słowa",
+        "thisWeek": "Ten tydzień",
+        "recordedPace": "Tempo nagrań",
+        "wpm": "sł./min",
+        "minutes": "min",
+        "retainedOnly": "Na podstawie zachowanej historii. Usunięte dyktowania nie są liczone.",
+        "stale": "Nie udało się odświeżyć statystyk. Te dane mogą być nieaktualne.",
+        "loading": "Wczytywanie statystyk…",
+        "unavailable": "Statystyki są teraz niedostępne.",
+        "weeklyWords": "Słowa w każdym tygodniu",
+        "vsPrevious": "wobec ostatniego pełnego tygodnia",
+        "weekBar": "{{date}}: słowa: {{count}}",
+        "weeklyPace": "Tempo nagrań w każdym tygodniu",
+        "weekPaceUnavailable": "{{date}}: brak danych nagrań",
+        "weekPaceValue": "{{date}}: {{wpm}} słów na minutę",
+        "method": "Tempo jest liczone z zapisanego dźwięku dla {{covered}} z {{count}} nagrań. Cisza odfiltrowana podczas nagrywania nie jest liczona. Ten tydzień jeszcze trwa."
+      }
+    },
+    "lectures": {
+      "saved": "Transkrypcja wykładu zapisana w Historii",
+      "imported": "Transkrypcja nagrania zapisana w Historii",
+      "importFailed": "Import lub transkrypcja nie powiodły się: {{error}}",
+      "recordTitle": "Nagraj wykład",
+      "recordDescription": "Nagrywaj z mikrofonu. Dźwięk jest zapisywany na bieżąco, a transkrypcja powstaje po zakończeniu.",
+      "finish": "Zakończ i transkrybuj",
+      "record": "Nagraj wykład",
+      "recordingSince": "Nagrywanie od {{time}}",
+      "earlier": "wcześniej",
+      "progress": "Transkrypcja części {{completed}} z {{total}}",
+      "working": "Przetwarzanie…",
+      "importTitle": "Transkrybuj plik dźwiękowy",
+      "importDescription": "Wybierz nagranie, aby dodać je do Historii. Murmur używa wybranych dostawców mowy i korekty.",
+      "choose": "Wybierz plik dźwiękowy",
+      "privacy": "Surowy dźwięk i transkrypcje podlegają ustawieniom przechowywania Historii. Dostawcy w chmurze otrzymują dźwięk tylko wtedy, gdy wybierzesz tryb mowy z endpointem."
+    },
+    "dictation": {
+      "resetMicrophone": "Przywróć domyślny mikrofon",
+      "indicator": {
+        "visibility": "Pokazuj wskaźnik nagrywania",
+        "description": "Widoczna alternatywa dla sygnałów dźwiękowych. Dostępność zależy od środowiska pulpitu i jego uprawnień."
+      },
+      "previewSounds": "Odsłuchaj motyw dźwięków: start, potem stop",
+      "status": {
+        "hold": "Przytrzymaj {{shortcut}}, aby dyktować, puść, aby zakończyć",
+        "toggle": "Naciśnij {{shortcut}}, aby zacząć, naciśnij ponownie, aby zakończyć",
+        "holdOrToggle": "Przytrzymaj {{shortcut}} albo dotknij, aby zacząć, i dotknij ponownie, aby zakończyć",
+        "speechCloud": "Dźwięk jest wysyłany do {{host}} do transkrypcji",
+        "speechLocal": "Dźwięk pozostaje na tym urządzeniu ({{model}})",
+        "noModel": "nie wybrano modelu",
+        "cleanupOff": "Korekta AI jest wyłączona",
+        "cleanupLocal": "Korekta AI działa lokalnie z {{provider}}",
+        "cleanupCloud": "Tekst transkrypcji jest wysyłany do {{provider}} do korekty",
+        "unavailable": "Stan mikrofonu jest niedostępny",
+        "chooseModel": "Wybierz model rozpoznawania, aby zacząć",
+        "checking": "Sprawdzanie stanu dyktowania…",
+        "change": "Zmień modele",
+        "captureOnly": "Mikrofon już nie nagrywa. Rozpoznawanie lub korekta mogą nadal trwać. Sprawdź wynik we wskaźniku nagrywania lub w Historii.",
+        "release": "Puść skrót, aby zakończyć.",
+        "pressAgain": "Naciśnij skrót ponownie, aby zakończyć.",
+        "releaseOrPress": "Puść, jeśli przytrzymujesz, lub dotknij skrótu ponownie, aby zakończyć."
+      },
+      "shortcut": {
+        "title": "Skrót"
+      },
+      "microphone": {
+        "title": "Mikrofon"
+      },
+      "sounds": {
+        "title": "Dźwięki",
+        "theme": "Dźwięk",
+        "themeDescription": "Sygnały nagrywania korzystają z wyjścia dźwięku i głośności systemu."
+      },
+      "language": {
+        "title": "Język mowy",
+        "model": "Opcje zależą od aktywnego modelu, {{model}}."
+      }
+    },
+    "download": {
+      "pending": "Pobieranie…",
+      "multiple": "Pobieranie: {{count}}…"
+    },
+    "about": {
+      "versionDescription": "Aktualna wersja Murmur",
+      "ggml": {
+        "details": "Murmur używa transcribe.cpp i ggml do lokalnego rozpoznawania mowy. Podziękowania dla Georgi Gerganova i współtwórców."
+      }
+    },
+    "general": {
+      "status": {
+        "recording": "Trwa nagrywanie",
+        "idle": "Nie nagrywa"
+      },
+      "indicator": {
+        "title": "Wskaźnik nagrywania"
+      }
+    },
+    "insertion": {
+      "method": {
+        "title": "Wstawianie tekstu",
+        "description": "Jeśli transkrypcje pojawiają się w Historii, ale nie w aplikacji, wypróbuj tu inną metodę."
+      },
+      "after": {
+        "title": "Po wstawieniu"
+      }
+    },
+    "keys": {
+      "removed": "Usunięto klucz dla {{name}}",
+      "title": "Zapisane klucze API",
+      "description": "Klucze są przechowywane w systemowym magazynie poświadczeń, nigdy w pliku ustawień Murmur.",
+      "unavailable": "Stan magazynu poświadczeń jest niedostępny. Zapisane klucze nie zostały usunięte.",
+      "loading": "Sprawdzanie magazynu poświadczeń…",
+      "none": "Brak zapisanych kluczy API.",
+      "speech": "Rozpoznawanie mowy",
+      "cleanup": "Korekta AI",
+      "remove": "Usuń"
+    },
+    "stt": {
+      "inUse": "W użyciu",
+      "keySaved": "Zapisano klucz API mowy",
+      "keyRemoved": "Usunięto klucz API mowy",
+      "saved": "Zapisano źródło mowy",
+      "refreshFailed": "Źródło mowy zostało zapisane, ale nie udało się ponownie wczytać ustawień. Wczytaj ustawienia ponownie.",
+      "title": "Rozpoznawanie mowy",
+      "description": "Wybierz, gdzie mowa jest zamieniana na tekst.",
+      "source": "Źródło transkrypcji",
+      "local": {
+        "title": "Na tym urządzeniu",
+        "description": "Wybierz lub pobierz model poniżej. Dźwięk nigdy nie opuszcza tego komputera."
+      },
+      "endpoint": {
+        "title": "API w chmurze lub własny serwer",
+        "description": "OpenAI, Groq lub dowolna usługa zgodna z OpenAI. Wymaga klucza API, chyba że działa lokalnie.",
+        "notice": "Każde nagranie jest wysyłane do tej usługi, która może naliczać opłaty za użycie. Murmur nigdy sam nie przełącza się na inną usługę."
+      },
+      "service": "Usługa",
+      "presetOther": "lub wpisz poniżej dowolny zgodny serwer",
+      "baseUrl": "Bazowy URL API",
+      "baseUrlHelp": "Dla serwera na tym komputerze spróbuj http://127.0.0.1:8000/v1. Pełny URL /audio/transcriptions też działa.",
+      "model": "ID modelu",
+      "modelHelp": "Użyj nazwy modelu, którą akceptuje Twój serwer mowy.",
+      "apiKey": "Klucz API",
+      "apiKeyPlaceholder": "Wklej klucz",
+      "saveKey": "Zapisz klucz",
+      "removeKey": "Usuń",
+      "keySavedWithSource": "Klucz zostanie zapisany razem z URL i modelem po naciśnięciu Zapisz.",
+      "keyStored": "Klucz dla tego endpointu jest zapisany w systemowym magazynie poświadczeń.",
+      "noKey": "Brak zapisanego klucza. Zostaw puste tylko dla serwera, który go nie wymaga.",
+      "keyStatusError": "Nie udało się sprawdzić systemowego magazynu poświadczeń. Spróbuj ponownie poniżej.",
+      "keyStatusUnknown": "Sprawdzanie systemowego magazynu poświadczeń…",
+      "retryKeyCheck": "Sprawdź klucz ponownie",
+      "retryRefresh": "Wczytaj ustawienia ponownie",
+      "saving": "Zapisywanie…",
+      "save": "Zapisz"
+    },
+    "privacy": {
+      "loading": "Ustawienia prywatności są niedostępne podczas wczytywania konfiguracji. Użyj Spróbuj ponownie, aby sprawdzić jeszcze raz.",
+      "change": "Zmień",
+      "reporting": "Anonimowe użycie i błędy",
+      "reportingSwitch": "Udostępniaj anonimowe dane o użyciu i błędach",
+      "reportingNotice": "Tylko liczniki ekranów i działań na własnym serwerze oraz stałe kategorie błędów. Bez śledzenia odwiedzających, nagrań, transkrypcji, słów ze słownika i kluczy API. Wyłączone, dopóki właściciel nie skonfiguruje endpointu. Do Not Track i Global Privacy Control mają pierwszeństwo przed tym przełącznikiem. Liczniki wygasają po 30 dniach, błędy po 14 dniach.",
+      "reportingUnconfigured": "Raportowanie nie jest skonfigurowane w tej wersji. Nic nie jest wysyłane.",
+      "reportingSaveError": "Nie udało się zapisać preferencji raportowania. Raportowanie pozostaje wyłączone, dopóki nie da się odczytać preferencji.",
+      "leaves": {
+        "title": "Co opuszcza ten komputer",
+        "description": "Twój głos i tekst trafiają tylko do wybranych przez Ciebie usług. Murmur nigdy sam nie przełącza się na inną."
+      },
+      "speech": {
+        "title": "Twój głos",
+        "cloud": "Każde nagranie jest wysyłane do {{host}} do transkrypcji.",
+        "local": "Transkrypcja na tym komputerze. Nagrania nigdy nie są wysyłane."
+      },
+      "cleanup": {
+        "title": "Twoje transkrypcje",
+        "off": "Korekta AI jest wyłączona, więc transkrypcje zostają tutaj.",
+        "local": "Poprawiane na tym komputerze przez {{provider}}.",
+        "cloud": "Tekst transkrypcji i słowa ze słownika są wysyłane do {{provider}} do korekty. Dźwięk nie."
+      },
+      "stored": {
+        "title": "Co zostaje na tym komputerze"
+      },
+      "history": {
+        "title": "Nagrania i transkrypcje",
+        "detail": "Przechowywane: {{period}}. Dyktowania z gwiazdką są zawsze zachowywane."
+      },
+      "keys": {
+        "title": "Klucze API",
+        "detail": "Zapisane w systemowym magazynie poświadczeń: {{count}}, nigdy w pliku ustawień Murmur."
+      },
+      "manage": "Zarządzaj"
+    },
+    "stats": {
+      "providerCost": "Koszt u dostawcy",
+      "openrouterKeys": "Użycie OpenRouter dla skonfigurowanych kluczy",
+      "refresh": "Odśwież",
+      "costStale": "Nie udało się odświeżyć użycia u dostawcy. Te dane mogą być nieaktualne.",
+      "costLoading": "Sprawdzanie użycia OpenRouter…",
+      "costUnavailable": "Użycie OpenRouter jest niedostępne. Sprawdź połączenie i klucz, a potem spróbuj ponownie.",
+      "noOpenrouterKey": "Dodaj klucz mowy OpenRouter w sekcji Modele lub klucz korekty w sekcji Korekta, aby zobaczyć tu jego użycie.",
+      "costWeek": "Ten tydzień",
+      "costMonth": "Ten miesiąc",
+      "costAll": "Od początku",
+      "byokValue": "OpenRouter zgłasza też w tym miesiącu {{value}} użycia modeli BYOK. Twój dostawca rozlicza to osobno.",
+      "costScope": "Te sumy obejmują skonfigurowane klucze OpenRouter ({{count}}), w tym użycie poza Murmur. Modele lokalne i bezpośrednie klucze dostawców nie są liczone.",
+      "totalWordsDescription": "Słowa w zapisanych dyktowaniach",
+      "thisWeekDescription": "Słowa zapisane od poniedziałku",
+      "recordedDescription": "Na podstawie zapisanego dźwięku po odfiltrowaniu ciszy",
+      "recordedMinutes": "Minuty zapisanego dźwięku",
+      "title": "Twoje statystyki dyktowania",
+      "unavailableHelp": "Spróbuj ponownie, gdy Murmur zakończy uruchamianie.",
+      "position": "Statystyka {{current}} z {{total}}",
+      "swipeHint": "Przeciągnij lub przesuń, aby przeglądać",
+      "metricCards": "Karty statystyk dyktowania",
+      "noAudioShort": "Brak zachowanego dźwięku",
+      "noAudio": "Brak zachowanych nagrań z dźwiękiem, więc nie można obliczyć tempa ani minut nagrań. Ten tydzień jeszcze trwa."
+    }
   }
 }

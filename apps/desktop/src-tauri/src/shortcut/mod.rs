@@ -16,6 +16,7 @@ pub mod tauri_impl;
 use log::{debug, error, info, warn};
 use serde::Serialize;
 use specta::Type;
+use std::sync::{Mutex, PoisonError};
 use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -557,7 +558,10 @@ pub fn change_audio_feedback_setting(app: AppHandle, enabled: bool) -> Result<()
 #[specta::specta]
 pub fn change_audio_feedback_volume_setting(app: AppHandle, volume: f32) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.audio_feedback_volume = volume;
+    if !volume.is_finite() {
+        return Err("Audio feedback volume must be finite".into());
+    }
+    settings.audio_feedback_volume = volume.clamp(0.0, 1.0);
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -638,6 +642,16 @@ pub fn change_translate_to_english_setting(app: AppHandle, enabled: bool) -> Res
 #[tauri::command]
 #[specta::specta]
 pub fn change_selected_language_setting(app: AppHandle, language: String) -> Result<(), String> {
+    let valid = match language.as_str() {
+        // jw is Whisper's published code for Javanese
+        "auto" | "zh-Hans" | "zh-Hant" | "jw" => true,
+        code if code.len() == 2 => isolang::Language::from_639_1(code).is_some(),
+        code if code.len() == 3 => isolang::Language::from_639_3(code).is_some(),
+        _ => false,
+    };
+    if !valid {
+        return Err("Unknown transcription language".into());
+    }
     let mut settings = settings::get_settings(&app);
     settings.selected_language = language;
     settings::write_settings(&app, settings);
@@ -682,6 +696,11 @@ pub fn change_overlay_style_setting(app: AppHandle, style: String) -> Result<(),
             OverlayStyle::Minimal
         }
     };
+    if parsed != OverlayStyle::None {
+        settings.overlay_style_when_visible = parsed;
+    } else if settings.overlay_style != OverlayStyle::None {
+        settings.overlay_style_when_visible = settings.overlay_style;
+    }
     settings.overlay_style = parsed;
     settings::write_settings(&app, settings);
 
@@ -840,7 +859,10 @@ pub fn change_word_correction_threshold_setting(
     threshold: f64,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.word_correction_threshold = threshold;
+    if !threshold.is_finite() {
+        return Err("Word correction threshold must be finite".into());
+    }
+    settings.word_correction_threshold = threshold.clamp(0.0, 1.0);
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -892,10 +914,7 @@ pub fn change_paste_method_setting(app: AppHandle, method: String) -> Result<(),
         "shift_insert" => PasteMethod::ShiftInsert,
         "ctrl_shift_v" => PasteMethod::CtrlShiftV,
         "external_script" => PasteMethod::ExternalScript,
-        other => {
-            warn!("Invalid paste method '{}', defaulting to ctrl_v", other);
-            PasteMethod::CtrlV
-        }
+        _ => return Err("Unknown paste method".into()),
     };
     settings.paste_method = parsed;
     settings::write_settings(&app, settings);
@@ -926,10 +945,7 @@ pub fn change_typing_tool_setting(app: AppHandle, tool: String) -> Result<(), St
         "dotool" => TypingTool::Dotool,
         "ydotool" => TypingTool::Ydotool,
         "xdotool" => TypingTool::Xdotool,
-        other => {
-            warn!("Invalid typing tool '{}', defaulting to auto", other);
-            TypingTool::Auto
-        }
+        _ => return Err("Unknown typing tool".into()),
     };
     settings.typing_tool = parsed;
     settings::write_settings(&app, settings);
@@ -1013,34 +1029,65 @@ pub fn change_experimental_enabled_setting(app: AppHandle, enabled: bool) -> Res
     Ok(())
 }
 
+// serialise key writes with URL changes so a save can't restore a deleted key
+static CLEANUP_KEY_EDITS: Mutex<()> = Mutex::new(());
+
 #[tauri::command]
 #[specta::specta]
-pub fn change_post_process_base_url_setting(
+pub async fn change_post_process_base_url_setting(
     app: AppHandle,
     provider_id: String,
     base_url: String,
 ) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    let label = settings
-        .post_process_provider(&provider_id)
-        .map(|provider| provider.label.clone())
-        .ok_or_else(|| format!("Provider '{}' not found", provider_id))?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = CLEANUP_KEY_EDITS
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let mut settings = settings::get_settings(&app);
+        let provider = settings
+            .post_process_provider(&provider_id)
+            .ok_or_else(|| format!("Provider '{provider_id}' not found"))?;
 
-    let provider = settings
-        .post_process_provider_mut(&provider_id)
-        .expect("Provider looked up above must exist");
+        if !provider.allow_base_url_edit {
+            return Err(format!(
+                "Provider '{}' does not allow editing the base URL",
+                provider.label
+            ));
+        }
 
-    if !provider.allow_base_url_edit {
-        return Err(format!(
-            "Provider '{}' does not allow editing the base URL",
-            label
-        ));
-    }
+        crate::llm_client::validate_provider_url(&base_url)?;
+        if provider.base_url == base_url {
+            return Ok(());
+        }
 
-    crate::llm_client::validate_provider_url(&base_url)?;
-    provider.base_url = base_url;
-    settings::write_settings(&app, settings);
-    Ok(())
+        if provider_id == "custom" {
+            let new_origin = crate::secrets::cleanup_origin(&base_url)?;
+            if let Some(old_origin) = crate::secrets::cleanup_origin(&provider.base_url)
+                .ok()
+                .filter(|origin| origin != &new_origin)
+            {
+                if let Err(error) =
+                    crate::secrets::delete_cleanup_key(&provider_id, Some(&old_origin))
+                {
+                    warn!("Could not remove the previous Custom cleanup key: {error}");
+                }
+                // the credential store may have blocked while other settings changed
+                settings = settings::get_settings(&app);
+            }
+        }
+
+        settings
+            .post_process_provider_mut(&provider_id)
+            .ok_or_else(|| format!("Provider '{provider_id}' not found"))?
+            .base_url = base_url;
+        settings
+            .post_process_models
+            .insert(provider_id, String::new());
+        settings::write_settings(&app, settings);
+        Ok(())
+    })
+    .await
+    .map_err(|_| "Could not access the system credential store".to_string())?
 }
 
 /// Generic helper to validate provider exists
@@ -1065,13 +1112,19 @@ pub async fn change_post_process_api_key_setting(
     provider_id: String,
     api_key: String,
 ) -> Result<(), String> {
-    let settings = settings::get_settings(&app);
-    validate_provider_exists(&settings, &provider_id)?;
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = CLEANUP_KEY_EDITS
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let settings = settings::get_settings(&app);
+        let provider = settings
+            .post_process_provider(&provider_id)
+            .ok_or("Unknown provider")?;
+        let origin = crate::secrets::cleanup_key_scope(provider)?;
         if api_key.trim().is_empty() {
-            crate::secrets::delete_cleanup_key(&provider_id)
+            crate::secrets::delete_cleanup_key(&provider_id, origin.as_deref())
         } else {
-            crate::secrets::set_cleanup_key(&provider_id, &api_key)
+            crate::secrets::set_cleanup_key(&provider_id, origin.as_deref(), &api_key)
         }
     })
     .await
@@ -1080,9 +1133,20 @@ pub async fn change_post_process_api_key_setting(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn is_post_process_api_key_configured(provider_id: String) -> Result<bool, String> {
+pub async fn is_post_process_api_key_configured(
+    app: AppHandle,
+    provider_id: String,
+) -> Result<bool, String> {
+    let settings = settings::get_settings(&app);
+    let provider = settings
+        .post_process_provider(&provider_id)
+        .ok_or("Unknown provider")?;
+    if provider.id == "custom" && provider.base_url.trim().is_empty() {
+        return Ok(false);
+    }
+    let origin = crate::secrets::cleanup_key_scope(provider)?;
     tauri::async_runtime::spawn_blocking(move || {
-        crate::secrets::get_cleanup_key(&provider_id).map(|key| key.is_some())
+        crate::secrets::get_cleanup_key(&provider_id, origin.as_deref()).map(|key| key.is_some())
     })
     .await
     .map_err(|_| "Could not access the system credential store".to_string())?
@@ -1215,9 +1279,9 @@ pub async fn fetch_post_process_models(
         }
     }
 
-    let provider_id_for_key = provider_id.clone();
+    let origin = crate::secrets::cleanup_key_scope(provider)?;
     let stored_key = tauri::async_runtime::spawn_blocking(move || {
-        crate::secrets::get_cleanup_key(&provider_id_for_key)
+        crate::secrets::get_cleanup_key(&provider_id, origin.as_deref())
     })
     .await
     .map_err(|_| "Could not access the system credential store".to_string())?;

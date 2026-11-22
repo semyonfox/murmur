@@ -2,14 +2,15 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, Utc};
 use flate2::{write::GzEncoder, Compression};
 use log::{debug, error, info};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{config::DbConfig, params, Connection, OptionalExtension};
 use rusqlite_migration::{Migrations, M};
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::io::{ErrorKind, Read, Seek, Write};
 use std::path::{Component, Path, PathBuf};
+use std::sync::{Arc, Mutex, PoisonError};
 use tauri::AppHandle;
 use tauri_specta::Event;
 
@@ -17,7 +18,7 @@ use tauri_specta::Event;
 /// Each migration is applied in order. The library tracks which migrations
 /// have been applied using SQLite's user_version pragma.
 ///
-/// Note: For users upgrading from tauri-plugin-sql, migrate_from_tauri_plugin_sql()
+/// Note: For users upgrading from tauri-plugin-sql, initialisation
 /// converts the old _sqlx_migrations table tracking to the user_version pragma,
 /// ensuring migrations don't re-run on existing databases.
 static MIGRATIONS: &[M] = &[
@@ -34,6 +35,7 @@ static MIGRATIONS: &[M] = &[
     M::up("ALTER TABLE transcription_history ADD COLUMN post_processed_text TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_prompt TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_requested BOOLEAN NOT NULL DEFAULT 0;"),
+    M::up("ALTER TABLE transcription_history ADD COLUMN cleanup_succeeded BOOLEAN;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -66,6 +68,43 @@ pub struct HistoryEntry {
     pub post_processed_text: Option<String>,
     pub post_process_prompt: Option<String>,
     pub post_process_requested: bool,
+    pub cleanup_succeeded: Option<bool>,
+}
+
+impl HistoryEntry {
+    pub fn final_text(&self) -> &str {
+        self.post_processed_text
+            .as_deref()
+            .unwrap_or(&self.transcription_text)
+    }
+
+    fn with_retry(
+        mut self,
+        raw: String,
+        processed: Option<String>,
+        prompt: Option<String>,
+        cleanup_succeeded: Option<bool>,
+    ) -> Self {
+        // a lecture can have a successful part and still report a cleanup failure
+        let keep_previous = cleanup_succeeded == Some(false)
+            && raw.trim() == self.transcription_text.trim()
+            && (self.cleanup_succeeded == Some(true)
+                || (prompt.is_none()
+                    && (self.post_process_prompt.is_some()
+                        || self
+                            .cleanup_succeeded
+                            .unwrap_or(self.post_process_requested))
+                    && self.post_processed_text.as_deref().is_some_and(|text| {
+                        !text.trim().is_empty() && text.trim() != self.transcription_text.trim()
+                    })));
+        self.transcription_text = raw;
+        if !keep_previous {
+            self.post_processed_text = processed;
+            self.post_process_prompt = prompt;
+            self.cleanup_succeeded = cleanup_succeeded;
+        }
+        self
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Type)]
@@ -95,7 +134,7 @@ pub struct HistoryWeekStats {
     pub week_start: String,
     pub words: u64,
     pub recording_seconds: f64,
-    /// raw transcript words per minute of recorded audio, including silence
+    /// raw transcript words per minute of saved audio after capture filtering
     pub recorded_wpm: Option<f64>,
 }
 
@@ -106,7 +145,7 @@ pub struct HistoryStats {
     pub transcription_count: u64,
     pub recordings_with_duration: u64,
     pub recording_seconds: f64,
-    /// raw transcript words per minute of recorded audio, including silence
+    /// raw transcript words per minute of saved audio after capture filtering
     pub recorded_wpm: Option<f64>,
     pub this_week_words: u64,
     pub previous_week_words: u64,
@@ -129,14 +168,47 @@ impl StatsBucket {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct UnsupportedHistoryVersion {
+    version: i32,
+    pub(crate) path: PathBuf,
+}
+
+impl std::fmt::Display for UnsupportedHistoryVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "History database version {} is newer than supported",
+            self.version
+        )
+    }
+}
+
+impl std::error::Error for UnsupportedHistoryVersion {}
+
 pub struct HistoryManager {
     app_handle: AppHandle,
     recordings_dir: PathBuf,
     db_path: PathBuf,
+    active_entries: Arc<Mutex<HashSet<i64>>>,
+}
+
+pub struct HistoryWork {
+    id: i64,
+    active_entries: Arc<Mutex<HashSet<i64>>>,
+}
+
+impl Drop for HistoryWork {
+    fn drop(&mut self) {
+        self.active_entries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&self.id);
+    }
 }
 
 impl HistoryManager {
-    pub fn new(app_handle: &AppHandle) -> Result<Self> {
+    pub fn new(app_handle: &AppHandle) -> Result<(Self, Option<PathBuf>)> {
         // Create recordings directory in app data dir
         let app_data_dir = crate::portable::app_data_dir(app_handle)?;
         let recordings_dir = app_data_dir.join("recordings");
@@ -152,22 +224,69 @@ impl HistoryManager {
             app_handle: app_handle.clone(),
             recordings_dir,
             db_path,
+            active_entries: Arc::default(),
         };
 
-        // Initialize database and run migrations synchronously
-        manager.init_database()?;
-
-        Ok(manager)
+        let backup = Self::prepare_database(&manager.db_path)?;
+        manager.prune_after_work();
+        Ok((manager, backup))
     }
 
-    fn init_database(&self) -> Result<()> {
-        info!("Initializing database at {:?}", self.db_path);
+    fn prepare_database(db_path: &Path) -> Result<Option<PathBuf>> {
+        match Self::init_database(db_path) {
+            Ok(()) => Ok(None),
+            Err(error) if is_unusable_history_database(&error) => {
+                let directory = db_path
+                    .parent()
+                    .context("History database has no directory")?;
+                let backup = move_history_database_aside(directory)
+                    .context("Could not preserve the existing history database")?;
+                log::warn!(
+                    "Preserved unreadable history database in {}: {error}",
+                    backup.display()
+                );
+                Self::init_database(db_path)?;
+                Ok(Some(backup))
+            }
+            Err(error) => Err(error),
+        }
+    }
 
-        let mut conn = Connection::open(&self.db_path)?;
+    fn init_database(db_path: &Path) -> Result<()> {
+        info!("Initializing database at {:?}", db_path);
 
-        // Handle migration from tauri-plugin-sql to rusqlite_migration
-        // tauri-plugin-sql used _sqlx_migrations table, rusqlite_migration uses user_version pragma
-        self.migrate_from_tauri_plugin_sql(&conn)?;
+        let mut conn = Connection::open(db_path)?;
+
+        // don't checkpoint a newer database when the connection closes
+        conn.set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true)?;
+        let version_before: i32 =
+            conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        if version_before > MIGRATIONS.len() as i32 {
+            return Err(UnsupportedHistoryVersion {
+                version: version_before,
+                path: db_path.to_path_buf(),
+            }
+            .into());
+        }
+        let legacy_version = Self::legacy_database_version(&conn, version_before)?;
+        let version_before = if legacy_version > 0 {
+            legacy_version
+        } else {
+            version_before
+        };
+        if version_before > MIGRATIONS.len() as i32 {
+            return Err(UnsupportedHistoryVersion {
+                version: version_before,
+                path: db_path.to_path_buf(),
+            }
+            .into());
+        }
+        conn.set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, false)?;
+        if legacy_version > 0 {
+            conn.pragma_update(None, "user_version", legacy_version)?;
+            info!("Converted tauri-plugin-sql migration tracking at version {legacy_version}");
+        }
+        debug!("Database version before migration: {}", version_before);
 
         // Create migrations object and run to latest version
         let migrations = Migrations::new(MIGRATIONS.to_vec());
@@ -175,11 +294,6 @@ impl HistoryManager {
         // Validate migrations in debug builds
         #[cfg(debug_assertions)]
         migrations.validate().expect("Invalid migrations");
-
-        // Get current version before migration
-        let version_before: i32 =
-            conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
-        debug!("Database version before migration: {}", version_before);
 
         // Apply any pending migrations
         migrations.to_latest(&mut conn)?;
@@ -199,61 +313,24 @@ impl HistoryManager {
         Ok(())
     }
 
-    /// Migrate from tauri-plugin-sql's migration tracking to rusqlite_migration's.
-    /// tauri-plugin-sql used a _sqlx_migrations table, while rusqlite_migration uses
-    /// SQLite's user_version pragma. This function checks if the old system was in use
-    /// and sets the user_version accordingly so migrations don't re-run.
-    fn migrate_from_tauri_plugin_sql(&self, conn: &Connection) -> Result<()> {
-        // Check if the old _sqlx_migrations table exists
-        let has_sqlx_migrations: bool = conn
-            .query_row(
-                "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name='_sqlx_migrations'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap_or(false);
+    fn legacy_database_version(conn: &Connection, current_version: i32) -> Result<i32> {
+        let has_sqlx_migrations: bool = conn.query_row(
+            "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name='_sqlx_migrations'",
+            [],
+            |row| row.get(0),
+        )?;
 
-        if !has_sqlx_migrations {
-            return Ok(());
+        if !has_sqlx_migrations || current_version > 0 {
+            return Ok(0);
         }
 
-        // Check current user_version
-        let current_version: i32 =
-            conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
-
-        if current_version > 0 {
-            // Already migrated to rusqlite_migration system
-            return Ok(());
-        }
-
-        // Get the highest version from the old migrations table
-        let old_version: i32 = conn
+        Ok(conn
             .query_row(
                 "SELECT COALESCE(MAX(version), 0) FROM _sqlx_migrations WHERE success = 1",
                 [],
                 |row| row.get(0),
             )
-            .unwrap_or(0);
-
-        if old_version > 0 {
-            info!(
-                "Migrating from tauri-plugin-sql (version {}) to rusqlite_migration",
-                old_version
-            );
-
-            // Set user_version to match the old migration state
-            conn.pragma_update(None, "user_version", old_version)?;
-
-            // Optionally drop the old migrations table (keeping it doesn't hurt)
-            // conn.execute("DROP TABLE IF EXISTS _sqlx_migrations", [])?;
-
-            info!(
-                "Migration tracking converted: user_version set to {}",
-                old_version
-            );
-        }
-
-        Ok(())
+            .unwrap_or(0))
     }
 
     fn get_connection(&self) -> Result<Connection> {
@@ -271,6 +348,7 @@ impl HistoryManager {
             post_processed_text: row.get("post_processed_text")?,
             post_process_prompt: row.get("post_process_prompt")?,
             post_process_requested: row.get("post_process_requested")?,
+            cleanup_succeeded: row.get("cleanup_succeeded")?,
         })
     }
 
@@ -337,7 +415,7 @@ impl HistoryManager {
         let mut archive = tar::Builder::new(encoder);
         let mut statement = conn.prepare(
             "SELECT id, file_name, timestamp, saved, title, transcription_text,
-                    post_processed_text, post_process_prompt, post_process_requested
+                    post_processed_text, post_process_prompt, post_process_requested, cleanup_succeeded
              FROM transcription_history ORDER BY id ASC",
         )?;
         let rows = statement.query_map([], Self::map_history_entry)?;
@@ -495,6 +573,7 @@ impl HistoryManager {
         post_process_requested: bool,
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
+        cleanup_succeeded: Option<bool>,
     ) -> Result<HistoryEntry> {
         let timestamp = Utc::now().timestamp();
         let title = self.format_timestamp_title(timestamp);
@@ -509,8 +588,9 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                post_process_requested,
+                cleanup_succeeded
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 &file_name,
                 timestamp,
@@ -520,6 +600,7 @@ impl HistoryManager {
                 &post_processed_text,
                 &post_process_prompt,
                 post_process_requested,
+                cleanup_succeeded,
             ],
         )?;
 
@@ -533,11 +614,10 @@ impl HistoryManager {
             post_processed_text,
             post_process_prompt,
             post_process_requested,
+            cleanup_succeeded,
         };
 
         debug!("Saved history entry with id {}", entry.id);
-
-        self.cleanup_old_entries()?;
 
         // Emit typed event for real-time frontend updates
         if let Err(e) = (HistoryUpdatePayload::Added {
@@ -548,12 +628,46 @@ impl HistoryManager {
             error!("Failed to emit history-updated event: {}", e);
         }
 
+        if let Err(error) = self.cleanup_old_entries() {
+            error!("Could not prune history after saving an entry: {error}");
+        }
+
         Ok(entry)
     }
 
-    pub fn save_long_entry(&self, file_name: String, title: String) -> Result<HistoryEntry> {
-        let timestamp = Utc::now().timestamp();
+    pub fn begin_entry_work(&self, id: i64) -> Result<HistoryWork> {
+        if !self
+            .active_entries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(id)
+        {
+            return Err(anyhow!("This recording is already in use"));
+        }
+        Ok(HistoryWork {
+            id,
+            active_entries: Arc::clone(&self.active_entries),
+        })
+    }
+
+    pub fn prune_after_work(&self) {
+        if let Err(error) = self.cleanup_old_entries() {
+            error!("Could not prune history: {error}");
+        }
+    }
+
+    pub fn save_long_entry(
+        &self,
+        file_name: String,
+        title: String,
+        timestamp: i64,
+    ) -> Result<(HistoryEntry, HistoryWork)> {
         let conn = self.get_connection()?;
+        // retention must see the active id as soon as the row is visible
+        let mut active = self
+            .active_entries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         conn.execute(
             "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text, post_process_requested) VALUES (?1, ?2, 0, ?3, '', 0)",
             params![&file_name, timestamp, &title],
@@ -568,6 +682,13 @@ impl HistoryManager {
             post_processed_text: None,
             post_process_prompt: None,
             post_process_requested: false,
+            cleanup_succeeded: None,
+        };
+        active.insert(entry.id);
+        drop(active);
+        let work = HistoryWork {
+            id: entry.id,
+            active_entries: Arc::clone(&self.active_entries),
         };
         if let Err(error) = (HistoryUpdatePayload::Added {
             entry: entry.clone(),
@@ -576,55 +697,59 @@ impl HistoryManager {
         {
             log::error!("Failed to emit history event: {error}");
         }
-        Ok(entry)
+        Ok((entry, work))
     }
 
-    /// Update an existing history entry with new transcription results (used by retry).
+    pub fn update_after_retry(
+        &self,
+        previous: HistoryEntry,
+        raw: String,
+        processed: Option<String>,
+        prompt: Option<String>,
+        cleanup_succeeded: Option<bool>,
+    ) -> Result<()> {
+        let updated = previous.with_retry(raw, processed, prompt, cleanup_succeeded);
+        self.update_transcription(
+            updated.id,
+            updated.transcription_text,
+            updated.post_processed_text,
+            updated.post_process_prompt,
+            updated.cleanup_succeeded,
+        )
+    }
+
     pub fn update_transcription(
         &self,
         id: i64,
         transcription_text: String,
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
-    ) -> Result<HistoryEntry> {
+        cleanup_succeeded: Option<bool>,
+    ) -> Result<()> {
         let conn = self.get_connection()?;
-        let updated = conn.execute(
+        let entry = conn.query_row(
             "UPDATE transcription_history
              SET transcription_text = ?1,
                  post_processed_text = ?2,
-                 post_process_prompt = ?3
-             WHERE id = ?4",
+                 post_process_prompt = ?3,
+                 cleanup_succeeded = ?4
+             WHERE id = ?5
+             RETURNING id, file_name, timestamp, saved, title, transcription_text,
+                       post_processed_text, post_process_prompt, post_process_requested, cleanup_succeeded",
             params![
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
+                cleanup_succeeded,
                 id
             ],
-        )?;
+            Self::map_history_entry,
+        ).optional()?.ok_or_else(|| anyhow!("History entry {id} not found"))?;
 
-        if updated == 0 {
-            return Err(anyhow!("History entry {} not found", id));
+        if let Err(error) = (HistoryUpdatePayload::Updated { entry }).emit(&self.app_handle) {
+            error!("Failed to emit history update: {error}");
         }
-
-        let entry = conn
-            .query_row(
-                "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
-                 FROM transcription_history WHERE id = ?1",
-                params![id],
-                Self::map_history_entry,
-            )?;
-
-        debug!("Updated transcription for history entry {}", id);
-
-        if let Err(e) = (HistoryUpdatePayload::Updated {
-            entry: entry.clone(),
-        })
-        .emit(&self.app_handle)
-        {
-            error!("Failed to emit history-updated event: {}", e);
-        }
-
-        Ok(entry)
+        Ok(())
     }
 
     pub fn cleanup_old_entries(&self) -> Result<()> {
@@ -656,22 +781,24 @@ impl HistoryManager {
         let mut deleted_count = 0;
 
         for (id, file_name) in entries {
-            // Delete database entry
-            conn.execute(
-                "DELETE FROM transcription_history WHERE id = ?1",
-                params![id],
-            )?;
-
-            // Delete WAV file
-            let file_path = self.recordings_dir.join(file_name);
-            if file_path.exists() {
-                if let Err(e) = fs::remove_file(&file_path) {
-                    error!("Failed to delete WAV file {}: {}", file_name, e);
-                } else {
-                    debug!("Deleted old WAV file: {}", file_name);
-                    deleted_count += 1;
+            {
+                let active = self
+                    .active_entries
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner);
+                if active.contains(id) {
+                    continue;
+                }
+                let deleted = conn.execute(
+                    "DELETE FROM transcription_history WHERE id = ?1 AND saved = 0",
+                    params![id],
+                )?;
+                if deleted == 0 {
+                    continue;
                 }
             }
+            deleted_count += 1;
+            self.finish_entry_deletion(*id, file_name);
         }
 
         Ok(deleted_count)
@@ -680,9 +807,11 @@ impl HistoryManager {
     fn cleanup_by_count(&self, limit: usize) -> Result<()> {
         let conn = self.get_connection()?;
 
-        // Get all entries that are not saved, ordered by timestamp desc
+        // lecture recordings and imports have always used the lecture filename prefix
         let mut stmt = conn.prepare(
-            "SELECT id, file_name FROM transcription_history WHERE saved = 0 ORDER BY timestamp DESC"
+            "SELECT id, file_name FROM transcription_history
+             WHERE saved = 0 AND file_name NOT GLOB 'lecture-*'
+             ORDER BY timestamp DESC, id DESC",
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -759,7 +888,7 @@ impl HistoryManager {
             (Some(cursor_id), Some(lim)) => {
                 let fetch_count = (lim + 1) as i64;
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, cleanup_succeeded
                      FROM transcription_history
                      WHERE id < ?1
                      ORDER BY id DESC
@@ -773,7 +902,7 @@ impl HistoryManager {
             (None, Some(lim)) => {
                 let fetch_count = (lim + 1) as i64;
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, cleanup_succeeded
                      FROM transcription_history
                      ORDER BY id DESC
                      LIMIT ?1",
@@ -785,7 +914,7 @@ impl HistoryManager {
             }
             (_, None) => {
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, cleanup_succeeded
                      FROM transcription_history
                      ORDER BY id DESC",
                 )?;
@@ -816,7 +945,8 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
+                post_process_requested,
+                cleanup_succeeded
              FROM transcription_history
              ORDER BY timestamp DESC
              LIMIT 1",
@@ -826,7 +956,7 @@ impl HistoryManager {
         Ok(entry)
     }
 
-    /// Get the latest entry with non-empty transcription text.
+    /// Get the latest entry with non-blank final dictation text.
     pub fn get_latest_completed_entry(&self) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         Self::get_latest_completed_entry_with_conn(&conn)
@@ -843,16 +973,20 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
+                post_process_requested,
+                cleanup_succeeded
              FROM transcription_history
-             WHERE transcription_text != ''
+             WHERE COALESCE(post_processed_text, transcription_text) != ''
                AND title NOT LIKE 'Lecture · %' AND title NOT LIKE 'Import · %'
-             ORDER BY timestamp DESC
-             LIMIT 1",
+             ORDER BY timestamp DESC",
         )?;
 
-        let entry = stmt.query_row([], Self::map_history_entry).optional()?;
-        Ok(entry)
+        let mut rows = stmt.query_map([], Self::map_history_entry)?;
+        let entry = rows.find_map(|entry| match entry {
+            Ok(entry) if entry.final_text().trim().is_empty() => None,
+            entry => Some(entry),
+        });
+        Ok(entry.transpose()?)
     }
 
     pub async fn toggle_saved_status(&self, id: i64) -> Result<()> {
@@ -882,11 +1016,22 @@ impl HistoryManager {
         Ok(())
     }
 
-    pub fn get_audio_file_path(&self, file_name: &str) -> PathBuf {
-        self.recordings_dir.join(file_name)
+    pub fn get_audio_file_path(&self, file_name: &str) -> Result<PathBuf> {
+        if !is_recording_basename(file_name) {
+            return Err(anyhow!("Recording filename is not a safe WAV basename"));
+        }
+        let path = self.recordings_dir.join(file_name);
+        match fs::symlink_metadata(&path) {
+            Ok(metadata) if !metadata.file_type().is_file() => {
+                Err(anyhow!("Recording must be a regular file"))
+            }
+            Ok(_) => Ok(path),
+            Err(error) if error.kind() == ErrorKind::NotFound => Ok(path),
+            Err(error) => Err(error.into()),
+        }
     }
 
-    pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
+    pub fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
             "SELECT
@@ -898,7 +1043,8 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
+                post_process_requested,
+                cleanup_succeeded
              FROM transcription_history
              WHERE id = ?1",
         )?;
@@ -910,33 +1056,38 @@ impl HistoryManager {
 
     pub async fn delete_entry(&self, id: i64) -> Result<()> {
         let conn = self.get_connection()?;
+        let file_name: Option<String> = {
+            let active = self
+                .active_entries
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            if active.contains(&id) {
+                return Err(anyhow!("This recording is in use"));
+            }
+            conn.query_row(
+                "DELETE FROM transcription_history WHERE id = ?1 RETURNING file_name",
+                [id],
+                |row| row.get(0),
+            )
+            .optional()?
+        };
+        if let Some(file_name) = file_name {
+            self.finish_entry_deletion(id, &file_name);
+        }
+        Ok(())
+    }
 
-        // Get the entry to find the file name
-        if let Some(entry) = self.get_entry_by_id(id).await? {
-            // Delete the audio file first
-            let file_path = self.get_audio_file_path(&entry.file_name);
-            if file_path.exists() {
-                if let Err(e) = fs::remove_file(&file_path) {
-                    error!("Failed to delete audio file {}: {}", entry.file_name, e);
-                    // Continue with database deletion even if file deletion fails
+    fn finish_entry_deletion(&self, id: i64, file_name: &str) {
+        if let Ok(path) = self.get_audio_file_path(file_name) {
+            if let Err(error) = fs::remove_file(path) {
+                if error.kind() != ErrorKind::NotFound {
+                    error!("Could not delete recording {file_name}: {error}");
                 }
             }
         }
-
-        // Delete from database
-        conn.execute(
-            "DELETE FROM transcription_history WHERE id = ?1",
-            params![id],
-        )?;
-
-        debug!("Deleted history entry with id: {}", id);
-
-        // Emit history updated event
-        if let Err(e) = (HistoryUpdatePayload::Deleted { id }).emit(&self.app_handle) {
-            error!("Failed to emit history-updated event: {}", e);
+        if let Err(error) = (HistoryUpdatePayload::Deleted { id }).emit(&self.app_handle) {
+            error!("Failed to emit history deletion: {error}");
         }
-
-        Ok(())
     }
 
     fn format_timestamp_title(&self, timestamp: i64) -> String {
@@ -950,19 +1101,69 @@ impl HistoryManager {
     }
 }
 
-fn open_archive_audio(recordings_dir: &Path, file_name: &str) -> Result<Option<fs::File>> {
-    let mut components = Path::new(file_name).components();
-    if !matches!(
+fn is_unusable_history_database(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        cause
+            .downcast_ref::<rusqlite::Error>()
+            .is_some_and(|error| {
+                matches!(
+                    error.sqlite_error_code(),
+                    Some(rusqlite::ErrorCode::DatabaseCorrupt | rusqlite::ErrorCode::NotADatabase)
+                )
+            })
+    })
+}
+
+fn move_history_database_aside(directory: &Path) -> std::io::Result<PathBuf> {
+    let backup = tempfile::Builder::new()
+        .prefix("history-recovery-")
+        .tempdir_in(directory)?
+        .keep();
+    let mut moved = Vec::new();
+    // move the database last so a sidecar failure can leave the main file in place
+    for name in [
+        "history.db-wal",
+        "history.db-shm",
+        "history.db-journal",
+        "history.db",
+    ] {
+        if let Err(error) = fs::rename(directory.join(name), backup.join(name)) {
+            if name != "history.db" && error.kind() == ErrorKind::NotFound {
+                continue;
+            }
+            for moved_name in moved {
+                if let Err(rollback) =
+                    fs::rename(backup.join(moved_name), directory.join(moved_name))
+                {
+                    error!(
+                        "Could not restore {moved_name} from {}: {rollback}",
+                        backup.display()
+                    );
+                }
+            }
+            return Err(error);
+        }
+        moved.push(name);
+    }
+    Ok(backup)
+}
+
+fn is_recording_basename(file_name: &str) -> bool {
+    let path = Path::new(file_name);
+    let mut components = path.components();
+    matches!(
         (components.next(), components.next()),
         (Some(Component::Normal(_)), None)
-    ) || file_name
+    ) && !file_name
         .chars()
         .any(|character| character.is_control() || "/\\:<>\"|?*".contains(character))
-        || !Path::new(file_name)
+        && path
             .extension()
-            .and_then(|extension| extension.to_str())
             .is_some_and(|extension| extension.eq_ignore_ascii_case("wav"))
-    {
+}
+
+fn open_archive_audio(recordings_dir: &Path, file_name: &str) -> Result<Option<fs::File>> {
+    if !is_recording_basename(file_name) {
         return Err(anyhow!("Recording filename is not a safe WAV basename"));
     }
 
@@ -1018,11 +1219,7 @@ fn count_words(text: &str) -> u64 {
 }
 
 fn recording_duration_seconds(recordings_dir: &Path, file_name: &str) -> Option<f64> {
-    let mut components = Path::new(file_name).components();
-    if !matches!(
-        (components.next(), components.next()),
-        (Some(Component::Normal(_)), None)
-    ) {
+    if !is_recording_basename(file_name) {
         return None;
     }
 
@@ -1039,6 +1236,108 @@ mod tests {
     use hound::{SampleFormat, WavSpec, WavWriter};
     use rusqlite::{params, Connection};
 
+    #[test]
+    fn lecture_retry_keeps_successful_cleanup_when_retry_fails_and_raw_matches() {
+        let raw = "[00:00] first part\n\n[02:00] second part";
+        let previous_text = "[00:00] First part.\n\n[02:00] Second part.";
+        let previous = HistoryEntry {
+            id: 1,
+            file_name: "lecture-1.wav".into(),
+            timestamp: 0,
+            saved: false,
+            title: "Lecture".into(),
+            transcription_text: raw.into(),
+            post_processed_text: Some(previous_text.into()),
+            post_process_prompt: Some("Previous prompt".into()),
+            post_process_requested: false,
+            cleanup_succeeded: Some(true),
+        };
+
+        let failed = previous
+            .clone()
+            .with_retry(raw.into(), None, None, Some(false));
+        assert_eq!(failed.final_text(), previous_text);
+        assert_eq!(
+            failed.post_process_prompt.as_deref(),
+            Some("Previous prompt")
+        );
+        assert_eq!(failed.cleanup_succeeded, Some(true));
+
+        let mixed_text = "[00:00] First part!\n\n[02:00] second part";
+        let mixed = previous.clone().with_retry(
+            raw.into(),
+            Some(mixed_text.into()),
+            Some("New prompt".into()),
+            Some(false),
+        );
+        assert_eq!(mixed.final_text(), previous_text);
+        assert_eq!(
+            mixed.post_process_prompt.as_deref(),
+            Some("Previous prompt")
+        );
+        assert_eq!(mixed.cleanup_succeeded, Some(true));
+
+        let previous_partial = HistoryEntry {
+            post_processed_text: Some("[00:00] first part\n\n[02:00] Second part.".into()),
+            cleanup_succeeded: Some(false),
+            ..previous.clone()
+        };
+        let mixed_after_partial = previous_partial.with_retry(
+            raw.into(),
+            Some(mixed_text.into()),
+            Some("New prompt".into()),
+            Some(false),
+        );
+        assert_eq!(mixed_after_partial.final_text(), mixed_text);
+        assert_eq!(mixed_after_partial.cleanup_succeeded, Some(false));
+
+        let changed_raw = "[00:00] first part";
+        let changed = previous.with_retry(changed_raw.into(), None, None, Some(false));
+        assert_eq!(changed.final_text(), changed_raw);
+        assert_eq!(changed.cleanup_succeeded, Some(false));
+    }
+
+    #[test]
+    fn startup_preserves_unreadable_database_and_opens_an_empty_history() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("history.db");
+        let contents = b"This is not SQLite";
+        fs::write(&path, contents).unwrap();
+
+        let backup = HistoryManager::prepare_database(&path).unwrap().unwrap();
+
+        assert_eq!(fs::read(backup.join("history.db")).unwrap(), contents);
+        let conn = Connection::open(path).unwrap();
+        let rows: i64 = conn
+            .query_row("SELECT count(*) FROM transcription_history", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(rows, 0);
+    }
+
+    #[test]
+    fn startup_leaves_newer_database_and_wal_in_place() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("history.db");
+        let wal = path.with_extension("db-wal");
+        let conn = Connection::open(&path).unwrap();
+        conn.set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true)
+            .unwrap();
+        conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA user_version = 500;")
+            .unwrap();
+        drop(conn);
+        let before = fs::read(&path).unwrap();
+        let wal_before = fs::read(&wal).unwrap();
+
+        let error = HistoryManager::prepare_database(&path).unwrap_err();
+
+        let newer_database = error.downcast_ref::<UnsupportedHistoryVersion>().unwrap();
+        assert_eq!(newer_database.path, path);
+        assert_eq!(fs::read(&path).unwrap(), before);
+        assert_eq!(fs::read(&wal).unwrap(), wal_before);
+    }
+
     fn setup_conn() -> Connection {
         let conn = Connection::open_in_memory().expect("open in-memory db");
         conn.execute_batch(
@@ -1051,7 +1350,8 @@ mod tests {
                 transcription_text TEXT NOT NULL,
                 post_processed_text TEXT,
                 post_process_prompt TEXT,
-                post_process_requested BOOLEAN NOT NULL DEFAULT 0
+                post_process_requested BOOLEAN NOT NULL DEFAULT 0,
+                cleanup_succeeded BOOLEAN
             );",
         )
         .expect("create transcription_history table");
@@ -1111,6 +1411,8 @@ mod tests {
         let conn = setup_conn();
         insert_entry(&conn, 100, "completed", None);
         insert_entry(&conn, 200, "", None);
+        insert_entry(&conn, 300, "uh", Some(""));
+        insert_entry(&conn, 400, "um", Some("\t\n\u{a0}"));
 
         let entry = HistoryManager::get_latest_completed_entry_with_conn(&conn)
             .expect("fetch latest completed entry")

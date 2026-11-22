@@ -543,20 +543,6 @@ export const useSettingsStore = create<SettingsStore>()(
           return;
         }
 
-        // Reset the stored model since the previous value is almost certainly
-        // invalid for the new endpoint (e.g. switching Custom from Groq to
-        // Cerebras). Only proceed if the reset succeeds.
-        const modelResult = await commands.changePostProcessModelSetting(
-          providerId,
-          "",
-        );
-        if (modelResult.status === "error") {
-          console.error("Failed to reset model setting:", modelResult.error);
-          toast.error(modelResult.error);
-          return;
-        }
-
-        // Clear cached model options only after both backend writes succeed.
         set((state) => ({
           postProcessModelOptions: {
             ...state.postProcessModelOptions,
@@ -564,7 +550,6 @@ export const useSettingsStore = create<SettingsStore>()(
           },
         }));
 
-        // Single refresh after both backend writes.
         await refreshSettings();
       } catch (error) {
         console.error("Failed to update post-process base URL:", error);

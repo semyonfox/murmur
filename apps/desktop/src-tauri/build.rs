@@ -2,7 +2,8 @@ fn main() {
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     build_apple_intelligence_bridge();
 
-    generate_tray_translations();
+    generate_native_translations("tray", "TrayStrings");
+    generate_native_translations("startup", "StartupStrings");
 
     // Linux ships transcribe-cpp as a shared libtranscribe + loadable ggml
     // backend modules (the `dynamic-backends` posture in Cargo.toml). Bake an
@@ -277,11 +278,8 @@ fn split_versioned_so(name: &str) -> Option<(&str, usize)> {
         .then_some((stem, comps.len()))
 }
 
-/// Generate tray menu translations from frontend locale files.
-///
-/// Source of truth: src/i18n/locales/*/translation.json
-/// The English "tray" section defines the struct fields.
-fn generate_tray_translations() {
+// the English locale defines the fields for each native translation section
+fn generate_native_translations(section: &str, struct_name: &str) {
     use std::collections::BTreeMap;
     use std::fs;
     use std::path::Path;
@@ -308,8 +306,8 @@ fn generate_tray_translations() {
         let content = fs::read_to_string(&json_path).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
 
-        if let Some(tray) = parsed.get("tray").cloned() {
-            translations.insert(lang, tray);
+        if let Some(strings) = parsed.get(section).cloned() {
+            translations.insert(lang, strings);
         }
     }
 
@@ -326,22 +324,25 @@ fn generate_tray_translations() {
     );
 
     // Struct
-    out.push_str("#[derive(Debug, Clone)]\npub struct TrayStrings {\n");
+    out.push_str(&format!(
+        "#[derive(Debug, Clone)]\npub struct {struct_name} {{\n"
+    ));
     for (rust_field, _) in &fields {
         out.push_str(&format!("    pub {rust_field}: String,\n"));
     }
     out.push_str("}\n\n");
 
     // Static map
-    out.push_str(
-        "pub static TRANSLATIONS: Lazy<HashMap<&'static str, TrayStrings>> = Lazy::new(|| {\n",
-    );
+    let static_name = format!("{}_TRANSLATIONS", section.to_uppercase());
+    out.push_str(&format!(
+        "pub static {static_name}: Lazy<HashMap<&'static str, {struct_name}>> = Lazy::new(|| {{\n",
+    ));
     out.push_str("    let mut m = HashMap::new();\n");
 
-    for (lang, tray) in &translations {
-        out.push_str(&format!("    m.insert(\"{lang}\", TrayStrings {{\n"));
+    for (lang, strings) in &translations {
+        out.push_str(&format!("    m.insert(\"{lang}\", {struct_name} {{\n"));
         for (rust_field, json_key) in &fields {
-            let val = tray.get(json_key).and_then(|v| v.as_str()).unwrap_or("");
+            let val = strings.get(json_key).and_then(|v| v.as_str()).unwrap_or("");
             out.push_str(&format!(
                 "        {rust_field}: \"{}\".to_string(),\n",
                 escape_string(val)
@@ -352,13 +353,19 @@ fn generate_tray_translations() {
 
     out.push_str("    m\n});\n");
 
-    fs::write(Path::new(&out_dir).join("tray_translations.rs"), out).unwrap();
+    fs::write(
+        Path::new(&out_dir).join(format!("{section}_translations.rs")),
+        out,
+    )
+    .unwrap();
 
-    println!(
-        "cargo:warning=Generated tray translations: {} languages, {} fields",
-        translations.len(),
-        fields.len()
-    );
+    if section == "tray" {
+        println!(
+            "cargo:warning=Generated tray translations: {} languages, {} fields",
+            translations.len(),
+            fields.len()
+        );
+    }
 }
 
 fn camel_to_snake(s: &str) -> String {

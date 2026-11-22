@@ -106,6 +106,26 @@ enum StreamCmd {
     Cancel,
 }
 
+#[derive(Default)]
+pub struct Recognition {
+    pub raw: String,
+    pub adjusted: Option<String>,
+}
+
+impl Recognition {
+    pub fn text(&self) -> &str {
+        self.adjusted.as_deref().unwrap_or(&self.raw)
+    }
+}
+
+impl From<String> for Recognition {
+    fn from(raw: String) -> Self {
+        let trimmed = raw.trim();
+        let adjusted = (trimmed != raw).then(|| trimmed.to_string());
+        Self { raw, adjusted }
+    }
+}
+
 struct FinalizedStreamText {
     text: String,
     output_language: OutputLanguageEvidence,
@@ -1118,13 +1138,13 @@ impl TranscriptionManager {
         }
     }
 
-    /// Flush the active stream and return its final, post-filtered text.
+    /// Flush the active stream and return its final text and any local adjustments.
     ///
     /// `Ok(None)` means no usable stream was active and the caller may fall back
     /// to batch transcription. `Err` means finalize itself failed or timed out.
     /// A timeout may still leave the worker holding the engine, so callers
     /// should surface it instead of immediately starting a batch fallback.
-    pub fn finalize_stream(&self) -> Result<Option<String>> {
+    pub fn finalize_stream(&self) -> Result<Option<Recognition>> {
         let Some(tx) = self.router.take() else {
             return Ok(None);
         };
@@ -1148,8 +1168,8 @@ impl TranscriptionManager {
         let settings = get_settings(&self.app_handle);
         // Streaming models do not receive a decode prompt, so custom words
         // always go through the shared fuzzy post-correction path.
-        let filtered = post_process_transcription_text(
-            finalized.text,
+        let adjusted = post_process_transcription_text(
+            finalized.text.clone(),
             &settings,
             false,
             &finalized.output_language,
@@ -1157,7 +1177,10 @@ impl TranscriptionManager {
         );
 
         self.maybe_unload_immediately("streaming transcription");
-        Ok(Some(filtered))
+        Ok(Some(Recognition {
+            adjusted: (adjusted != finalized.text).then_some(adjusted),
+            raw: finalized.text,
+        }))
     }
 
     /// Abandon any active stream without producing text (e.g. on cancel).
@@ -1185,7 +1208,7 @@ impl TranscriptionManager {
         .emit(&self.app_handle);
     }
 
-    pub fn transcribe(&self, audio: Vec<f32>) -> Result<String> {
+    pub fn transcribe(&self, audio: Vec<f32>) -> Result<Recognition> {
         #[cfg(debug_assertions)]
         if std::env::var("MURMUR_FORCE_TRANSCRIPTION_FAILURE").is_ok() {
             return Err(anyhow::anyhow!(
@@ -1204,7 +1227,7 @@ impl TranscriptionManager {
         if audio.is_empty() {
             debug!("Empty audio vector");
             self.maybe_unload_immediately("empty audio");
-            return Ok(String::new());
+            return Ok(Recognition::default());
         }
 
         // Check if model is loaded, if not try to load it
@@ -1507,8 +1530,8 @@ impl TranscriptionManager {
         // family). We don't pass a prompt to non-whisper models (it requires the
         // whisper-kind run extension), so they still get fuzzy correction here,
         // same as the ONNX engines.
-        let filtered_result = post_process_transcription_text(
-            result,
+        let adjusted = post_process_transcription_text(
+            result.clone(),
             &settings,
             model_is_whisper,
             &output_language,
@@ -1532,20 +1555,21 @@ impl TranscriptionManager {
             elapsed_secs, audio_secs, speedup, translation_note
         );
 
-        let final_result = filtered_result;
-
-        if final_result.is_empty() {
+        if result.is_empty() {
             info!("Transcription result is empty");
         } else {
             info!(
                 "Transcription result: {}",
-                crate::utils::redact_text(&final_result)
+                crate::utils::redact_text(&result)
             );
         }
 
         self.maybe_unload_immediately("transcription");
 
-        Ok(final_result)
+        Ok(Recognition {
+            adjusted: (adjusted != result).then_some(adjusted),
+            raw: result,
+        })
     }
 }
 

@@ -27,7 +27,9 @@ export const useSavedApiKeys = () => {
   const sttBaseUrl = settings?.stt_base_url ?? "";
   const usesEndpoint = settings?.stt_source === "endpoint" && !!sttBaseUrl;
   const providers = settings?.post_process_providers ?? [];
-  const providerKey = providers.map((provider) => provider.id).join(",");
+  const providerKey = providers
+    .map((provider) => [provider.id, provider.base_url])
+    .join(",");
 
   useEffect(() => {
     if (!settings) return;
@@ -65,7 +67,10 @@ export const useSavedApiKeys = () => {
           found.push({
             kind: "cleanup",
             id: provider.id,
-            label: provider.label,
+            label:
+              provider.id === "custom"
+                ? hostOf(provider.base_url)
+                : provider.label,
           });
         }
       }

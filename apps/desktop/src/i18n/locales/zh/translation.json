@@ -1,4 +1,10 @@
 {
+  "startup": {
+    "legacyConflictTitle": "无法迁移旧版 Murmur 数据",
+    "legacyConflictMessage": "旧版 Murmur 数据与当前数据冲突。旧数据仍保存在 {{path}}。",
+    "newerHistoryTitle": "历史记录数据库需要较新的版本",
+    "newerHistoryMessage": "此历史记录数据库由较新版本的 Murmur 写入。请更新 Murmur 以打开历史记录。\n\n{{path}}\n\n如需从空白历史记录开始，请关闭 Murmur，将数据库和名称匹配 history.db-* 的所有文件一起移到其他文件夹。"
+  },
   "tray": {
     "settings": "设置...",
     "checkUpdates": "检查更新...",
@@ -118,7 +124,10 @@
         "checkFailed": "检查权限失败。请重试。",
         "requestFailed": "请求权限失败。请重试。"
       }
-    }
+    },
+    "configureEndpoint": "使用语音服务接口",
+    "configureEndpointDescription": "在“模型”中配置在线服务商或你自己运行的服务器。",
+    "noModels": "目前没有可下载的模型。"
   },
   "modelSelector": {
     "custom": "自定义",
@@ -660,7 +669,10 @@
     "open": "打开",
     "copy": "复制",
     "clear": "清除",
-    "noOptionsFound": "未找到选项"
+    "noOptionsFound": "未找到选项",
+    "download": "下载",
+    "retry": "重试",
+    "cancel": "取消"
   },
   "accessibility": {
     "permissionsDescription": "Murmur 需要辅助功能权限才能输入转录的文字。",
@@ -714,5 +726,390 @@
     "learnMore": "如何解决",
     "recorderBlocked": "当前无法录制快捷键——macOS 的 Secure Input 正在阻止按键事件。请先解决 Secure Input 警告。",
     "dismiss": "关闭"
+  },
+  "murmur": {
+    "cleanup": {
+      "errors": {
+        "authentication": "身份验证失败，请检查 API 密钥。",
+        "credit": "服务商账户余额不足，请检查账单设置。",
+        "rateLimit": "已达到服务商的请求频率上限，请稍后重试。",
+        "server": "服务商暂不可用，请稍后重试。",
+        "invalidOutput": "服务商返回的转写文本无法使用。",
+        "timeout": "服务商响应超时。",
+        "reasoning": "此模型无法在关闭推理时运行，请选择其他模型。",
+        "credentialStore": "文本润色无法访问系统凭据存储。",
+        "configuration": "请求被拒绝，请检查服务商和模型设置。"
+      },
+      "failed": "AI 文本润色失败",
+      "removeKey": "移除密钥",
+      "keyStatusUnknown": "正在检查系统凭据存储…",
+      "keyStored": "密钥已保存在系统凭据存储中",
+      "keyMissing": "未保存密钥",
+      "formality": {
+        "veryCasual": "非常随意",
+        "casual": "随意",
+        "natural": "自然",
+        "professional": "专业",
+        "formal": "正式",
+        "title": "语气",
+        "description": "选择标点和语法的润色程度。每个级别都会保留你的原话。"
+      },
+      "basic": {
+        "title": "在此设备上",
+        "description": "始终在本地运行，即使 AI 润色已关闭。"
+      },
+      "title": "AI 润色",
+      "description": "修正标点和明显错误，并把较长的听写拆分成易读的句子，同时保留你的原话。云端服务商只会收到转写文本，不会收到录音。",
+      "instructions": {
+        "title": "自定义指令",
+        "description": "可选。告诉润色模型其他额外要求。"
+      },
+      "model": {
+        "none": "未选择服务商"
+      }
+    },
+    "app": {
+      "loading": "正在加载 Murmur…",
+      "skip": "跳到设置",
+      "appearance": {
+        "title": "外观"
+      },
+      "startup": {
+        "title": "启动和系统托盘"
+      },
+      "performance": {
+        "title": "性能"
+      }
+    },
+    "nav": {
+      "dictation": "听写",
+      "lectures": "课程录音",
+      "dictionary": "词典",
+      "insertion": "文本插入",
+      "stats": "统计",
+      "privacy": "隐私",
+      "app": "应用",
+      "label": "设置"
+    },
+    "pages": {
+      "dictation": {
+        "description": "快捷键、麦克风和口述语言，以及录音时你看到和听到的提示。"
+      },
+      "lectures": {
+        "description": "录制课程或导入音频，转写结果将保存在历史记录中。"
+      },
+      "models": {
+        "description": "选择将语音转换为文字的方式。所有已保存的 API 密钥也会列在这里。"
+      },
+      "cleanup": {
+        "description": "在插入前整理转写文本：填充词、AI 模型和密钥、语气以及指令。"
+      },
+      "dictionary": {
+        "description": "Murmur 应按你的写法拼写的名称和术语。"
+      },
+      "insertion": {
+        "description": "完成的文本如何进入你正在输入的应用，以及之后会发生什么。"
+      },
+      "stats": {
+        "description": "字数、语速、已保存音频时长和服务商费用。"
+      },
+      "history": {
+        "description": "过往听写、保留期限和压缩导出。"
+      },
+      "privacy": {
+        "description": "哪些数据会离开这台电脑，哪些会留在本机，以及保留多久。"
+      },
+      "app": {
+        "description": "设置外观、界面语言、启动方式和性能。"
+      },
+      "about": {
+        "description": "版本、致谢以及 Murmur 存放文件的位置。"
+      },
+      "debug": {
+        "description": "用于排查问题的诊断信息。"
+      }
+    },
+    "onboarding": {
+      "checking": "正在检查权限…",
+      "checkFailed": "权限检查失败。请使用下方的权限操作重试。你的系统设置未被更改。",
+      "microphoneWaiting": "请在系统设置中开启麦克风权限，然后返回此处。Murmur 会自动重新检查。",
+      "recheck": "重新检查",
+      "accessibilityWaiting": "请在系统辅助功能设置中启用 Murmur，然后返回此处。Murmur 会自动重新检查。"
+    },
+    "models": {
+      "downloadNamed": "下载 {{model}}",
+      "browse": "浏览 {{count}} 个可下载模型",
+      "local": {
+        "title": "本地模型"
+      },
+      "cleanup": {
+        "title": "润色模型",
+        "on": "AI 润色已开启",
+        "off": "AI 润色已关闭",
+        "change": "在“后处理”中更改"
+      }
+    },
+    "dictionary": {
+      "saveError": "无法保存此词典条目。",
+      "search": "搜索已保存的词语",
+      "count": "已保存 {{count}} 个术语",
+      "noMatches": "没有匹配的词语。",
+      "title": "你的词语",
+      "description": "本地识别和 AI 润色会用它来拼写不常见的名称和术语。"
+    },
+    "history": {
+      "limit": {
+        "confirmMessage": "保留最近的 {{count}} 条听写记录？更早的未加星标记录及其录音将被永久删除。",
+        "confirmTitle": "降低历史记录上限"
+      },
+      "retention": {
+        "confirmMessage": "更改保留期限可能会永久删除超出新上限的现有录音和转写。是否继续？",
+        "confirmTitle": "更改历史记录保留期限"
+      },
+      "playbackError": "无法播放录音。请再次点击播放，或恢复上方的转写。",
+      "saveError": "无法更改是否保留此听写，请重试。",
+      "folderError": "无法打开录音文件夹。你的转写仍可在此查看。",
+      "archive": {
+        "partial": "已归档 {{count}} 条听写，但有 {{missing}} 个录音此前已缺失。",
+        "complete": "已归档 {{count}} 条听写。原始文件未改动。",
+        "error": "无法导出历史记录。",
+        "working": "正在创建归档…",
+        "action": "导出压缩归档",
+        "note": "无损压缩会保留原始 WAV 音频。归档未加密，导出也绝不会删除本地历史记录。"
+      },
+      "loadError": "无法加载历史记录。你已保存的听写未被删除。",
+      "retryLoad": "重新加载",
+      "storage": {
+        "title": "存储和归档",
+        "description": "选择录音和转写的保留时长。需要长期归档时，可随时导出包含原始文本和润色后文本的压缩副本。"
+      },
+      "copied": "已复制当前显示的转写。",
+      "deleteMessage": "这将永久删除原始文本、润色后文本及其录音。",
+      "deleteTitle": "删除听写？",
+      "retryFinished": "转写请求已完成。请在此条记录中查看结果。",
+      "raw": "原始转写",
+      "cleaned": "润色后的转写",
+      "processed": "处理后的转写",
+      "showCleaned": "显示润色后的文本",
+      "showProcessed": "显示处理后的文本",
+      "showRaw": "显示原始文本",
+      "rawFallback": "此条记录无法进行 AI 润色。",
+      "stats": {
+        "noPreviousWeek": "没有可比较的上一周",
+        "totalWords": "保留的字数",
+        "thisWeek": "本周",
+        "recordedPace": "录音语速",
+        "wpm": "词/分钟",
+        "minutes": "分钟",
+        "retainedOnly": "基于保留的历史记录。已删除的听写不计入。",
+        "stale": "无法刷新统计数据。这些数字可能已过时。",
+        "loading": "正在加载统计数据…",
+        "unavailable": "统计数据暂不可用。",
+        "weeklyWords": "每周字数",
+        "vsPrevious": "与上一个完整周相比",
+        "weekBar": "{{date}}：{{count}} 词",
+        "weeklyPace": "每周录音语速",
+        "weekPaceUnavailable": "{{date}}：无录音数据",
+        "weekPaceValue": "{{date}}：每分钟 {{wpm}} 词",
+        "method": "语速基于 {{count}} 条录音中 {{covered}} 条的已保存音频。录制时过滤掉的静音不计入。本周尚未结束。"
+      }
+    },
+    "lectures": {
+      "saved": "课程转写已保存到历史记录",
+      "imported": "音频转写已保存到历史记录",
+      "importFailed": "导入或转写失败：{{error}}",
+      "recordTitle": "录制课程",
+      "recordDescription": "通过麦克风录制。音频会在录制过程中保存，结束后再进行转写。",
+      "finish": "结束并转写",
+      "record": "录制课程",
+      "recordingSince": "自 {{time}} 起录制中",
+      "earlier": "更早",
+      "progress": "正在转写第 {{completed}} 部分，共 {{total}} 部分",
+      "working": "处理中…",
+      "importTitle": "转写音频文件",
+      "importDescription": "选择一个录音添加到历史记录。Murmur 会使用你选择的语音识别和润色服务商。",
+      "choose": "选择音频文件",
+      "privacy": "原始音频和转写遵循你的历史记录保留设置。只有在你选择语音服务接口模式时，云端服务商才会收到音频。"
+    },
+    "dictation": {
+      "resetMicrophone": "将麦克风重置为默认",
+      "indicator": {
+        "visibility": "显示录音指示器",
+        "description": "可替代提示音的视觉提示。是否可用取决于桌面环境及其权限。"
+      },
+      "previewSounds": "试听声音主题：开始然后停止",
+      "status": {
+        "hold": "按住 {{shortcut}} 开始听写，松开即结束",
+        "toggle": "按 {{shortcut}} 开始，再按一次结束",
+        "holdOrToggle": "按住 {{shortcut}}，或轻按开始、再轻按一次结束",
+        "speechCloud": "音频会发送到 {{host}} 进行转写",
+        "speechLocal": "音频保留在此设备上（{{model}}）",
+        "noModel": "未选择模型",
+        "cleanupOff": "AI 润色已关闭",
+        "cleanupLocal": "AI 润色通过 {{provider}} 在本地运行",
+        "cleanupCloud": "转写文本会发送到 {{provider}} 进行润色",
+        "unavailable": "麦克风状态不可用",
+        "chooseModel": "请选择识别模型以开始",
+        "checking": "正在检查听写状态…",
+        "change": "更改模型",
+        "captureOnly": "麦克风采集已关闭。识别或润色可能仍在进行，请查看录音指示器或历史记录获取结果。",
+        "release": "松开快捷键即可结束。",
+        "pressAgain": "再按一次快捷键即可结束。",
+        "releaseOrPress": "如果正在按住请松开，或再轻按一次快捷键结束。"
+      },
+      "shortcut": {
+        "title": "快捷键"
+      },
+      "microphone": {
+        "title": "麦克风"
+      },
+      "sounds": {
+        "title": "声音",
+        "theme": "声音",
+        "themeDescription": "录音提示音使用系统输出设备和音量。"
+      },
+      "language": {
+        "title": "口述语言",
+        "model": "可选项取决于当前模型 {{model}}。"
+      }
+    },
+    "download": {
+      "pending": "正在下载…",
+      "multiple": "{{count}} 个正在下载…"
+    },
+    "about": {
+      "versionDescription": "Murmur 的当前版本",
+      "ggml": {
+        "details": "Murmur 使用 transcribe.cpp 和 ggml 进行本地语音识别。感谢 Georgi Gerganov 及所有贡献者。"
+      }
+    },
+    "general": {
+      "status": {
+        "recording": "正在录音",
+        "idle": "未在录音"
+      },
+      "indicator": {
+        "title": "录音指示器"
+      }
+    },
+    "insertion": {
+      "method": {
+        "title": "插入文本",
+        "description": "如果转写出现在历史记录中却没有出现在你的应用里，请在这里尝试其他方式。"
+      },
+      "after": {
+        "title": "插入之后"
+      }
+    },
+    "keys": {
+      "removed": "已移除 {{name}} 的密钥",
+      "title": "已保存的 API 密钥",
+      "description": "密钥保存在系统凭据存储中，绝不会写入 Murmur 的设置文件。",
+      "unavailable": "无法获取凭据存储状态。已保存的密钥未被删除。",
+      "loading": "正在检查凭据存储…",
+      "none": "未保存任何 API 密钥。",
+      "speech": "语音识别",
+      "cleanup": "AI 润色",
+      "remove": "移除"
+    },
+    "stt": {
+      "inUse": "使用中",
+      "keySaved": "语音 API 密钥已保存",
+      "keyRemoved": "语音 API 密钥已移除",
+      "saved": "语音来源已保存",
+      "refreshFailed": "语音来源已保存，但无法重新加载设置。请重试加载设置。",
+      "title": "语音识别",
+      "description": "选择在哪里将你的语音转换为文字。",
+      "source": "转写来源",
+      "local": {
+        "title": "在此设备上",
+        "description": "在下方选择或下载模型。音频绝不会离开这台电脑。"
+      },
+      "endpoint": {
+        "title": "云端 API 或自有服务器",
+        "description": "OpenAI、Groq 或任何兼容 OpenAI 的服务。除非在本地运行，否则需要 API 密钥。",
+        "notice": "每段录音都会发送到此服务，该服务可能按用量收费。Murmur 绝不会自行切换到其他服务。"
+      },
+      "service": "服务",
+      "presetOther": "或在下方输入任意兼容服务器",
+      "baseUrl": "API 基础 URL",
+      "baseUrlHelp": "如果服务器在这台电脑上，可尝试 http://127.0.0.1:8000/v1。完整的 /audio/transcriptions URL 也可以使用。",
+      "model": "模型 ID",
+      "modelHelp": "使用你的语音服务器接受的模型名称。",
+      "apiKey": "API 密钥",
+      "apiKeyPlaceholder": "粘贴你的密钥",
+      "saveKey": "保存密钥",
+      "removeKey": "移除",
+      "keySavedWithSource": "按下“保存”时，你的密钥会与 URL 和模型一起保存。",
+      "keyStored": "此接口的密钥已保存在系统凭据存储中。",
+      "noKey": "未保存密钥。仅当服务器不需要密钥时才留空。",
+      "keyStatusError": "无法检查系统凭据存储。请在下方重试。",
+      "keyStatusUnknown": "正在检查系统凭据存储…",
+      "retryKeyCheck": "重新检查密钥",
+      "retryRefresh": "重新加载设置",
+      "saving": "正在保存…",
+      "save": "保存"
+    },
+    "privacy": {
+      "loading": "配置加载期间无法使用隐私设置。请点击“重试”再次检查。",
+      "change": "更改",
+      "reporting": "匿名使用情况和错误",
+      "reportingSwitch": "分享匿名使用情况和错误",
+      "reportingNotice": "仅包含自托管的界面/操作计数和固定的错误类别。不追踪访问者，不包含录音、转写、词典词语或 API 密钥。在所有者配置接收端点之前保持关闭。Do Not Track 和 Global Privacy Control 优先于此开关。计数 30 天后过期，错误 14 天后过期。",
+      "reportingUnconfigured": "此版本未配置报告功能，不会发送任何内容。",
+      "reportingSaveError": "无法保存报告偏好。在能读取该偏好之前，报告将保持关闭。",
+      "leaves": {
+        "title": "哪些数据会离开这台电脑",
+        "description": "你的语音和文本只会发送到你选择的服务。Murmur 绝不会自行切换到其他服务。"
+      },
+      "speech": {
+        "title": "你的语音",
+        "cloud": "每段录音都会发送到 {{host}} 进行转写。",
+        "local": "在这台电脑上转写。录音绝不会上传。"
+      },
+      "cleanup": {
+        "title": "你的转写",
+        "off": "AI 润色已关闭，因此转写会保留在本机。",
+        "local": "由 {{provider}} 在这台电脑上润色。",
+        "cloud": "转写文本和你的词典词语会发送到 {{provider}} 进行润色。音频不会发送。"
+      },
+      "stored": {
+        "title": "哪些数据会留在这台电脑上"
+      },
+      "history": {
+        "title": "录音和转写",
+        "detail": "保留期限：{{period}}。已加星标的听写始终保留。"
+      },
+      "keys": {
+        "title": "API 密钥",
+        "detail": "{{count}} 个保存在系统凭据存储中，绝不会写入 Murmur 的设置文件。"
+      },
+      "manage": "管理"
+    },
+    "stats": {
+      "providerCost": "服务商费用",
+      "openrouterKeys": "你已配置密钥的 OpenRouter 用量",
+      "refresh": "刷新",
+      "costStale": "无法刷新服务商用量。这些数字可能已过时。",
+      "costLoading": "正在检查 OpenRouter 用量…",
+      "costUnavailable": "无法获取 OpenRouter 用量。请检查网络连接和密钥后重试。",
+      "noOpenrouterKey": "在“模型”中添加 OpenRouter 语音密钥，或在“后处理”中添加润色密钥，即可在此查看其用量。",
+      "costWeek": "本周",
+      "costMonth": "本月",
+      "costAll": "全部时间",
+      "byokValue": "OpenRouter 还报告了本月 {{value}} 的 BYOK 模型用量。该部分由你的服务商单独计费。",
+      "costScope": "这些总计涵盖 {{count}} 个已配置的 OpenRouter 密钥，包括在 Murmur 之外的使用。本地模型和直连服务商密钥不计入。",
+      "totalWordsDescription": "已保存听写中的字数",
+      "thisWeekDescription": "自周一以来保存的字数",
+      "recordedDescription": "基于过滤静音后的已保存音频",
+      "recordedMinutes": "已保存音频分钟数",
+      "title": "你的听写统计",
+      "unavailableHelp": "请在 Murmur 启动完成后重试。",
+      "position": "第 {{current}} 项，共 {{total}} 项",
+      "swipeHint": "拖动或滑动以浏览",
+      "metricCards": "听写统计卡片",
+      "noAudioShort": "没有保留的音频",
+      "noAudio": "没有保留带音频的录音，因此无法计算录音语速和分钟数。本周尚未结束。"
+    }
   }
 }

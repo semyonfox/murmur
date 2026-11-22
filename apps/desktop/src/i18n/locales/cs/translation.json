@@ -1,4 +1,10 @@
 {
+  "startup": {
+    "legacyConflictTitle": "Předchozí data aplikace Murmur se nepřenesla",
+    "legacyConflictMessage": "Předchozí data aplikace Murmur jsou v konfliktu s aktuálními daty. Předchozí data zůstávají v {{path}}.",
+    "newerHistoryTitle": "Databáze historie vyžaduje novější verzi",
+    "newerHistoryMessage": "Tuto databázi historie zapsala novější verze aplikace Murmur. Chcete-li otevřít historii, aktualizujte Murmur.\n\n{{path}}\n\nChcete-li začít s prázdnou historií, zavřete Murmur a přesuňte databázi i všechny soubory s názvy ve tvaru history.db-* do jiné složky."
+  },
   "tray": {
     "settings": "Nastavení...",
     "checkUpdates": "Zkontrolovat aktualizace...",
@@ -118,7 +124,10 @@
         "checkFailed": "Nepodařilo se zkontrolovat oprávnění. Zkuste to prosím znovu.",
         "requestFailed": "Nepodařilo se požádat o oprávnění. Zkuste to prosím znovu."
       }
-    }
+    },
+    "configureEndpoint": "Použít službu pro rozpoznávání řeči",
+    "configureEndpointDescription": "Nastavte online poskytovatele nebo vlastní server v sekci Modely.",
+    "noModels": "Momentálně nejsou k dispozici žádné modely ke stažení."
   },
   "modelSelector": {
     "custom": "Vlastní",
@@ -660,7 +669,10 @@
     "open": "Otevřít",
     "copy": "Kopírovat",
     "clear": "Vymazat",
-    "noOptionsFound": "Nenalezeny žádné možnosti"
+    "noOptionsFound": "Nenalezeny žádné možnosti",
+    "download": "Stáhnout",
+    "retry": "Zkusit znovu",
+    "cancel": "Zrušit"
   },
   "accessibility": {
     "permissionsDescription": "Murmur potřebuje oprávnění usnadnění přístupu, aby mohlo psát přepsaný text.",
@@ -714,5 +726,390 @@
     "learnMore": "Jak to vyřešit",
     "recorderBlocked": "Zkratky teď nelze nahrát — Secure Input v macOS blokuje události kláves. Nejprve vyřešte upozornění na Secure Input.",
     "dismiss": "Zavřít"
+  },
+  "murmur": {
+    "cleanup": {
+      "errors": {
+        "authentication": "Ověření se nezdařilo. Zkontrolujte klíč API.",
+        "credit": "Kredit u poskytovatele byl vyčerpán. Zkontrolujte nastavení fakturace.",
+        "rateLimit": "Byl dosažen limit požadavků. Zkuste to později.",
+        "server": "Poskytovatel je nedostupný. Zkuste to později.",
+        "invalidOutput": "Poskytovatel vrátil nepoužitelný přepis.",
+        "timeout": "Poskytovatel neodpověděl včas.",
+        "reasoning": "Tento model vyžaduje zapnuté uvažování. Vyberte jiný model.",
+        "credentialStore": "Při úpravě se nepodařilo získat přístup k systémovému úložišti přihlašovacích údajů.",
+        "configuration": "Požadavek byl zamítnut. Zkontrolujte nastavení poskytovatele a modelu."
+      },
+      "failed": "Úprava textu pomocí AI se nezdařila",
+      "removeKey": "Odebrat klíč",
+      "keyStatusUnknown": "Kontroluji systémové úložiště přihlašovacích údajů…",
+      "keyStored": "Klíč je uložen v systémovém úložišti přihlašovacích údajů",
+      "keyMissing": "Žádný uložený klíč",
+      "formality": {
+        "veryCasual": "Velmi neformální",
+        "casual": "Neformální",
+        "natural": "Přirozený",
+        "professional": "Profesionální",
+        "formal": "Formální",
+        "title": "Tón",
+        "description": "Zvolte míru úprav interpunkce a gramatiky. Každá úroveň zachovává vaše slova."
+      },
+      "basic": {
+        "title": "Na tomto zařízení",
+        "description": "Vždy běží lokálně, i když je úprava textu pomocí AI vypnutá."
+      },
+      "title": "Úprava textu pomocí AI",
+      "description": "Opravuje interpunkci a zjevné chyby a rozděluje dlouhé diktování do čitelných vět, přičemž zachovává vaše slova. Cloudoví poskytovatelé dostávají přepis, ne nahrávku.",
+      "instructions": {
+        "title": "Vlastní pokyny",
+        "description": "Volitelné. Sdělte modelu pro úpravu textu cokoli navíc."
+      },
+      "model": {
+        "none": "Není vybrán žádný poskytovatel"
+      }
+    },
+    "app": {
+      "loading": "Načítám Murmur…",
+      "skip": "Přejít do nastavení",
+      "appearance": {
+        "title": "Vzhled"
+      },
+      "startup": {
+        "title": "Spuštění a oznamovací oblast"
+      },
+      "performance": {
+        "title": "Výkon"
+      }
+    },
+    "nav": {
+      "dictation": "Diktování",
+      "lectures": "Přednášky",
+      "dictionary": "Slovník",
+      "insertion": "Vkládání textu",
+      "stats": "Statistiky",
+      "privacy": "Soukromí",
+      "app": "Aplikace",
+      "label": "Nastavení"
+    },
+    "pages": {
+      "dictation": {
+        "description": "Zkratka, mikrofon a jazyk řeči a také to, co vidíte a slyšíte během nahrávání."
+      },
+      "lectures": {
+        "description": "Nahrajte přednášku nebo importujte zvukový soubor. Přepis najdete v historii."
+      },
+      "models": {
+        "description": "Zvolte, co převádí vaši řeč na text. Najdete tu i všechny uložené klíče API."
+      },
+      "cleanup": {
+        "description": "Úprava přepisů před vložením: výplňová slova, model a klíč AI, tón a pokyny."
+      },
+      "dictionary": {
+        "description": "Jména a termíny, které má Murmur psát podle vás."
+      },
+      "insertion": {
+        "description": "Jak se hotový text dostane do aplikace, ve které píšete, a co se stane potom."
+      },
+      "stats": {
+        "description": "Slova, tempo řeči, délka uloženého zvuku a náklady na poskytovatele."
+      },
+      "history": {
+        "description": "Minulá diktování, uchovávání a komprimovaný export."
+      },
+      "privacy": {
+        "description": "Co opouští tento počítač, co na něm zůstává a jak dlouho."
+      },
+      "app": {
+        "description": "Vzhled, jazyk rozhraní, spuštění a výkon."
+      },
+      "about": {
+        "description": "Verze, poděkování a kde Murmur ukládá své soubory."
+      },
+      "debug": {
+        "description": "Diagnostika pro řešení potíží."
+      }
+    },
+    "onboarding": {
+      "checking": "Kontroluji oprávnění…",
+      "checkFailed": "Kontrola oprávnění se nezdařila. Zkuste to znovu pomocí tlačítka oprávnění níže. Nastavení systému se nezměnilo.",
+      "microphoneWaiting": "Povolte přístup k mikrofonu v nastavení systému a vraťte se sem. Murmur to automaticky zkontroluje znovu.",
+      "recheck": "Zkontrolovat znovu",
+      "accessibilityWaiting": "Povolte Murmur v nastavení usnadnění přístupu a vraťte se sem. Murmur to automaticky zkontroluje znovu."
+    },
+    "models": {
+      "downloadNamed": "Stáhnout {{model}}",
+      "browse": "Procházet modely ke stažení ({{count}})",
+      "local": {
+        "title": "Modely v zařízení"
+      },
+      "cleanup": {
+        "title": "Model pro úpravu textu",
+        "on": "Úprava textu pomocí AI je zapnutá",
+        "off": "Úprava textu pomocí AI je vypnutá",
+        "change": "Změnit v sekci Úprava textu"
+      }
+    },
+    "dictionary": {
+      "saveError": "Tuto položku slovníku se nepodařilo uložit.",
+      "search": "Hledat uložená slova",
+      "count": "Uložené termíny: {{count}}",
+      "noMatches": "Žádná odpovídající slova.",
+      "title": "Vaše slova",
+      "description": "Používá je rozpoznávání v zařízení i úprava textu pomocí AI ke správnému psaní neobvyklých jmen a termínů."
+    },
+    "history": {
+      "limit": {
+        "confirmMessage": "Ponechat posledních {{count}} diktátů? Starší diktáty bez hvězdičky a jejich nahrávky se trvale odstraní.",
+        "confirmTitle": "Snížit limit historie"
+      },
+      "retention": {
+        "confirmMessage": "Změna doby uchovávání může trvale smazat existující nahrávky a přepisy, které překračují nový limit. Pokračovat?",
+        "confirmTitle": "Změnit dobu uchovávání historie"
+      },
+      "playbackError": "Přehrání nahrávky není k dispozici. Zkuste znovu Přehrát nebo obnovte přepis výše.",
+      "saveError": "Nepodařilo se změnit, zda se toto diktování uchová. Zkuste to znovu.",
+      "folderError": "Složku s nahrávkami se nepodařilo otevřít. Vaše přepisy jsou zde stále k dispozici.",
+      "archive": {
+        "partial": "Archivováno diktování: {{count}}, ale {{missing}} nahrávek už chybělo.",
+        "complete": "Archivováno diktování: {{count}}. Originály zůstaly beze změny.",
+        "error": "Historii se nepodařilo exportovat.",
+        "working": "Vytvářím archiv…",
+        "action": "Exportovat komprimovaný archiv",
+        "note": "Bezeztrátová komprese zachovává původní zvuk WAV. Archiv není šifrovaný a export nikdy nemaže místní historii."
+      },
+      "loadError": "Historii se nepodařilo načíst. Vaše uložená diktování nebyla odstraněna.",
+      "retryLoad": "Načíst znovu",
+      "storage": {
+        "title": "Úložiště a archiv",
+        "description": "Zvolte, jak dlouho uchovávat nahrávky a přepisy. Kdykoli chcete dlouhodobý archiv, exportujte komprimovanou kopii s původním i upraveným textem."
+      },
+      "copied": "Zobrazený přepis byl zkopírován.",
+      "deleteMessage": "Tím trvale odstraníte původní i upravený text a jeho nahrávku.",
+      "deleteTitle": "Smazat diktování?",
+      "retryFinished": "Požadavek na přepis byl dokončen. Výsledek najdete v této položce.",
+      "raw": "Původní přepis",
+      "cleaned": "Upravený přepis",
+      "processed": "Zpracovaný přepis",
+      "showCleaned": "Zobrazit upravený text",
+      "showProcessed": "Zobrazit zpracovaný text",
+      "showRaw": "Zobrazit původní text",
+      "rawFallback": "Pro tuto položku nebyla dostupná úprava textu pomocí AI.",
+      "stats": {
+        "noPreviousWeek": "Žádný předchozí týden k porovnání",
+        "totalWords": "Uchovaná slova",
+        "thisWeek": "Tento týden",
+        "recordedPace": "Naměřené tempo",
+        "wpm": "sl./min",
+        "minutes": "min",
+        "retainedOnly": "Podle uchované historie. Smazaná diktování se nepočítají.",
+        "stale": "Statistiky se nepodařilo obnovit. Údaje mohou být zastaralé.",
+        "loading": "Načítám statistiky…",
+        "unavailable": "Statistiky nejsou momentálně k dispozici.",
+        "weeklyWords": "Slova po týdnech",
+        "vsPrevious": "oproti poslednímu celému týdnu",
+        "weekBar": "{{date}}: {{count}} slov",
+        "weeklyPace": "Naměřené tempo po týdnech",
+        "weekPaceUnavailable": "{{date}}: žádná data z nahrávek",
+        "weekPaceValue": "{{date}}: {{wpm}} slov za minutu",
+        "method": "Tempo vychází z uloženého zvuku u {{covered}} z {{count}} nahrávek. Ticho odfiltrované při nahrávání se nepočítá. Tento týden ještě neskončil."
+      }
+    },
+    "lectures": {
+      "saved": "Přepis přednášky byl uložen do historie",
+      "imported": "Přepis zvuku byl uložen do historie",
+      "importFailed": "Import nebo přepis se nezdařil: {{error}}",
+      "recordTitle": "Nahrát přednášku",
+      "recordDescription": "Záznam z mikrofonu. Zvuk se ukládá průběžně a po dokončení se přepíše.",
+      "finish": "Dokončit a přepsat",
+      "record": "Nahrát přednášku",
+      "recordingSince": "Nahrávání od {{time}}",
+      "earlier": "dříve",
+      "progress": "Přepisuji část {{completed}} z {{total}}",
+      "working": "Zpracovávám…",
+      "importTitle": "Přepsat zvukový soubor",
+      "importDescription": "Vyberte nahrávku, kterou chcete přidat do historie. Murmur použije vybrané poskytovatele řeči a úpravy textu.",
+      "choose": "Vybrat zvukový soubor",
+      "privacy": "Původní zvuk a přepisy se řídí nastavením uchovávání historie. Cloudoví poskytovatelé dostávají zvuk jen tehdy, když zvolíte režim řeči s externí službou."
+    },
+    "dictation": {
+      "resetMicrophone": "Obnovit výchozí mikrofon",
+      "indicator": {
+        "visibility": "Zobrazit indikátor nahrávání",
+        "description": "Viditelná alternativa ke zvukovým signálům. Dostupnost závisí na pracovním prostředí a jeho oprávněních."
+      },
+      "previewSounds": "Přehrát ukázku zvukového motivu: start a stop",
+      "status": {
+        "hold": "Podržením {{shortcut}} diktujete, uvolněním dokončíte",
+        "toggle": "Stisknutím {{shortcut}} začnete, dalším stisknutím dokončíte",
+        "holdOrToggle": "Podržte {{shortcut}}, nebo klepnutím začněte a dalším klepnutím dokončete",
+        "speechCloud": "Zvuk se odesílá k přepisu na {{host}}",
+        "speechLocal": "Zvuk zůstává v tomto zařízení ({{model}})",
+        "noModel": "není vybrán žádný model",
+        "cleanupOff": "Úprava textu pomocí AI je vypnutá",
+        "cleanupLocal": "Úprava textu pomocí AI běží lokálně s {{provider}}",
+        "cleanupCloud": "Text přepisu se odesílá k úpravě do {{provider}}",
+        "unavailable": "Stav mikrofonu není k dispozici",
+        "chooseModel": "Pro začátek vyberte model rozpoznávání",
+        "checking": "Kontroluji stav diktování…",
+        "change": "Změnit modely",
+        "captureOnly": "Záznam z mikrofonu je vypnutý. Rozpoznávání nebo úprava textu může stále probíhat. Výsledek zkontrolujte na indikátoru nahrávání nebo v historii.",
+        "release": "Dokončete uvolněním zkratky.",
+        "pressAgain": "Dokončete dalším stisknutím zkratky.",
+        "releaseOrPress": "Pokud zkratku držíte, uvolněte ji, jinak ji pro dokončení stiskněte znovu."
+      },
+      "shortcut": {
+        "title": "Zkratka"
+      },
+      "microphone": {
+        "title": "Mikrofon"
+      },
+      "sounds": {
+        "title": "Zvuky",
+        "theme": "Zvuk",
+        "themeDescription": "Zvukové signály nahrávání používají systémový výstup a hlasitost."
+      },
+      "language": {
+        "title": "Jazyk řeči",
+        "model": "Možnosti závisí na aktivním modelu {{model}}."
+      }
+    },
+    "download": {
+      "pending": "Stahuji…",
+      "multiple": "Stahování: {{count}}…"
+    },
+    "about": {
+      "versionDescription": "Aktuální verze Murmur",
+      "ggml": {
+        "details": "Murmur používá pro místní rozpoznávání řeči transcribe.cpp a ggml. Děkujeme Georgi Gerganovovi a přispěvatelům."
+      }
+    },
+    "general": {
+      "status": {
+        "recording": "Probíhá nahrávání",
+        "idle": "Nenahrává se"
+      },
+      "indicator": {
+        "title": "Indikátor nahrávání"
+      }
+    },
+    "insertion": {
+      "method": {
+        "title": "Vkládání textu",
+        "description": "Pokud se přepisy objevují v historii, ale ne ve vaší aplikaci, zkuste zde jinou metodu."
+      },
+      "after": {
+        "title": "Po vložení"
+      }
+    },
+    "keys": {
+      "removed": "Klíč pro {{name}} byl odebrán",
+      "title": "Uložené klíče API",
+      "description": "Klíče se ukládají v systémovém úložišti přihlašovacích údajů, nikdy v souboru nastavení Murmur.",
+      "unavailable": "Stav úložiště přihlašovacích údajů není k dispozici. Uložené klíče nebyly odebrány.",
+      "loading": "Kontroluji úložiště přihlašovacích údajů…",
+      "none": "Žádné uložené klíče API.",
+      "speech": "Rozpoznávání řeči",
+      "cleanup": "Úprava textu pomocí AI",
+      "remove": "Odebrat"
+    },
+    "stt": {
+      "inUse": "Používá se",
+      "keySaved": "Klíč API pro řeč byl uložen",
+      "keyRemoved": "Klíč API pro řeč byl odebrán",
+      "saved": "Zdroj řeči byl uložen",
+      "refreshFailed": "Zdroj řeči byl uložen, ale nastavení se nepodařilo znovu načíst. Zkuste nastavení načíst znovu.",
+      "title": "Rozpoznávání řeči",
+      "description": "Zvolte, kde se vaše řeč převádí na text.",
+      "source": "Zdroj přepisu",
+      "local": {
+        "title": "Na tomto zařízení",
+        "description": "Vyberte nebo stáhněte model níže. Zvuk nikdy neopustí tento počítač."
+      },
+      "endpoint": {
+        "title": "Cloudové API nebo vlastní server",
+        "description": "OpenAI, Groq nebo jakákoli služba kompatibilní s OpenAI. Vyžaduje klíč API, pokud neběží lokálně.",
+        "notice": "Každá nahrávka se odesílá této službě, která může účtovat poplatky za použití. Murmur nikdy sám nepřepne na jinou službu."
+      },
+      "service": "Služba",
+      "presetOther": "nebo níže zadejte libovolný kompatibilní server",
+      "baseUrl": "Základní URL API",
+      "baseUrlHelp": "Pro server na tomto počítači zkuste http://127.0.0.1:8000/v1. Funguje i úplná URL s /audio/transcriptions.",
+      "model": "ID modelu",
+      "modelHelp": "Použijte název modelu, který váš server pro řeč přijímá.",
+      "apiKey": "API klíč",
+      "apiKeyPlaceholder": "Vložte svůj klíč",
+      "saveKey": "Uložit klíč",
+      "removeKey": "Odebrat",
+      "keySavedWithSource": "Po stisknutí Uložit se klíč uloží spolu s URL a modelem.",
+      "keyStored": "Pro tuto službu je v systémovém úložišti přihlašovacích údajů uložen klíč.",
+      "noKey": "Žádný uložený klíč. Prázdné pole nechte jen u serveru, který klíč nepotřebuje.",
+      "keyStatusError": "Systémové úložiště přihlašovacích údajů se nepodařilo zkontrolovat. Zkuste to znovu níže.",
+      "keyStatusUnknown": "Kontroluji systémové úložiště přihlašovacích údajů…",
+      "retryKeyCheck": "Znovu zkontrolovat klíč",
+      "retryRefresh": "Znovu načíst nastavení",
+      "saving": "Ukládám…",
+      "save": "Uložit"
+    },
+    "privacy": {
+      "loading": "Nastavení soukromí není během načítání konfigurace k dispozici. Zkontrolujte to znovu tlačítkem Zkusit znovu.",
+      "change": "Změnit",
+      "reporting": "Anonymní využití a chyby",
+      "reportingSwitch": "Sdílet anonymní údaje o využití a chybách",
+      "reportingNotice": "Pouze počty obrazovek a akcí a pevné kategorie chyb na vlastním serveru. Žádné sledování návštěvníků, nahrávky, přepisy, slova ze slovníku ani klíče API. Vypnuto, dokud vlastník nenastaví příjmovou službu. Do Not Track a Global Privacy Control mají přednost před tímto přepínačem. Počty vyprší po 30 dnech, chyby po 14 dnech.",
+      "reportingUnconfigured": "Hlášení není v tomto sestavení nastaveno. Nic se neodesílá.",
+      "reportingSaveError": "Předvolbu hlášení se nepodařilo uložit. Hlášení zůstane vypnuté, dokud nebude možné předvolbu načíst.",
+      "leaves": {
+        "title": "Co opouští tento počítač",
+        "description": "Váš hlas a text jdou jen do služeb, které si zvolíte. Murmur nikdy sám nepřepne na jinou."
+      },
+      "speech": {
+        "title": "Váš hlas",
+        "cloud": "Každá nahrávka se odesílá k přepisu na {{host}}.",
+        "local": "Přepisuje se na tomto počítači. Nahrávky se nikdy nenahrávají na server."
+      },
+      "cleanup": {
+        "title": "Vaše přepisy",
+        "off": "Úprava textu pomocí AI je vypnutá, takže přepisy zůstávají zde.",
+        "local": "Upravuje {{provider}} na tomto počítači.",
+        "cloud": "Text přepisu a slova z vašeho slovníku se odesílají k úpravě do {{provider}}. Zvuk ne."
+      },
+      "stored": {
+        "title": "Co zůstává na tomto počítači"
+      },
+      "history": {
+        "title": "Nahrávky a přepisy",
+        "detail": "Uchování: {{period}}. Diktování označená hvězdičkou se uchovávají vždy."
+      },
+      "keys": {
+        "title": "Klíče API",
+        "detail": "Uloženo v systémovém úložišti přihlašovacích údajů: {{count}}, nikdy v souboru nastavení Murmur."
+      },
+      "manage": "Spravovat"
+    },
+    "stats": {
+      "providerCost": "Náklady na poskytovatele",
+      "openrouterKeys": "Využití OpenRouter pro vaše nastavené klíče",
+      "refresh": "Obnovit",
+      "costStale": "Využití u poskytovatele se nepodařilo obnovit. Údaje mohou být zastaralé.",
+      "costLoading": "Kontroluji využití OpenRouter…",
+      "costUnavailable": "Využití OpenRouter není k dispozici. Zkontrolujte připojení a klíč a zkuste to znovu.",
+      "noOpenrouterKey": "Přidejte klíč OpenRouter pro řeč v sekci Modely nebo klíč pro úpravu textu v sekci Úprava textu a uvidíte zde jeho využití.",
+      "costWeek": "Tento týden",
+      "costMonth": "Tento měsíc",
+      "costAll": "Celkem",
+      "byokValue": "OpenRouter tento měsíc hlásí také {{value}} za využití modelů BYOK. Váš poskytovatel to účtuje zvlášť.",
+      "costScope": "Tyto součty zahrnují nastavené klíče OpenRouter ({{count}}) včetně využití mimo Murmur. Místní modely a přímé klíče poskytovatelů se nepočítají.",
+      "totalWordsDescription": "Slova v uložených diktováních",
+      "thisWeekDescription": "Slova uložená od pondělí",
+      "recordedDescription": "Podle uloženého zvuku po odfiltrování ticha",
+      "recordedMinutes": "Minuty uloženého zvuku",
+      "title": "Vaše statistiky diktování",
+      "unavailableHelp": "Zkuste to znovu, až Murmur dokončí spouštění.",
+      "position": "Statistika {{current}} z {{total}}",
+      "swipeHint": "Procházejte přetažením nebo přejetím",
+      "metricCards": "Karty statistik diktování",
+      "noAudioShort": "Žádný uchovaný zvuk",
+      "noAudio": "Nejsou k dispozici žádné uchované nahrávky se zvukem, takže nelze spočítat naměřené tempo ani minuty. Tento týden ještě neskončil."
+    }
   }
 }

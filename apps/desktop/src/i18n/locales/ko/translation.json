@@ -1,4 +1,10 @@
 {
+  "startup": {
+    "legacyConflictTitle": "이전 Murmur 데이터를 옮기지 못했습니다",
+    "legacyConflictMessage": "이전 Murmur 데이터가 현재 데이터와 충돌합니다. 이전 데이터는 {{path}}에 남아 있습니다.",
+    "newerHistoryTitle": "기록 데이터베이스에 더 최신 버전이 필요합니다",
+    "newerHistoryMessage": "이 기록 데이터베이스는 더 최신 버전의 Murmur에서 작성했습니다. 기록을 열려면 Murmur를 업데이트하세요.\n\n{{path}}\n\n빈 기록으로 시작하려면 Murmur를 종료하고 데이터베이스와 이름이 history.db-* 패턴에 맞는 파일을 다른 폴더로 옮기세요."
+  },
   "tray": {
     "settings": "설정...",
     "checkUpdates": "업데이트 확인...",
@@ -118,7 +124,10 @@
         "checkFailed": "권한 확인에 실패했습니다. 다시 시도해주세요.",
         "requestFailed": "권한 요청에 실패했습니다. 다시 시도해주세요."
       }
-    }
+    },
+    "configureEndpoint": "음성 엔드포인트 사용",
+    "configureEndpointDescription": "모델에서 온라인 제공업체나 직접 운영하는 서버를 설정하세요.",
+    "noModels": "지금은 다운로드할 수 있는 모델이 없습니다."
   },
   "modelSelector": {
     "custom": "사용자 정의",
@@ -660,7 +669,10 @@
     "open": "열기",
     "copy": "복사",
     "clear": "지우기",
-    "noOptionsFound": "옵션을 찾을 수 없습니다"
+    "noOptionsFound": "옵션을 찾을 수 없습니다",
+    "download": "다운로드",
+    "retry": "다시 시도",
+    "cancel": "취소"
   },
   "accessibility": {
     "permissionsDescription": "Murmur는 녹음된 텍스트를 입력하기 위해 접근성 권한이 필요합니다.",
@@ -714,5 +726,390 @@
     "learnMore": "해결 방법",
     "recorderBlocked": "지금은 단축키를 등록할 수 없습니다. macOS Secure Input이 키 이벤트를 차단하고 있습니다. Secure Input 경고를 먼저 해결하세요.",
     "dismiss": "닫기"
+  },
+  "murmur": {
+    "cleanup": {
+      "errors": {
+        "authentication": "인증에 실패했습니다. API 키를 확인하세요.",
+        "credit": "서비스 제공업체의 크레딧이 부족합니다. 결제 설정을 확인하세요.",
+        "rateLimit": "요청 한도에 도달했습니다. 잠시 후 다시 시도하세요.",
+        "server": "서비스를 이용할 수 없습니다. 잠시 후 다시 시도하세요.",
+        "invalidOutput": "서비스에서 사용할 수 없는 변환 결과를 반환했습니다.",
+        "timeout": "서비스 응답 시간이 초과되었습니다.",
+        "reasoning": "이 모델은 추론을 끄면 실행할 수 없습니다. 다른 모델을 선택하세요.",
+        "credentialStore": "텍스트 정리 기능이 시스템 자격 증명 저장소에 접근하지 못했습니다.",
+        "configuration": "요청이 거부되었습니다. 서비스 제공업체 및 모델 설정을 확인하세요."
+      },
+      "failed": "AI 텍스트 다듬기 실패",
+      "removeKey": "키 삭제",
+      "keyStatusUnknown": "시스템 자격 증명 저장소 확인 중…",
+      "keyStored": "키가 시스템 자격 증명 저장소에 저장됨",
+      "keyMissing": "저장된 키 없음",
+      "formality": {
+        "veryCasual": "아주 편하게",
+        "casual": "편하게",
+        "natural": "자연스럽게",
+        "professional": "전문적으로",
+        "formal": "격식 있게",
+        "title": "어조",
+        "description": "문장 부호와 문법을 얼마나 다듬을지 선택하세요. 어느 단계든 사용자의 말은 그대로 유지됩니다."
+      },
+      "basic": {
+        "title": "이 기기에서",
+        "description": "AI 텍스트 다듬기가 꺼져 있어도 항상 로컬에서 실행됩니다."
+      },
+      "title": "AI 텍스트 다듬기",
+      "description": "사용자의 말은 그대로 두고 문장 부호와 명백한 오류를 고치며, 긴 음성 입력을 읽기 쉬운 문장으로 나눕니다. 클라우드 제공업체는 녹음이 아닌 변환 텍스트만 받습니다.",
+      "instructions": {
+        "title": "사용자 지정 지침",
+        "description": "선택 사항입니다. 다듬기 모델에 추가로 전달할 내용을 입력하세요."
+      },
+      "model": {
+        "none": "선택된 제공업체 없음"
+      }
+    },
+    "app": {
+      "loading": "Murmur 로딩 중…",
+      "skip": "설정으로 건너뛰기",
+      "appearance": {
+        "title": "모양"
+      },
+      "startup": {
+        "title": "시작 및 시스템 트레이"
+      },
+      "performance": {
+        "title": "성능"
+      }
+    },
+    "nav": {
+      "dictation": "음성 입력",
+      "lectures": "강의",
+      "dictionary": "사전",
+      "insertion": "텍스트 삽입",
+      "stats": "통계",
+      "privacy": "개인정보 보호",
+      "app": "앱",
+      "label": "설정"
+    },
+    "pages": {
+      "dictation": {
+        "description": "단축키, 마이크, 말하는 언어, 그리고 녹음 중에 보고 듣는 항목을 설정합니다."
+      },
+      "lectures": {
+        "description": "강의를 녹음하거나 오디오 파일을 가져오면 변환된 텍스트가 기록에 저장됩니다."
+      },
+      "models": {
+        "description": "음성을 텍스트로 바꿀 방법을 선택합니다. 저장된 API 키도 모두 여기에 표시됩니다."
+      },
+      "cleanup": {
+        "description": "삽입하기 전에 변환 텍스트를 다듬습니다. 군말, AI 모델과 키, 어조, 지침을 설정합니다."
+      },
+      "dictionary": {
+        "description": "Murmur가 원하는 방식으로 표기해야 할 이름과 용어입니다."
+      },
+      "insertion": {
+        "description": "완성된 텍스트를 입력 중인 앱에 넣는 방법과 그 이후의 동작을 설정합니다."
+      },
+      "stats": {
+        "description": "단어 수, 말하기 속도, 저장된 오디오 길이, 제공업체 비용."
+      },
+      "history": {
+        "description": "지난 음성 입력, 보관 기간, 압축 내보내기."
+      },
+      "privacy": {
+        "description": "이 컴퓨터 밖으로 나가는 것, 여기에 남는 것, 그리고 보관 기간."
+      },
+      "app": {
+        "description": "모양, 인터페이스 언어, 시작 방식 및 성능을 설정합니다."
+      },
+      "about": {
+        "description": "버전, 제작 정보, Murmur가 파일을 보관하는 위치."
+      },
+      "debug": {
+        "description": "문제 해결을 위한 진단 정보."
+      }
+    },
+    "onboarding": {
+      "checking": "권한 확인 중…",
+      "checkFailed": "권한을 확인하지 못했습니다. 아래 권한 버튼으로 다시 시도하세요. 시스템 설정은 변경되지 않았습니다.",
+      "microphoneWaiting": "시스템 설정에서 마이크 접근을 허용한 다음 여기로 돌아오세요. Murmur가 자동으로 다시 확인합니다.",
+      "recheck": "다시 확인",
+      "accessibilityWaiting": "시스템 손쉬운 사용 설정에서 Murmur를 허용한 다음 여기로 돌아오세요. Murmur가 자동으로 다시 확인합니다."
+    },
+    "models": {
+      "downloadNamed": "{{model}} 다운로드",
+      "browse": "다운로드할 수 있는 모델 {{count}}개 보기",
+      "local": {
+        "title": "기기 내 모델"
+      },
+      "cleanup": {
+        "title": "다듬기 모델",
+        "on": "AI 텍스트 다듬기 켜짐",
+        "off": "AI 텍스트 다듬기 꺼짐",
+        "change": "후처리에서 변경"
+      }
+    },
+    "dictionary": {
+      "saveError": "이 사전 항목을 저장하지 못했습니다.",
+      "search": "저장된 단어 검색",
+      "count": "용어 {{count}}개 저장됨",
+      "noMatches": "일치하는 단어가 없습니다.",
+      "title": "내 단어",
+      "description": "기기 내 음성 인식과 AI 텍스트 다듬기에서 흔하지 않은 이름과 용어를 표기할 때 사용됩니다."
+    },
+    "history": {
+      "limit": {
+        "confirmMessage": "최근 음성 입력 {{count}}개를 보관할까요? 그보다 오래되고 별표가 없는 항목과 녹음은 영구 삭제됩니다.",
+        "confirmTitle": "기록 한도 줄이기"
+      },
+      "retention": {
+        "confirmMessage": "보관 기간을 바꾸면 새 한도를 넘는 기존 녹음과 변환 텍스트가 영구 삭제될 수 있습니다. 계속할까요?",
+        "confirmTitle": "기록 보관 기간 변경"
+      },
+      "playbackError": "녹음을 재생할 수 없습니다. 재생을 다시 시도하거나 위의 변환 텍스트를 복구하세요.",
+      "saveError": "이 음성 입력의 보관 여부를 변경하지 못했습니다. 다시 시도하세요.",
+      "folderError": "녹음 폴더를 열지 못했습니다. 변환 텍스트는 여기에서 계속 볼 수 있습니다.",
+      "archive": {
+        "partial": "음성 입력 {{count}}개를 보관했지만 녹음 {{missing}}개는 이미 없었습니다.",
+        "complete": "음성 입력 {{count}}개를 보관했습니다. 원본은 변경되지 않았습니다.",
+        "error": "기록을 내보내지 못했습니다.",
+        "working": "보관 파일 만드는 중…",
+        "action": "압축 보관 파일 내보내기",
+        "note": "무손실 압축으로 원본 WAV 오디오가 유지됩니다. 보관 파일은 암호화되지 않으며, 내보내기로 로컬 기록이 삭제되지는 않습니다."
+      },
+      "loadError": "기록을 불러오지 못했습니다. 저장된 음성 입력은 삭제되지 않았습니다.",
+      "retryLoad": "다시 불러오기",
+      "storage": {
+        "title": "저장 공간 및 보관",
+        "description": "녹음과 변환 텍스트를 얼마나 오래 보관할지 선택하세요. 장기 보관이 필요하면 언제든 원본 텍스트와 다듬은 텍스트가 모두 담긴 압축 사본을 내보낼 수 있습니다."
+      },
+      "copied": "표시된 변환 텍스트를 복사했습니다.",
+      "deleteMessage": "원본 텍스트, 다듬은 텍스트, 녹음이 영구 삭제됩니다.",
+      "deleteTitle": "음성 입력을 삭제할까요?",
+      "retryFinished": "변환 요청이 끝났습니다. 이 항목에서 결과를 확인하세요.",
+      "raw": "원본 변환 텍스트",
+      "cleaned": "다듬은 변환 텍스트",
+      "processed": "처리된 변환 텍스트",
+      "showCleaned": "다듬은 텍스트 표시",
+      "showProcessed": "처리된 텍스트 표시",
+      "showRaw": "원본 텍스트 표시",
+      "rawFallback": "이 항목은 AI로 다듬을 수 없었습니다.",
+      "stats": {
+        "noPreviousWeek": "비교할 지난주 데이터 없음",
+        "totalWords": "보관된 단어",
+        "thisWeek": "이번 주",
+        "recordedPace": "녹음 속도",
+        "wpm": "단어/분",
+        "minutes": "분",
+        "retainedOnly": "보관된 기록을 기준으로 합니다. 삭제한 음성 입력은 포함되지 않습니다.",
+        "stale": "통계를 새로 고치지 못했습니다. 수치가 최신이 아닐 수 있습니다.",
+        "loading": "통계 불러오는 중…",
+        "unavailable": "지금은 통계를 사용할 수 없습니다.",
+        "weeklyWords": "주별 단어 수",
+        "vsPrevious": "지난 한 주 대비",
+        "weekBar": "{{date}}: {{count}}단어",
+        "weeklyPace": "주별 녹음 속도",
+        "weekPaceUnavailable": "{{date}}: 녹음 데이터 없음",
+        "weekPaceValue": "{{date}}: 분당 {{wpm}}단어",
+        "method": "속도는 녹음 {{count}}개 중 {{covered}}개의 저장된 오디오로 계산합니다. 녹음 중 걸러진 무음은 포함되지 않습니다. 이번 주는 아직 진행 중입니다."
+      }
+    },
+    "lectures": {
+      "saved": "강의 변환 텍스트를 기록에 저장했습니다",
+      "imported": "오디오 변환 텍스트를 기록에 저장했습니다",
+      "importFailed": "가져오기 또는 변환 실패: {{error}}",
+      "recordTitle": "강의 녹음",
+      "recordDescription": "마이크로 녹음합니다. 오디오는 녹음하는 동안 저장되고, 녹음을 마치면 텍스트로 변환됩니다.",
+      "finish": "마치고 변환",
+      "record": "강의 녹음",
+      "recordingSince": "{{time}}부터 녹음 중",
+      "earlier": "이전",
+      "progress": "{{total}}개 중 {{completed}}개 부분 변환 중",
+      "working": "처리 중…",
+      "importTitle": "오디오 파일 변환",
+      "importDescription": "녹음을 선택하면 기록에 추가됩니다. Murmur는 선택한 음성 인식 및 다듬기 제공업체를 사용합니다.",
+      "choose": "오디오 파일 선택",
+      "privacy": "원본 오디오와 변환 텍스트는 기록 보관 설정을 따릅니다. 클라우드 제공업체는 엔드포인트 음성 모드를 선택한 경우에만 오디오를 받습니다."
+    },
+    "dictation": {
+      "resetMicrophone": "마이크를 기본값으로 재설정",
+      "indicator": {
+        "visibility": "녹음 표시기 보기",
+        "description": "효과음 대신 눈으로 확인할 수 있는 표시입니다. 사용 가능 여부는 데스크톱 환경과 권한에 따라 다릅니다."
+      },
+      "previewSounds": "사운드 테마 미리 듣기: 시작 후 중지",
+      "status": {
+        "hold": "{{shortcut}}을(를) 누른 채 말하고, 떼면 끝납니다",
+        "toggle": "{{shortcut}}을(를) 눌러 시작하고, 다시 누르면 끝납니다",
+        "holdOrToggle": "{{shortcut}}을(를) 누르고 있거나, 탭해서 시작하고 다시 탭해서 끝내세요",
+        "speechCloud": "오디오가 변환을 위해 {{host}}(으)로 전송됩니다",
+        "speechLocal": "오디오가 이 기기에만 남습니다 ({{model}})",
+        "noModel": "선택된 모델 없음",
+        "cleanupOff": "AI 텍스트 다듬기 꺼짐",
+        "cleanupLocal": "AI 텍스트 다듬기가 {{provider}}(으)로 로컬에서 실행됩니다",
+        "cleanupCloud": "변환 텍스트가 다듬기를 위해 {{provider}}(으)로 전송됩니다",
+        "unavailable": "마이크 상태를 알 수 없음",
+        "chooseModel": "시작하려면 인식 모델을 선택하세요",
+        "checking": "음성 입력 상태 확인 중…",
+        "change": "모델 변경",
+        "captureOnly": "마이크 녹음이 꺼져 있습니다. 인식이나 다듬기는 아직 진행 중일 수 있으니 녹음 표시기나 기록에서 결과를 확인하세요.",
+        "release": "단축키를 떼면 끝납니다.",
+        "pressAgain": "단축키를 다시 누르면 끝납니다.",
+        "releaseOrPress": "누르고 있다면 떼고, 아니면 단축키를 다시 탭해서 끝내세요."
+      },
+      "shortcut": {
+        "title": "단축키"
+      },
+      "microphone": {
+        "title": "마이크"
+      },
+      "sounds": {
+        "title": "사운드",
+        "theme": "사운드",
+        "themeDescription": "녹음 효과음은 시스템 출력 장치와 볼륨을 사용합니다."
+      },
+      "language": {
+        "title": "말하는 언어",
+        "model": "선택 항목은 현재 모델({{model}})에 따라 다릅니다."
+      }
+    },
+    "download": {
+      "pending": "다운로드 중…",
+      "multiple": "{{count}}개 다운로드 중…"
+    },
+    "about": {
+      "versionDescription": "Murmur의 현재 버전",
+      "ggml": {
+        "details": "Murmur는 로컬 음성 인식에 transcribe.cpp와 ggml을 사용합니다. Georgi Gerganov와 기여자분들께 감사드립니다."
+      }
+    },
+    "general": {
+      "status": {
+        "recording": "녹음 중",
+        "idle": "녹음하지 않음"
+      },
+      "indicator": {
+        "title": "녹음 표시기"
+      }
+    },
+    "insertion": {
+      "method": {
+        "title": "텍스트 삽입",
+        "description": "변환 텍스트가 기록에는 보이지만 앱에 입력되지 않는다면 여기서 다른 방법을 시도해 보세요."
+      },
+      "after": {
+        "title": "삽입 후"
+      }
+    },
+    "keys": {
+      "removed": "{{name}} 키를 삭제했습니다",
+      "title": "저장된 API 키",
+      "description": "키는 시스템 자격 증명 저장소에 보관되며, Murmur 설정 파일에는 저장되지 않습니다.",
+      "unavailable": "자격 증명 저장소 상태를 알 수 없습니다. 저장된 키는 삭제되지 않았습니다.",
+      "loading": "자격 증명 저장소 확인 중…",
+      "none": "저장된 API 키가 없습니다.",
+      "speech": "음성 인식",
+      "cleanup": "AI 텍스트 다듬기",
+      "remove": "삭제"
+    },
+    "stt": {
+      "inUse": "사용 중",
+      "keySaved": "음성 API 키를 저장했습니다",
+      "keyRemoved": "음성 API 키를 삭제했습니다",
+      "saved": "음성 소스를 저장했습니다",
+      "refreshFailed": "음성 소스는 저장했지만 설정을 다시 불러오지 못했습니다. 설정 불러오기를 다시 시도하세요.",
+      "title": "음성 인식",
+      "description": "음성을 어디서 텍스트로 바꿀지 선택하세요.",
+      "source": "변환 소스",
+      "local": {
+        "title": "이 기기에서",
+        "description": "아래에서 모델을 선택하거나 다운로드하세요. 오디오는 이 컴퓨터 밖으로 나가지 않습니다."
+      },
+      "endpoint": {
+        "title": "클라우드 API 또는 직접 운영하는 서버",
+        "description": "OpenAI, Groq 또는 OpenAI 호환 서비스. 로컬에서 실행하는 경우가 아니면 API 키가 필요합니다.",
+        "notice": "모든 녹음이 이 서비스로 전송되며 사용료가 청구될 수 있습니다. Murmur는 스스로 다른 서비스로 전환하지 않습니다."
+      },
+      "service": "서비스",
+      "presetOther": "또는 아래에 호환 서버를 입력하세요",
+      "baseUrl": "API 기본 URL",
+      "baseUrlHelp": "이 컴퓨터의 서버라면 http://127.0.0.1:8000/v1을 시도해 보세요. 전체 /audio/transcriptions URL도 사용할 수 있습니다.",
+      "model": "모델 ID",
+      "modelHelp": "음성 서버가 받는 모델 이름을 입력하세요.",
+      "apiKey": "API 키",
+      "apiKeyPlaceholder": "키 붙여넣기",
+      "saveKey": "키 저장",
+      "removeKey": "삭제",
+      "keySavedWithSource": "저장을 누르면 키가 URL 및 모델과 함께 저장됩니다.",
+      "keyStored": "이 엔드포인트의 키가 시스템 자격 증명 저장소에 저장되어 있습니다.",
+      "noKey": "저장된 키가 없습니다. 키가 필요 없는 서버일 때만 비워 두세요.",
+      "keyStatusError": "시스템 자격 증명 저장소를 확인하지 못했습니다. 아래에서 다시 시도하세요.",
+      "keyStatusUnknown": "시스템 자격 증명 저장소 확인 중…",
+      "retryKeyCheck": "키 다시 확인",
+      "retryRefresh": "설정 다시 불러오기",
+      "saving": "저장 중…",
+      "save": "저장"
+    },
+    "privacy": {
+      "loading": "설정을 불러오는 동안에는 개인정보 보호 설정을 사용할 수 없습니다. 다시 시도를 눌러 확인하세요.",
+      "change": "변경",
+      "reporting": "익명 사용 정보 및 오류",
+      "reportingSwitch": "익명 사용 정보 및 오류 공유",
+      "reportingNotice": "자체 호스팅되는 화면/동작 횟수와 정해진 오류 유형만 보냅니다. 방문자 추적, 녹음, 변환 텍스트, 사전 단어, API 키는 포함되지 않습니다. 소유자 엔드포인트가 설정되기 전까지는 꺼져 있습니다. Do Not Track과 Global Privacy Control이 이 스위치보다 우선합니다. 횟수는 30일, 오류는 14일 후 만료됩니다.",
+      "reportingUnconfigured": "이 빌드에는 보고 기능이 설정되어 있지 않습니다. 아무것도 전송되지 않습니다.",
+      "reportingSaveError": "보고 설정을 저장하지 못했습니다. 설정을 읽을 수 있을 때까지 보고는 꺼진 상태로 유지됩니다.",
+      "leaves": {
+        "title": "이 컴퓨터 밖으로 나가는 것",
+        "description": "음성과 텍스트는 사용자가 선택한 서비스로만 전송됩니다. Murmur는 스스로 서비스를 전환하지 않습니다."
+      },
+      "speech": {
+        "title": "음성",
+        "cloud": "모든 녹음이 변환을 위해 {{host}}(으)로 전송됩니다.",
+        "local": "이 컴퓨터에서 변환됩니다. 녹음은 업로드되지 않습니다."
+      },
+      "cleanup": {
+        "title": "변환 텍스트",
+        "off": "AI 텍스트 다듬기가 꺼져 있어 변환 텍스트는 여기에만 남습니다.",
+        "local": "이 컴퓨터에서 {{provider}}(으)로 다듬습니다.",
+        "cloud": "변환 텍스트와 사전 단어가 다듬기를 위해 {{provider}}(으)로 전송됩니다. 오디오는 전송되지 않습니다."
+      },
+      "stored": {
+        "title": "이 컴퓨터에 남는 것"
+      },
+      "history": {
+        "title": "녹음 및 변환 텍스트",
+        "detail": "보관 기간: {{period}}. 별표한 음성 입력은 항상 보관됩니다."
+      },
+      "keys": {
+        "title": "API 키",
+        "detail": "{{count}}개가 시스템 자격 증명 저장소에 저장되어 있으며, Murmur 설정 파일에는 저장되지 않습니다."
+      },
+      "manage": "관리"
+    },
+    "stats": {
+      "providerCost": "제공업체 비용",
+      "openrouterKeys": "설정한 키의 OpenRouter 사용량",
+      "refresh": "새로 고침",
+      "costStale": "제공업체 사용량을 새로 고치지 못했습니다. 수치가 최신이 아닐 수 있습니다.",
+      "costLoading": "OpenRouter 사용량 확인 중…",
+      "costUnavailable": "OpenRouter 사용량을 가져올 수 없습니다. 연결과 키를 확인한 후 다시 시도하세요.",
+      "noOpenrouterKey": "모델에서 OpenRouter 음성 키를, 또는 후처리에서 다듬기 키를 추가하면 여기에 사용량이 표시됩니다.",
+      "costWeek": "이번 주",
+      "costMonth": "이번 달",
+      "costAll": "전체 기간",
+      "byokValue": "OpenRouter는 이번 달 BYOK 모델 사용량으로 {{value}}도 보고합니다. 이 금액은 제공업체가 따로 청구합니다.",
+      "costScope": "이 합계는 설정된 OpenRouter 키 {{count}}개에 대한 것으로, Murmur 외부 사용량도 포함합니다. 로컬 모델과 제공업체 직접 키는 포함되지 않습니다.",
+      "totalWordsDescription": "저장된 음성 입력의 단어 수",
+      "thisWeekDescription": "월요일 이후 저장된 단어 수",
+      "recordedDescription": "무음을 걸러낸 저장된 오디오 기준",
+      "recordedMinutes": "저장된 오디오 시간(분)",
+      "title": "음성 입력 통계",
+      "unavailableHelp": "Murmur 시작이 끝난 후 다시 시도하세요.",
+      "position": "통계 {{current}}/{{total}}",
+      "swipeHint": "드래그하거나 스와이프해서 넘겨 보세요",
+      "metricCards": "음성 입력 통계 카드",
+      "noAudioShort": "보관된 오디오 없음",
+      "noAudio": "오디오가 포함된 보관 녹음이 없어 녹음 속도와 시간을 계산할 수 없습니다. 이번 주는 아직 진행 중입니다."
+    }
   }
 }

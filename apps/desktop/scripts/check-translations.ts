@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import ts from "typescript";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -89,6 +90,64 @@ function loadTranslationFile(lang: string): TranslationData | null {
   }
 }
 
+function findMissingSourceKeys(referenceKeys: Set<string>): string[] {
+  const sourceDir = path.join(__dirname, "..", "src");
+  const missing = new Map<string, string>();
+
+  for (const file of fs.readdirSync(sourceDir, { recursive: true })) {
+    if (!/\.tsx?$/.test(file) || file.endsWith(".d.ts")) continue;
+    const source = ts.createSourceFile(
+      file,
+      fs.readFileSync(path.join(sourceDir, file), "utf8"),
+      ts.ScriptTarget.Latest,
+      true,
+    );
+
+    const checkKey = (node: ts.Node | undefined) => {
+      if (
+        !node ||
+        (!ts.isStringLiteral(node) && !ts.isNoSubstitutionTemplateLiteral(node))
+      ) {
+        return;
+      }
+      const key = node.text;
+      if (referenceKeys.has(key) || referenceKeys.has(`${key}_other`)) return;
+      const { line } = source.getLineAndCharacterOfPosition(node.getStart());
+      missing.set(key, `${file}:${line + 1}`);
+    };
+
+    const visit = (node: ts.Node) => {
+      if (ts.isCallExpression(node)) {
+        const callee = node.expression;
+        if (
+          (ts.isIdentifier(callee) && callee.text === "t") ||
+          (ts.isPropertyAccessExpression(callee) &&
+            callee.name.text === "t" &&
+            ts.isIdentifier(callee.expression) &&
+            callee.expression.text === "i18n")
+        ) {
+          const key = node.arguments[0];
+          if (key && ts.isArrayLiteralExpression(key)) {
+            key.elements.forEach(checkKey);
+          } else {
+            checkKey(key);
+          }
+        }
+      } else if (
+        ts.isPropertyAssignment(node) &&
+        ts.isIdentifier(node.name) &&
+        (node.name.text === "labelKey" || node.name.text === "descriptionKey")
+      ) {
+        checkKey(node.initializer);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+
+  return [...missing].map(([key, location]) => `${location}: ${key}`).sort();
+}
+
 function validateTranslations(): void {
   console.log(colorize("\n🌍 Translation Consistency Check\n", "blue"));
 
@@ -107,8 +166,18 @@ function validateTranslations(): void {
   const referenceKeyPaths = getAllKeyPaths(referenceData);
   console.log(`Reference has ${referenceKeyPaths.length} keys\n`);
 
+  const missingSourceKeys = findMissingSourceKeys(
+    new Set(referenceKeyPaths.map((keyPath) => keyPath.join("."))),
+  );
+  if (missingSourceKeys.length > 0) {
+    console.error(
+      colorize("Keys used in code but missing from English:", "red"),
+    );
+    for (const key of missingSourceKeys) console.error(`  ${key}`);
+  }
+
   // Track validation results
-  let hasErrors = false;
+  let hasErrors = missingSourceKeys.length > 0;
   const results: Record<string, ValidationResult> = {};
 
   // Validate each language

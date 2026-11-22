@@ -1,4 +1,10 @@
 {
+  "startup": {
+    "legacyConflictTitle": "Data Murmur sebelumnya tidak dapat dipindahkan",
+    "legacyConflictMessage": "Data Murmur sebelumnya bertentangan dengan data saat ini. Data sebelumnya tetap tersimpan di {{path}}.",
+    "newerHistoryTitle": "Basis data riwayat memerlukan versi yang lebih baru",
+    "newerHistoryMessage": "Basis data riwayat ini ditulis oleh versi Murmur yang lebih baru. Perbarui Murmur untuk membuka riwayat Anda.\n\n{{path}}\n\nUntuk memulai dengan riwayat kosong, tutup Murmur lalu pindahkan basis data dan semua berkas dengan nama yang cocok dengan history.db-* ke folder lain."
+  },
   "tray": {
     "settings": "Pengaturan...",
     "checkUpdates": "Periksa Pembaruan...",
@@ -118,7 +124,10 @@
         "checkFailed": "Gagal memeriksa izin. Silakan coba lagi.",
         "requestFailed": "Gagal meminta izin. Silakan coba lagi."
       }
-    }
+    },
+    "configureEndpoint": "Gunakan endpoint ucapan",
+    "configureEndpointDescription": "Atur penyedia daring atau server Anda sendiri di Model.",
+    "noModels": "Saat ini tidak ada model yang dapat diunduh."
   },
   "modelSelector": {
     "custom": "Kustom",
@@ -663,7 +672,10 @@
     "open": "Buka",
     "copy": "Salin",
     "clear": "Bersihkan",
-    "noOptionsFound": "Tidak ada opsi yang ditemukan"
+    "noOptionsFound": "Tidak ada opsi yang ditemukan",
+    "download": "Unduh",
+    "retry": "Coba lagi",
+    "cancel": "Batal"
   },
   "accessibility": {
     "permissionsDescription": "Murmur memerlukan izin aksesibilitas untuk mengetik teks hasil transkripsi.",
@@ -714,5 +726,390 @@
     "learnMore": "Cara memperbaiki",
     "recorderBlocked": "Pintasan tidak dapat direkam saat ini — macOS Secure Input memblokir peristiwa tombol. Selesaikan peringatan Secure Input terlebih dahulu.",
     "dismiss": "Tutup"
+  },
+  "murmur": {
+    "cleanup": {
+      "errors": {
+        "authentication": "Autentikasi gagal. Periksa kunci API Anda.",
+        "credit": "Kredit pada penyedia layanan habis. Periksa pengaturan penagihan.",
+        "rateLimit": "Batas permintaan telah tercapai. Coba lagi nanti.",
+        "server": "Penyedia layanan tidak tersedia. Coba lagi nanti.",
+        "invalidOutput": "Penyedia layanan mengembalikan transkripsi yang tidak dapat digunakan.",
+        "timeout": "Penyedia layanan tidak merespons tepat waktu.",
+        "reasoning": "Model ini memerlukan penalaran aktif. Pilih model lain.",
+        "credentialStore": "Perapian teks tidak dapat mengakses penyimpanan kredensial sistem.",
+        "configuration": "Permintaan ditolak. Periksa pengaturan penyedia layanan dan model."
+      },
+      "failed": "Perbaikan teks dengan AI gagal",
+      "removeKey": "Hapus kunci",
+      "keyStatusUnknown": "Memeriksa penyimpanan kredensial sistem…",
+      "keyStored": "Kunci tersimpan di penyimpanan kredensial sistem",
+      "keyMissing": "Belum ada kunci tersimpan",
+      "formality": {
+        "veryCasual": "Sangat santai",
+        "casual": "Santai",
+        "natural": "Alami",
+        "professional": "Profesional",
+        "formal": "Formal",
+        "title": "Nada",
+        "description": "Pilih tingkat perapian tanda baca dan tata bahasa. Setiap tingkat tetap mempertahankan kata-kata Anda."
+      },
+      "basic": {
+        "title": "Di perangkat ini",
+        "description": "Selalu berjalan secara lokal, meskipun perbaikan teks dengan AI nonaktif."
+      },
+      "title": "Perbaikan teks dengan AI",
+      "description": "Memperbaiki tanda baca dan kesalahan yang jelas, serta memecah dikte panjang menjadi kalimat yang mudah dibaca, tanpa mengubah kata-kata Anda. Penyedia cloud menerima transkripsi, bukan rekamannya.",
+      "instructions": {
+        "title": "Instruksi khusus",
+        "description": "Opsional. Berikan instruksi tambahan untuk model perbaikan teks."
+      },
+      "model": {
+        "none": "Belum ada penyedia yang dipilih"
+      }
+    },
+    "app": {
+      "loading": "Memuat Murmur…",
+      "skip": "Lewati ke pengaturan",
+      "appearance": {
+        "title": "Tampilan"
+      },
+      "startup": {
+        "title": "Startup dan baki sistem"
+      },
+      "performance": {
+        "title": "Kinerja"
+      }
+    },
+    "nav": {
+      "dictation": "Dikte",
+      "lectures": "Kuliah",
+      "dictionary": "Kamus",
+      "insertion": "Penyisipan teks",
+      "stats": "Statistik",
+      "privacy": "Privasi",
+      "app": "Aplikasi",
+      "label": "Pengaturan"
+    },
+    "pages": {
+      "dictation": {
+        "description": "Pintasan, mikrofon, dan bahasa ucapan Anda, serta apa yang Anda lihat dan dengar saat merekam."
+      },
+      "lectures": {
+        "description": "Rekam kuliah atau impor berkas audio. Transkripsinya akan muncul di riwayat."
+      },
+      "models": {
+        "description": "Pilih apa yang mengubah ucapan Anda menjadi teks. Semua kunci API yang tersimpan juga tercantum di sini."
+      },
+      "cleanup": {
+        "description": "Rapikan transkripsi sebelum disisipkan: kata pengisi, model AI dan kuncinya, nada, serta instruksi."
+      },
+      "dictionary": {
+        "description": "Nama dan istilah yang harus dieja Murmur sesuai keinginan Anda."
+      },
+      "insertion": {
+        "description": "Cara teks yang selesai masuk ke aplikasi tempat Anda mengetik, dan apa yang terjadi setelahnya."
+      },
+      "stats": {
+        "description": "Jumlah kata, kecepatan bicara, durasi audio tersimpan, dan biaya penyedia."
+      },
+      "history": {
+        "description": "Dikte sebelumnya, masa penyimpanan, dan ekspor terkompresi."
+      },
+      "privacy": {
+        "description": "Apa yang keluar dari komputer ini, apa yang tetap di sini, dan berapa lama."
+      },
+      "app": {
+        "description": "Tampilan, bahasa antarmuka, startup, dan kinerja."
+      },
+      "about": {
+        "description": "Versi, kredit, dan lokasi Murmur menyimpan berkasnya."
+      },
+      "debug": {
+        "description": "Diagnostik untuk pemecahan masalah."
+      }
+    },
+    "onboarding": {
+      "checking": "Memeriksa izin…",
+      "checkFailed": "Pemeriksaan izin gagal. Gunakan tombol izin di bawah untuk mencoba lagi. Pengaturan sistem Anda tidak diubah.",
+      "microphoneWaiting": "Aktifkan akses mikrofon di pengaturan sistem, lalu kembali ke sini. Murmur akan memeriksa lagi secara otomatis.",
+      "recheck": "Periksa lagi",
+      "accessibilityWaiting": "Aktifkan Murmur di pengaturan aksesibilitas sistem, lalu kembali ke sini. Murmur akan memeriksa lagi secara otomatis."
+    },
+    "models": {
+      "downloadNamed": "Unduh {{model}}",
+      "browse": "Jelajahi {{count}} model untuk diunduh",
+      "local": {
+        "title": "Model di perangkat"
+      },
+      "cleanup": {
+        "title": "Model perbaikan teks",
+        "on": "Perbaikan teks dengan AI aktif",
+        "off": "Perbaikan teks dengan AI nonaktif",
+        "change": "Ubah di Pascaproses"
+      }
+    },
+    "dictionary": {
+      "saveError": "Tidak dapat menyimpan entri kamus ini.",
+      "search": "Cari kata tersimpan",
+      "count": "{{count}} istilah tersimpan",
+      "noMatches": "Tidak ada kata yang cocok.",
+      "title": "Kata-kata Anda",
+      "description": "Digunakan oleh pengenalan di perangkat dan perbaikan teks dengan AI untuk mengeja nama dan istilah yang tidak umum."
+    },
+    "history": {
+      "limit": {
+        "confirmMessage": "Simpan {{count}} dikte terbaru? Dikte lama tanpa tanda bintang beserta rekamannya akan dihapus secara permanen.",
+        "confirmTitle": "Kurangi batas riwayat"
+      },
+      "retention": {
+        "confirmMessage": "Mengubah masa penyimpanan dapat menghapus secara permanen rekaman dan transkripsi yang melebihi batas baru. Lanjutkan?",
+        "confirmTitle": "Ubah masa penyimpanan riwayat"
+      },
+      "playbackError": "Rekaman tidak dapat diputar. Coba Putar lagi atau pulihkan transkripsi di atas.",
+      "saveError": "Tidak dapat mengubah status penyimpanan dikte ini. Coba lagi.",
+      "folderError": "Tidak dapat membuka folder rekaman. Transkripsi Anda masih tersedia di sini.",
+      "archive": {
+        "partial": "{{count}} dikte diarsipkan, tetapi {{missing}} rekaman sudah tidak ada.",
+        "complete": "{{count}} dikte diarsipkan. Berkas aslinya tidak berubah.",
+        "error": "Tidak dapat mengekspor riwayat.",
+        "working": "Membuat arsip…",
+        "action": "Ekspor arsip terkompresi",
+        "note": "Kompresi lossless mempertahankan audio WAV asli. Arsip tidak dienkripsi, dan ekspor tidak pernah menghapus riwayat lokal."
+      },
+      "loadError": "Tidak dapat memuat riwayat. Dikte yang tersimpan tidak dihapus.",
+      "retryLoad": "Coba muat lagi",
+      "storage": {
+        "title": "Penyimpanan dan arsip",
+        "description": "Pilih berapa lama rekaman dan transkripsi disimpan. Ekspor salinan terkompresi berisi teks mentah dan teks yang sudah dirapikan kapan pun Anda ingin arsip jangka panjang."
+      },
+      "copied": "Transkripsi yang ditampilkan telah disalin.",
+      "deleteMessage": "Tindakan ini menghapus secara permanen teks mentah, teks yang sudah dirapikan, dan rekamannya.",
+      "deleteTitle": "Hapus dikte?",
+      "retryFinished": "Permintaan transkripsi selesai. Periksa entri ini untuk melihat hasilnya.",
+      "raw": "Transkripsi mentah",
+      "cleaned": "Transkripsi yang dirapikan",
+      "processed": "Transkripsi yang telah diproses",
+      "showCleaned": "Tampilkan teks yang dirapikan",
+      "showProcessed": "Tampilkan teks yang telah diproses",
+      "showRaw": "Tampilkan teks mentah",
+      "rawFallback": "Perbaikan teks dengan AI tidak tersedia untuk entri ini.",
+      "stats": {
+        "noPreviousWeek": "Tidak ada minggu sebelumnya untuk dibandingkan",
+        "totalWords": "Kata tersimpan",
+        "thisWeek": "Minggu ini",
+        "recordedPace": "Kecepatan terekam",
+        "wpm": "kpm",
+        "minutes": "mnt",
+        "retainedOnly": "Berdasarkan riwayat yang disimpan. Dikte yang dihapus tidak dihitung.",
+        "stale": "Tidak dapat memperbarui statistik. Angka ini mungkin sudah usang.",
+        "loading": "Memuat statistik…",
+        "unavailable": "Statistik tidak tersedia saat ini.",
+        "weeklyWords": "Kata per minggu",
+        "vsPrevious": "vs minggu penuh terakhir",
+        "weekBar": "{{date}}: {{count}} kata",
+        "weeklyPace": "Kecepatan terekam per minggu",
+        "weekPaceUnavailable": "{{date}}: tidak ada data rekaman",
+        "weekPaceValue": "{{date}}: {{wpm}} kata per menit",
+        "method": "Kecepatan dihitung dari audio tersimpan untuk {{covered}} dari {{count}} rekaman. Keheningan yang disaring saat perekaman tidak dihitung. Minggu ini masih berjalan."
+      }
+    },
+    "lectures": {
+      "saved": "Transkripsi kuliah disimpan di Riwayat",
+      "imported": "Transkripsi audio disimpan di Riwayat",
+      "importFailed": "Impor atau transkripsi gagal: {{error}}",
+      "recordTitle": "Rekam kuliah",
+      "recordDescription": "Rekam dari mikrofon Anda. Audio disimpan selama merekam, lalu ditranskripsikan saat Anda selesai.",
+      "finish": "Selesai dan transkripsikan",
+      "record": "Rekam kuliah",
+      "recordingSince": "Merekam sejak {{time}}",
+      "earlier": "tadi",
+      "progress": "Mentranskripsikan bagian {{completed}} dari {{total}}",
+      "working": "Memproses…",
+      "importTitle": "Transkripsikan berkas audio",
+      "importDescription": "Pilih rekaman untuk ditambahkan ke Riwayat. Murmur menggunakan penyedia ucapan dan perbaikan teks yang Anda pilih.",
+      "choose": "Pilih berkas audio",
+      "privacy": "Audio mentah dan transkripsi mengikuti pengaturan masa penyimpanan Riwayat. Penyedia cloud hanya menerima audio jika Anda memilih mode ucapan endpoint."
+    },
+    "dictation": {
+      "resetMicrophone": "Kembalikan mikrofon ke bawaan",
+      "indicator": {
+        "visibility": "Tampilkan indikator perekaman",
+        "description": "Alternatif visual untuk isyarat suara. Ketersediaannya bergantung pada desktop dan izinnya."
+      },
+      "previewSounds": "Pratinjau tema suara: mulai lalu berhenti",
+      "status": {
+        "hold": "Tahan {{shortcut}} untuk mendikte, lepaskan untuk selesai",
+        "toggle": "Tekan {{shortcut}} untuk mulai, tekan lagi untuk selesai",
+        "holdOrToggle": "Tahan {{shortcut}}, atau ketuk untuk mulai dan ketuk lagi untuk selesai",
+        "speechCloud": "Audio dikirim ke {{host}} untuk ditranskripsikan",
+        "speechLocal": "Audio tetap di perangkat ini ({{model}})",
+        "noModel": "belum ada model yang dipilih",
+        "cleanupOff": "Perbaikan teks dengan AI nonaktif",
+        "cleanupLocal": "Perbaikan teks dengan AI berjalan secara lokal dengan {{provider}}",
+        "cleanupCloud": "Teks transkripsi dikirim ke {{provider}} untuk dirapikan",
+        "unavailable": "Status mikrofon tidak tersedia",
+        "chooseModel": "Pilih model pengenalan untuk memulai",
+        "checking": "Memeriksa status dikte…",
+        "change": "Ubah model",
+        "captureOnly": "Perekaman mikrofon nonaktif. Pengenalan atau perbaikan teks mungkin masih berjalan. Periksa indikator perekaman atau Riwayat untuk melihat hasilnya.",
+        "release": "Lepaskan pintasan untuk selesai.",
+        "pressAgain": "Tekan pintasan lagi untuk selesai.",
+        "releaseOrPress": "Lepaskan jika sedang ditahan, atau ketuk pintasan lagi untuk selesai."
+      },
+      "shortcut": {
+        "title": "Pintasan"
+      },
+      "microphone": {
+        "title": "Mikrofon"
+      },
+      "sounds": {
+        "title": "Suara",
+        "theme": "Suara",
+        "themeDescription": "Isyarat perekaman menggunakan output dan volume sistem Anda."
+      },
+      "language": {
+        "title": "Bahasa ucapan",
+        "model": "Pilihan bergantung pada model aktif, {{model}}."
+      }
+    },
+    "download": {
+      "pending": "Mengunduh…",
+      "multiple": "{{count}} sedang diunduh…"
+    },
+    "about": {
+      "versionDescription": "Versi Murmur saat ini",
+      "ggml": {
+        "details": "Murmur menggunakan transcribe.cpp dan ggml untuk pengenalan ucapan lokal. Terima kasih kepada Georgi Gerganov dan para kontributor."
+      }
+    },
+    "general": {
+      "status": {
+        "recording": "Sedang merekam",
+        "idle": "Tidak merekam"
+      },
+      "indicator": {
+        "title": "Indikator perekaman"
+      }
+    },
+    "insertion": {
+      "method": {
+        "title": "Menyisipkan teks",
+        "description": "Jika transkripsi muncul di Riwayat tetapi tidak di aplikasi Anda, coba metode lain di sini."
+      },
+      "after": {
+        "title": "Setelah menyisipkan"
+      }
+    },
+    "keys": {
+      "removed": "Kunci untuk {{name}} telah dihapus",
+      "title": "Kunci API tersimpan",
+      "description": "Kunci disimpan di penyimpanan kredensial sistem Anda, tidak pernah di berkas pengaturan Murmur.",
+      "unavailable": "Status penyimpanan kredensial tidak tersedia. Kunci yang tersimpan tidak dihapus.",
+      "loading": "Memeriksa penyimpanan kredensial…",
+      "none": "Belum ada kunci API tersimpan.",
+      "speech": "Pengenalan ucapan",
+      "cleanup": "Perbaikan teks dengan AI",
+      "remove": "Hapus"
+    },
+    "stt": {
+      "inUse": "Sedang digunakan",
+      "keySaved": "Kunci API ucapan disimpan",
+      "keyRemoved": "Kunci API ucapan dihapus",
+      "saved": "Sumber ucapan disimpan",
+      "refreshFailed": "Sumber ucapan sudah disimpan, tetapi pengaturan tidak dapat dimuat ulang. Coba muat pengaturan lagi.",
+      "title": "Pengenalan ucapan",
+      "description": "Pilih tempat ucapan Anda diubah menjadi teks.",
+      "source": "Sumber transkripsi",
+      "local": {
+        "title": "Di perangkat ini",
+        "description": "Pilih atau unduh model di bawah. Audio tidak pernah keluar dari komputer ini."
+      },
+      "endpoint": {
+        "title": "API cloud atau server Anda sendiri",
+        "description": "OpenAI, Groq, atau layanan apa pun yang kompatibel dengan OpenAI. Memerlukan kunci API kecuali berjalan secara lokal.",
+        "notice": "Setiap rekaman dikirim ke layanan ini, yang mungkin mengenakan biaya penggunaan. Murmur tidak pernah beralih ke layanan lain dengan sendirinya."
+      },
+      "service": "Layanan",
+      "presetOther": "atau masukkan server kompatibel apa pun di bawah",
+      "baseUrl": "URL dasar API",
+      "baseUrlHelp": "Untuk server di komputer ini, coba http://127.0.0.1:8000/v1. URL /audio/transcriptions lengkap juga bisa digunakan.",
+      "model": "ID model",
+      "modelHelp": "Gunakan nama model yang diterima server ucapan Anda.",
+      "apiKey": "Kunci API",
+      "apiKeyPlaceholder": "Tempel kunci Anda",
+      "saveKey": "Simpan kunci",
+      "removeKey": "Hapus",
+      "keySavedWithSource": "Kunci Anda disimpan bersama URL dan model saat Anda menekan Simpan.",
+      "keyStored": "Kunci untuk endpoint ini tersimpan di penyimpanan kredensial sistem.",
+      "noKey": "Belum ada kunci tersimpan. Biarkan kosong hanya untuk server yang tidak memerlukannya.",
+      "keyStatusError": "Tidak dapat memeriksa penyimpanan kredensial sistem. Coba lagi di bawah.",
+      "keyStatusUnknown": "Memeriksa penyimpanan kredensial sistem…",
+      "retryKeyCheck": "Periksa kunci lagi",
+      "retryRefresh": "Coba muat pengaturan lagi",
+      "saving": "Menyimpan…",
+      "save": "Simpan"
+    },
+    "privacy": {
+      "loading": "Pengaturan privasi tidak tersedia selama konfigurasi dimuat. Gunakan Coba lagi untuk memeriksa ulang.",
+      "change": "Ubah",
+      "reporting": "Penggunaan dan galat anonim",
+      "reportingSwitch": "Bagikan data penggunaan dan galat anonim",
+      "reportingNotice": "Hanya jumlah layar/tindakan yang di-hosting sendiri dan kategori galat tetap. Tanpa pelacakan pengunjung, rekaman, transkripsi, kata kamus, atau kunci API. Nonaktif hingga endpoint pemilik dikonfigurasi. Do Not Track dan Global Privacy Control mengesampingkan sakelar ini. Jumlah kedaluwarsa setelah 30 hari, galat setelah 14 hari.",
+      "reportingUnconfigured": "Pelaporan tidak dikonfigurasi di build ini. Tidak ada yang dikirim.",
+      "reportingSaveError": "Tidak dapat menyimpan preferensi pelaporan. Pelaporan tetap nonaktif sampai preferensi dapat dibaca.",
+      "leaves": {
+        "title": "Apa yang keluar dari komputer ini",
+        "description": "Suara dan teks Anda hanya dikirim ke layanan yang Anda pilih. Murmur tidak pernah beralih ke layanan lain dengan sendirinya."
+      },
+      "speech": {
+        "title": "Suara Anda",
+        "cloud": "Setiap rekaman dikirim ke {{host}} untuk ditranskripsikan.",
+        "local": "Ditranskripsikan di komputer ini. Rekaman tidak pernah diunggah."
+      },
+      "cleanup": {
+        "title": "Transkripsi Anda",
+        "off": "Perbaikan teks dengan AI nonaktif, jadi transkripsi tetap di sini.",
+        "local": "Dirapikan di komputer ini oleh {{provider}}.",
+        "cloud": "Teks transkripsi dan kata-kata kamus Anda dikirim ke {{provider}} untuk dirapikan. Audio tidak dikirim."
+      },
+      "stored": {
+        "title": "Apa yang tetap di komputer ini"
+      },
+      "history": {
+        "title": "Rekaman dan transkripsi",
+        "detail": "Disimpan: {{period}}. Dikte berbintang selalu disimpan."
+      },
+      "keys": {
+        "title": "Kunci API",
+        "detail": "{{count}} tersimpan di penyimpanan kredensial sistem Anda, tidak pernah di berkas pengaturan Murmur."
+      },
+      "manage": "Kelola"
+    },
+    "stats": {
+      "providerCost": "Biaya penyedia",
+      "openrouterKeys": "Penggunaan OpenRouter untuk kunci yang Anda atur",
+      "refresh": "Segarkan",
+      "costStale": "Tidak dapat memperbarui penggunaan penyedia. Angka ini mungkin sudah usang.",
+      "costLoading": "Memeriksa penggunaan OpenRouter…",
+      "costUnavailable": "Penggunaan OpenRouter tidak tersedia. Periksa koneksi dan kunci Anda, lalu coba lagi.",
+      "noOpenrouterKey": "Tambahkan kunci ucapan OpenRouter di Model atau kunci perbaikan teks di Pascaproses untuk melihat penggunaannya di sini.",
+      "costWeek": "Minggu ini",
+      "costMonth": "Bulan ini",
+      "costAll": "Sepanjang waktu",
+      "byokValue": "OpenRouter juga melaporkan {{value}} penggunaan model BYOK bulan ini. Penyedia Anda menagihnya secara terpisah.",
+      "costScope": "Total ini mencakup {{count}} kunci OpenRouter yang diatur, termasuk penggunaan di luar Murmur. Model lokal dan kunci penyedia langsung tidak dihitung.",
+      "totalWordsDescription": "Kata dalam dikte tersimpan",
+      "thisWeekDescription": "Kata yang disimpan sejak Senin",
+      "recordedDescription": "Berdasarkan audio tersimpan setelah penyaringan keheningan",
+      "recordedMinutes": "Menit audio tersimpan",
+      "title": "Statistik dikte Anda",
+      "unavailableHelp": "Coba lagi setelah Murmur selesai dimulai.",
+      "position": "Statistik {{current}} dari {{total}}",
+      "swipeHint": "Seret atau geser untuk menjelajah",
+      "metricCards": "Kartu statistik dikte",
+      "noAudioShort": "Tidak ada audio tersimpan",
+      "noAudio": "Tidak ada rekaman tersimpan yang berisi audio, jadi kecepatan dan menit terekam tidak dapat dihitung. Minggu ini masih berjalan."
+    }
   }
 }

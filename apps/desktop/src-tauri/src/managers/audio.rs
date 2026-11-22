@@ -205,7 +205,7 @@ const WHISPER_SAMPLE_RATE: usize = 16000;
 pub enum RecordingState {
     Idle,
     Recording { binding_id: String },
-    Stopping,
+    Stopping { binding_id: String },
 }
 
 #[derive(Clone, Debug)]
@@ -433,9 +433,10 @@ impl AudioRecordingManager {
             cached_device: Arc::new(Mutex::new(None)),
         };
 
-        // Always-on?  Open immediately.
         if matches!(mode, MicrophoneMode::AlwaysOn) {
-            manager.start_microphone_stream()?;
+            if let Err(error) = manager.start_microphone_stream() {
+                warn!("Could not open the always-on microphone at startup: {error}");
+            }
         }
 
         Ok(manager)
@@ -776,7 +777,7 @@ impl AudioRecordingManager {
         self.recording_active.store(
             matches!(
                 *guard,
-                RecordingState::Recording { .. } | RecordingState::Stopping
+                RecordingState::Recording { .. } | RecordingState::Stopping { .. }
             ),
             Ordering::SeqCst,
         );
@@ -914,15 +915,35 @@ impl AudioRecordingManager {
         Ok(())
     }
 
-    pub fn update_selected_device(&self) -> Result<(), anyhow::Error> {
-        // Device settings changed; re-enumerate the device and restart capture.
+    pub fn update_selected_device(&self, device: Option<String>) -> Result<(), anyhow::Error> {
+        let state = self.state.lock().unwrap();
+        if !matches!(*state, RecordingState::Idle) {
+            return Err(anyhow::anyhow!(
+                "Cannot change the microphone while recording"
+            ));
+        }
+
+        let mut settings = get_settings(&self.app_handle);
+        let previous = std::mem::replace(&mut settings.selected_microphone, device);
+        crate::settings::write_settings(&self.app_handle, settings);
+
         self.invalidate_device_cache();
         let was_open = *self.is_open.lock().unwrap();
         if was_open {
             self.close_generation.fetch_add(1, Ordering::SeqCst);
             self.stop_microphone_stream();
-            self.start_microphone_stream()?;
+            if let Err(error) = self.start_microphone_stream() {
+                let mut settings = get_settings(&self.app_handle);
+                settings.selected_microphone = previous;
+                crate::settings::write_settings(&self.app_handle, settings);
+                self.invalidate_device_cache();
+                if let Err(rollback_error) = self.start_microphone_stream() {
+                    warn!("Could not restore the previous microphone: {rollback_error}");
+                }
+                return Err(error);
+            }
         }
+        drop(state);
         Ok(())
     }
 
@@ -1002,7 +1023,12 @@ impl AudioRecordingManager {
             RecordingState::Recording {
                 binding_id: ref active,
             } if active == binding_id => {
-                self.set_state(&mut state, RecordingState::Stopping);
+                self.set_state(
+                    &mut state,
+                    RecordingState::Stopping {
+                        binding_id: binding_id.to_string(),
+                    },
+                );
                 drop(state);
 
                 // Optionally keep recording for a bit longer to capture trailing audio.
@@ -1079,7 +1105,12 @@ impl AudioRecordingManager {
             RecordingState::Recording { binding_id: active } if active == binding_id => {}
             _ => return Err("Lecture is not recording".to_string()),
         }
-        self.set_state(&mut state, RecordingState::Stopping);
+        self.set_state(
+            &mut state,
+            RecordingState::Stopping {
+                binding_id: binding_id.to_string(),
+            },
+        );
         drop(state);
 
         let result = self
@@ -1109,11 +1140,17 @@ impl AudioRecordingManager {
         self.recording_active.load(Ordering::SeqCst)
     }
 
-    /// Cancel any ongoing recording without returning audio samples
-    pub fn cancel_recording(&self) {
+    /// Cancel dictation without returning audio samples.
+    pub fn cancel_recording(&self) -> bool {
+        let mut state = self.state.lock().unwrap();
+        if matches!(&*state,
+            RecordingState::Recording { binding_id } | RecordingState::Stopping { binding_id }
+                if binding_id == crate::commands::lectures::BINDING
+        ) {
+            return false;
+        }
         self.invalidate_recording_readiness();
         self.cancel_generation.fetch_add(1, Ordering::AcqRel);
-        let mut state = self.state.lock().unwrap();
 
         match *state {
             RecordingState::Recording { .. } => {
@@ -1137,11 +1174,12 @@ impl AudioRecordingManager {
                     }
                 }
             }
-            RecordingState::Stopping => {
+            RecordingState::Stopping { .. } => {
                 debug!("Cancellation requested while recording is stopping");
             }
             RecordingState::Idle => {}
         }
+        true
     }
 }
 

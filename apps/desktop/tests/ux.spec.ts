@@ -257,6 +257,45 @@ test("named switches and retention keyboard dismissal preserve focus", async ({
   await expect(retention).toBeFocused();
 });
 
+test("returning to Lectures shows the native recording start time", async ({
+  page,
+}) => {
+  const startedAt = 1791021600000;
+  await installFixture(page, {
+    lectureStatus: { state: "recording", started_at: startedAt },
+  });
+  await page.goto("/");
+  const lectures = page.getByRole("button", { name: "Lectures", exact: true });
+  await lectures.click();
+  const time = await page.evaluate(
+    (start) => new Date(start).toLocaleTimeString(),
+    startedAt,
+  );
+  const status = page.getByText(`Recording since ${time}`, { exact: true });
+  await expect(status).toBeVisible();
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await lectures.click();
+  await expect(status).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Choose audio file" }),
+  ).toBeDisabled();
+});
+
+test("returning to Lectures shows a running import", async ({ page }) => {
+  await installFixture(page, {
+    lectureStatus: { state: "working", progress: { completed: 1, total: 3 } },
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Lectures", exact: true }).click();
+  const choose = page.getByRole("button", { name: "Choose audio file" });
+  await expect(page.getByText("Transcribing 1 of 3 parts")).toBeVisible();
+  await expect(choose).toBeDisabled();
+  await page.evaluate(() =>
+    window.__murmurEmitEvent("lecture-status", { state: "idle" }),
+  );
+  await expect(choose).toBeEnabled();
+});
+
 test("count-based history retention names its numeric limit", async ({
   page,
 }) => {
@@ -267,9 +306,19 @@ test("count-based history retention names its numeric limit", async ({
     },
   });
   await openHistory(page);
-  await expect(
-    page.getByRole("spinbutton", { name: "Recordings to keep" }),
-  ).toHaveValue("1000");
+  const limit = page.getByRole("spinbutton", { name: "Recordings to keep" });
+  await expect(limit).toHaveValue("1000");
+  await limit.fill("");
+  await limit.press("Tab");
+  await expect(limit).toHaveValue("1000");
+  expect(await commandsCalled(page, "update_history_limit")).toEqual([]);
+  await limit.fill("5");
+  await limit.press("Tab");
+  await expect
+    .poll(() => commandsCalled(page, "plugin:dialog|message"))
+    .toEqual([
+      expect.objectContaining({ message: expect.stringContaining("5") }),
+    ]);
 });
 
 test("permission polling failure restores an actionable request button", async ({

@@ -4,11 +4,11 @@ use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_bounded, So
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error, VadPolicy};
 #[cfg(target_os = "linux")]
 use crate::linux_modifier_guard::ModifierReadiness;
+use crate::llm_client::CleanupFailure;
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
-use crate::managers::transcription::StreamWorkKind;
-use crate::managers::transcription::TranscriptionManager;
+use crate::managers::transcription::{Recognition, StreamWorkKind, TranscriptionManager};
 use crate::settings::{
     get_settings, AppSettings, OverlayStyle, SttSource, APPLE_INTELLIGENCE_PROVIDER_ID,
 };
@@ -198,38 +198,37 @@ fn prepare_explicit_spellings(transcription: &str) -> (String, Vec<String>) {
     (prepared, spellings)
 }
 
-fn preserve_explicit_spellings(cleaned: String, prepared: &str, spellings: &[String]) -> String {
-    if spellings.iter().any(|spelling| {
-        let required = prepared
-            .split(|c: char| !c.is_alphanumeric() && c != '_')
-            .filter(|word| word.eq_ignore_ascii_case(spelling))
-            .count();
-        cleaned
-            .split(|c: char| !c.is_alphanumeric() && c != '_')
-            .filter(|word| word.eq_ignore_ascii_case(spelling))
-            .count()
-            < required
-    }) {
-        warn!("Cleanup changed an explicit spelling; using the prepared transcript");
-        prepared.to_string()
+fn explicit_spellings_preserved(cleaned: &str, prepared: &str, spellings: &[String]) -> bool {
+    spellings.iter().all(|spelling| {
+        let count = |text: &str| {
+            text.split(|c: char| !c.is_alphanumeric() && c != '_')
+                .filter(|word| word.eq_ignore_ascii_case(spelling))
+                .count()
+        };
+        count(cleaned) >= count(prepared)
+    })
+}
+
+fn guard_cleanup(
+    cleaned: String,
+    prepared: &str,
+    spellings: &[String],
+) -> Result<(String, bool), CleanupFailure> {
+    let input_chars = prepared.chars().count();
+    let output_chars = cleaned.chars().count();
+    // short dictations can shrink a lot when spoken spelling is resolved
+    if is_blank_transcription(&cleaned)
+        || (input_chars >= 600 && output_chars * 2 < input_chars)
+        || output_chars > input_chars.saturating_mul(3).saturating_add(256)
+    {
+        return Err(CleanupFailure::InvalidOutput);
+    }
+    if explicit_spellings_preserved(&cleaned, prepared, spellings) {
+        Ok((cleaned, true))
     } else {
-        cleaned
+        warn!("Cleanup changed an explicit spelling. Using the prepared transcript");
+        Ok((prepared.to_string(), false))
     }
-}
-
-// corrections and spoken spelling can shrink a short dictation a lot, but a long
-// transcript that comes back at under half its length was summarised
-fn cleanup_dropped_too_much(prepared: &str, cleaned: &str) -> bool {
-    let prepared = prepared.chars().count();
-    prepared >= 600 && cleaned.chars().count() * 2 < prepared
-}
-
-fn guard_cleanup(cleaned: String, prepared: &str, spellings: &[String]) -> String {
-    if cleanup_dropped_too_much(prepared, &cleaned) {
-        warn!("Cleanup returned under half of a long transcript; using the prepared transcript");
-        return prepared.to_string();
-    }
-    preserve_explicit_spellings(cleaned, prepared, spellings)
 }
 
 // transcript and vocabulary stay in the user payload, even without structured output
@@ -325,148 +324,82 @@ fn should_use_streaming_overlay(style: OverlayStyle, is_streaming: bool) -> bool
     style == OverlayStyle::Live && is_streaming
 }
 
-async fn post_process_transcription(settings: &AppSettings, transcription: &str) -> Option<String> {
-    if is_blank_transcription(transcription) {
-        debug!("Post-processing skipped because the transcription is empty");
-        return None;
-    }
-
-    let provider = match settings.active_post_process_provider().cloned() {
-        Some(provider) => provider,
-        None => {
-            debug!("Post-processing enabled but no provider is selected");
-            return None;
-        }
-    };
-
+async fn post_process_transcription(
+    settings: &AppSettings,
+    transcription: &str,
+) -> Result<(String, Option<String>), CleanupFailure> {
+    let provider = settings
+        .active_post_process_provider()
+        .ok_or(CleanupFailure::Configuration)?;
     let model = settings
         .post_process_models
         .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
+        .filter(|model| !model.trim().is_empty())
+        .ok_or(CleanupFailure::Configuration)?;
+    let prompt = settings
+        .post_process_selected_prompt_id
+        .as_ref()
+        .and_then(|id| {
+            settings
+                .post_process_prompts
+                .iter()
+                .find(|prompt| &prompt.id == id)
+        })
+        .map(|prompt| &prompt.prompt)
+        .filter(|prompt| !prompt.trim().is_empty())
+        .ok_or(CleanupFailure::Configuration)?;
+    let system_prompt = build_system_prompt(prompt, settings.post_process_formality);
+    let (prepared, spellings) = prepare_explicit_spellings(transcription);
+    let user_content = build_cleanup_user_content(&prepared, &settings.custom_words);
 
-    if model.trim().is_empty() {
-        debug!(
-            "Post-processing skipped because provider '{}' has no model configured",
-            provider.id
-        );
-        return None;
+    if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        {
+            if !apple_intelligence::check_apple_intelligence_availability() {
+                return Err(CleanupFailure::Configuration);
+            }
+            let token_limit = model.trim().parse::<i32>().unwrap_or(0);
+            let result = apple_intelligence::process_text_with_system_prompt(
+                &system_prompt,
+                &user_content,
+                token_limit,
+            )
+            .map_err(|_| CleanupFailure::Server)?;
+            let (result, accepted) =
+                guard_cleanup(strip_invisible_chars(&result), &prepared, &spellings)?;
+            return Ok((result, accepted.then(|| prompt.clone())));
+        }
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        return Err(CleanupFailure::Configuration);
     }
 
-    let selected_prompt_id = match &settings.post_process_selected_prompt_id {
-        Some(id) => id.clone(),
-        None => {
-            debug!("Post-processing skipped because no prompt is selected");
-            return None;
-        }
-    };
-
-    let prompt = match settings
-        .post_process_prompts
-        .iter()
-        .find(|prompt| prompt.id == selected_prompt_id)
-    {
-        Some(prompt) => prompt.prompt.clone(),
-        None => {
-            debug!(
-                "Post-processing skipped because prompt '{}' was not found",
-                selected_prompt_id
-            );
-            return None;
-        }
-    };
-
-    if prompt.trim().is_empty() {
-        debug!("Post-processing skipped because the selected prompt is empty");
-        return None;
-    }
-
-    debug!(
-        "Starting LLM post-processing with provider '{}' (model: {})",
-        provider.id, model
-    );
-
-    let api_key = if provider.id == "ollama" || provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
+    let api_key = if provider.id == "ollama" {
         String::new()
     } else {
-        let provider_id_for_key = provider.id.clone();
-        match tokio::task::spawn_blocking(move || {
-            crate::secrets::get_cleanup_key(&provider_id_for_key)
+        let provider_id = provider.id.clone();
+        let origin = crate::secrets::cleanup_key_scope(provider)
+            .map_err(|_| CleanupFailure::Configuration)?;
+        tokio::task::spawn_blocking(move || {
+            crate::secrets::get_cleanup_key(&provider_id, origin.as_deref())
         })
         .await
-        {
-            Ok(Ok(key)) => key.unwrap_or_default(),
-            Ok(Err(error)) => {
-                error!("Cleanup credential store unavailable: {error}");
-                return None;
-            }
-            Err(_) => {
-                error!("Cleanup credential store task failed");
-                return None;
-            }
-        }
+        .map_err(|error| {
+            warn!("Cleanup credential store task failed: {error}");
+            CleanupFailure::CredentialStore
+        })?
+        .map_err(|error| {
+            warn!("Cleanup credential store lookup failed: {error}");
+            CleanupFailure::CredentialStore
+        })?
+        .unwrap_or_default()
     };
 
-    // Ask these providers to skip reasoning/thinking — post-processing rarely
-    // benefits from it and it adds seconds of latency. llm_client picks the
-    // field the endpoint understands and retries without it if rejected.
     let disable_reasoning = matches!(
         provider.id.as_str(),
         "custom" | "openrouter" | "siliconflow"
     );
-    let system_prompt = build_system_prompt(&prompt, settings.post_process_formality);
-    let (prepared, spellings) = prepare_explicit_spellings(transcription);
-    let user_content = build_cleanup_user_content(&prepared, &settings.custom_words);
-
-    if provider.supports_structured_output {
-        debug!("Using structured outputs for provider '{}'", provider.id);
-
-        // Handle Apple Intelligence separately since it uses native Swift APIs
-        if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
-            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-            {
-                if !apple_intelligence::check_apple_intelligence_availability() {
-                    debug!(
-                        "Apple Intelligence selected but not currently available on this device"
-                    );
-                    return None;
-                }
-
-                let token_limit = model.trim().parse::<i32>().unwrap_or(0);
-                return match apple_intelligence::process_text_with_system_prompt(
-                    &system_prompt,
-                    &user_content,
-                    token_limit,
-                ) {
-                    Ok(result) => {
-                        if result.trim().is_empty() {
-                            debug!("Apple Intelligence returned an empty response");
-                            None
-                        } else {
-                            let result = strip_invisible_chars(&result);
-                            debug!(
-                                "Apple Intelligence post-processing succeeded. Output length: {} chars",
-                                result.len()
-                            );
-                            Some(guard_cleanup(result, &prepared, &spellings))
-                        }
-                    }
-                    Err(err) => {
-                        error!("Apple Intelligence post-processing failed: {}", err);
-                        None
-                    }
-                };
-            }
-
-            #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-            {
-                debug!("Apple Intelligence provider selected on unsupported platform");
-                return None;
-            }
-        }
-
-        // Define JSON schema for transcription output
-        let json_schema = serde_json::json!({
+    let json_schema = provider.supports_structured_output.then(|| {
+        serde_json::json!({
             "type": "object",
             "properties": {
                 (TRANSCRIPTION_FIELD): {
@@ -476,92 +409,37 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
             },
             "required": [TRANSCRIPTION_FIELD],
             "additionalProperties": false
-        });
+        })
+    });
 
-        match crate::llm_client::send_chat_completion_with_schema(
-            &provider,
-            api_key.clone(),
-            &model,
-            user_content.clone(),
-            Some(system_prompt.clone()),
-            Some(json_schema),
-            disable_reasoning,
-        )
-        .await
-        {
-            Ok(Some(content)) => {
-                // Parse the JSON response to extract the transcription field
-                let content = strip_think_block(&content);
-                match serde_json::from_str::<serde_json::Value>(content) {
-                    Ok(json) => {
-                        if let Some(transcription_value) =
-                            json.get(TRANSCRIPTION_FIELD).and_then(|t| t.as_str())
-                        {
-                            let result = strip_invisible_chars(transcription_value);
-                            debug!(
-                                "Structured output post-processing succeeded for provider '{}'. Output length: {} chars",
-                                provider.id,
-                                result.len()
-                            );
-                            return Some(guard_cleanup(result, &prepared, &spellings));
-                        } else {
-                            error!("Structured output response missing 'transcription' field");
-                            return None;
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to parse structured output JSON: {}", e);
-                        return None;
-                    }
-                }
-            }
-            Ok(None) => {
-                error!("LLM API response has no content");
-                return None;
-            }
-            Err(e) => {
-                warn!(
-                    "Structured output failed for provider '{}': {}. Falling back to legacy mode.",
-                    provider.id, e
-                );
-                // Fall through to legacy mode below
-            }
-        }
-    }
-
-    match crate::llm_client::send_chat_completion_with_schema(
-        &provider,
+    let completion = crate::llm_client::send_chat_completion_with_schema(
+        provider,
         api_key,
-        &model,
+        model,
         user_content,
         Some(system_prompt),
-        None,
+        json_schema,
         disable_reasoning,
     )
-    .await
-    {
-        Ok(Some(content)) => {
-            let content = strip_invisible_chars(strip_think_block(&content));
-            debug!(
-                "LLM post-processing succeeded for provider '{}'. Output length: {} chars",
-                provider.id,
-                content.len()
-            );
-            Some(guard_cleanup(content, &prepared, &spellings))
-        }
-        Ok(None) => {
-            error!("LLM API response has no content");
-            None
-        }
-        Err(e) => {
-            error!(
-                "LLM post-processing failed for provider '{}': {}. Falling back to original transcription.",
-                provider.id,
-                e
-            );
-            None
-        }
-    }
+    .await?;
+    let content = completion
+        .text
+        .as_deref()
+        .ok_or(CleanupFailure::InvalidOutput)?;
+    let content = strip_think_block(content);
+    let result = if completion.structured {
+        let json: serde_json::Value =
+            serde_json::from_str(content).map_err(|_| CleanupFailure::InvalidOutput)?;
+        let text = json
+            .get(TRANSCRIPTION_FIELD)
+            .and_then(serde_json::Value::as_str)
+            .ok_or(CleanupFailure::InvalidOutput)?;
+        strip_invisible_chars(text)
+    } else {
+        strip_invisible_chars(content)
+    };
+    let (result, accepted) = guard_cleanup(result, &prepared, &spellings)?;
+    Ok((result, accepted.then(|| prompt.clone())))
 }
 
 async fn maybe_convert_chinese_variant(
@@ -616,6 +494,7 @@ pub(crate) struct ProcessedTranscription {
     pub final_text: String,
     pub post_processed_text: Option<String>,
     pub post_process_prompt: Option<String>,
+    pub cleanup_succeeded: Option<bool>,
 }
 
 /// Resolve the persisted language *intent* into the language the currently-loaded
@@ -644,7 +523,7 @@ fn resolve_effective_language(app: &AppHandle, settings: &AppSettings) -> String
 
 pub(crate) async fn process_transcription_output(
     app: &AppHandle,
-    transcription: &str,
+    transcription: &Recognition,
     post_process: bool,
 ) -> ProcessedTranscription {
     let settings = get_settings(app);
@@ -654,52 +533,46 @@ pub(crate) async fn process_transcription_output(
 async fn process_transcription_output_with_settings(
     app: &AppHandle,
     settings: &AppSettings,
-    transcription: &str,
+    transcription: &Recognition,
     post_process: bool,
 ) -> ProcessedTranscription {
-    let mut final_text = transcription.to_string();
-    let mut post_processed_text: Option<String> = None;
-    let mut post_process_prompt: Option<String> = None;
+    let mut final_text = transcription.text().to_string();
+    let mut post_process_prompt = None;
+    let mut cleanup_succeeded = None;
 
     // Resolve the language the transcription actually ran in (the persisted
     // intent coerced against the loaded model's capabilities) so OpenCC keys off
     // the effective language rather than a possibly-stale intent.
     let effective_language = resolve_effective_language(app, settings);
     if let Some(converted_text) =
-        maybe_convert_chinese_variant(&effective_language, transcription).await
+        maybe_convert_chinese_variant(&effective_language, &final_text).await
     {
         final_text = converted_text;
     }
 
-    if post_process {
-        // an empty model result could erase a real dictation, so keep the raw text
-        if let Some(processed_text) = post_process_transcription(settings, &final_text)
-            .await
-            .filter(|text| !text.trim().is_empty())
-        {
-            post_processed_text = Some(processed_text.clone());
-            final_text = processed_text;
-
-            if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
-                if let Some(prompt) = settings
-                    .post_process_prompts
-                    .iter()
-                    .find(|prompt| &prompt.id == prompt_id)
-                {
-                    post_process_prompt = Some(prompt.prompt.clone());
-                }
+    if post_process && !is_blank_transcription(&final_text) {
+        let failure = match post_process_transcription(settings, &final_text).await {
+            Ok((text, prompt)) => {
+                final_text = text;
+                post_process_prompt = prompt;
+                post_process_prompt
+                    .is_none()
+                    .then_some(CleanupFailure::InvalidOutput)
             }
-        } else if !final_text.trim().is_empty() {
-            let _ = app.emit("cleanup-error", ());
+            Err(failure) => Some(failure),
+        };
+        cleanup_succeeded = Some(failure.is_none());
+        if let Some(failure) = failure {
+            warn!("{failure}");
+            let _ = app.emit("cleanup-error", failure);
         }
-    } else if final_text != transcription {
-        post_processed_text = Some(final_text.clone());
     }
 
     ProcessedTranscription {
+        post_processed_text: (final_text != transcription.raw).then(|| final_text.clone()),
         final_text,
-        post_processed_text,
         post_process_prompt,
+        cleanup_succeeded,
     }
 }
 
@@ -1012,7 +885,7 @@ impl ShortcutAction for TranscribeAction {
             let live_take = crate::live_stt::live().finish();
             // other audio resumes as soon as capture ends, not after transcription
             rm.restore_other_audio();
-            if let Some(samples) = samples {
+            if let Some(mut samples) = samples {
                 debug!(
                     "Recording stopped and samples retrieved in {:?}, sample count: {}",
                     stop_recording_time.elapsed(),
@@ -1060,10 +933,12 @@ impl ShortcutAction for TranscribeAction {
                         NEXT_RECORDING_FILE_ID.fetch_add(1, Ordering::Relaxed)
                     );
                     let wav_path = hm.recordings_dir().join(&file_name);
-                    let wav_path_for_verify = wav_path.clone();
                     let samples_for_wav = samples.clone();
                     let wav_handle = tauri::async_runtime::spawn_blocking(move || {
-                        crate::audio_toolkit::save_wav_file(&wav_path, &samples_for_wav)
+                        let pending = tempfile::TempPath::try_from_path(wav_path)?;
+                        crate::audio_toolkit::save_wav_file(&pending, &samples_for_wav)?;
+                        crate::audio_toolkit::verify_wav_file(&pending, sample_count)?;
+                        Ok::<_, anyhow::Error>(pending)
                     });
 
                     // Transcribe concurrently with WAV save. If a live stream was
@@ -1080,42 +955,14 @@ impl ShortcutAction for TranscribeAction {
                             // transcription of the same audio. A finalize timeout is
                             // surfaced instead — the worker may still hold the engine,
                             // so a batch fallback would contend with it.
-                            Ok(Some(text)) if !text.trim().is_empty() => Ok(text),
-                            Ok(_) => tm.transcribe(samples),
+                            Ok(Some(result)) if !result.raw.trim().is_empty() => Ok(result),
+                            Ok(_) => tm.transcribe(std::mem::take(&mut samples)),
                             Err(err) => Err(err),
                         })
                     };
 
-                    // Await WAV save and verify
-                    let wav_saved = match wav_handle.await {
-                        Ok(Ok(())) => {
-                            match crate::audio_toolkit::verify_wav_file(
-                                &wav_path_for_verify,
-                                sample_count,
-                            ) {
-                                Ok(()) => true,
-                                Err(e) => {
-                                    error!("WAV verification failed: {}", e);
-                                    false
-                                }
-                            }
-                        }
-                        Ok(Err(e)) => {
-                            error!("Failed to save WAV file: {}", e);
-                            false
-                        }
-                        Err(e) => {
-                            error!("WAV save task panicked: {}", e);
-                            false
-                        }
-                    };
-
                     let transcription_result = if let Some(result) = local_result {
                         result
-                    } else if !wav_saved {
-                        Err(anyhow::anyhow!(
-                            "Could not prepare audio for the selected speech endpoint"
-                        ))
                     } else {
                         let language = (session_settings.selected_language != "auto")
                             .then_some(session_settings.selected_language.as_str());
@@ -1126,13 +973,6 @@ impl ShortcutAction for TranscribeAction {
                                         return Ok(text);
                                     }
                                 }
-                                let wav =
-                                    tokio::fs::read(&wav_path_for_verify).await.map_err(|_| {
-                                        anyhow::anyhow!("Could not read the recorded audio")
-                                    })?;
-                                if rm.was_cancelled_since(cancel_generation) {
-                                    return Err(anyhow::anyhow!("Transcription cancelled"));
-                                }
                                 let api_key = crate::cloud_stt::stored_api_key(
                                     &session_settings.stt_base_url,
                                 )
@@ -1140,11 +980,11 @@ impl ShortcutAction for TranscribeAction {
                                 if rm.was_cancelled_since(cancel_generation) {
                                     return Err(anyhow::anyhow!("Transcription cancelled"));
                                 }
-                                crate::cloud_stt::transcribe_wav(
+                                crate::cloud_stt::transcribe_samples(
                                     &session_settings.stt_base_url,
                                     &session_settings.stt_model,
                                     &api_key,
-                                    wav,
+                                    &samples,
                                     language,
                                 )
                                 .await
@@ -1158,11 +998,28 @@ impl ShortcutAction for TranscribeAction {
                             set_tray_state(&ah, TrayIconState::Idle);
                             return;
                         };
-                        result
+                        result.map(Recognition::from)
                     };
 
                     if rm.was_cancelled_since(cancel_generation) {
                         debug!("Transcription operation cancelled before output handling");
+                        utils::hide_recording_overlay(&ah);
+                        set_tray_state(&ah, TrayIconState::Idle);
+                        return;
+                    }
+
+                    let mut pending_wav = match wav_handle.await {
+                        Ok(Ok(pending)) => Some(pending),
+                        Ok(Err(error)) => {
+                            error!("Could not save recording: {error}");
+                            None
+                        }
+                        Err(error) => {
+                            error!("Recording save task failed: {error}");
+                            None
+                        }
+                    };
+                    if rm.was_cancelled_since(cancel_generation) {
                         utils::hide_recording_overlay(&ah);
                         set_tray_state(&ah, TrayIconState::Idle);
                         return;
@@ -1173,7 +1030,7 @@ impl ShortcutAction for TranscribeAction {
                             debug!(
                                 "Transcription completed in {:?}: '{}'",
                                 transcription_time.elapsed(),
-                                utils::redact_text(&transcription)
+                                utils::redact_text(&transcription.raw)
                             );
 
                             if post_process {
@@ -1207,17 +1064,17 @@ impl ShortcutAction for TranscribeAction {
                                 return;
                             }
 
-                            // Save to history if WAV was saved
-                            if wav_saved {
-                                if let Err(err) = hm.save_entry(
-                                    file_name,
-                                    transcription,
-                                    post_process,
-                                    processed.post_processed_text.clone(),
-                                    processed.post_process_prompt.clone(),
-                                ) {
-                                    error!("Failed to save history entry: {}", err);
-                                }
+                            if let Err(err) = hm.save_entry(
+                                file_name,
+                                transcription.raw,
+                                post_process,
+                                processed.post_processed_text.clone(),
+                                processed.post_process_prompt.clone(),
+                                processed.cleanup_succeeded,
+                            ) {
+                                error!("Failed to save history entry: {}", err);
+                            } else if let Some(wav) = pending_wav.as_mut() {
+                                wav.disable_cleanup(true);
                             }
 
                             if processed.final_text.is_empty() {
@@ -1314,15 +1171,18 @@ impl ShortcutAction for TranscribeAction {
                             // message is also in murmur.log via the line above.
                             let _ = ah.emit("transcription-error", err.to_string());
                             // Save entry with empty text so user can retry
-                            if wav_saved {
+                            if let Some(wav) = pending_wav.as_mut() {
                                 if let Err(save_err) = hm.save_entry(
                                     file_name,
                                     String::new(),
                                     post_process,
                                     None,
                                     None,
+                                    None,
                                 ) {
                                     error!("Failed to save failed history entry: {}", save_err);
+                                } else {
+                                    wav.disable_cleanup(true);
                                 }
                             }
                             utils::hide_recording_overlay(&ah);
@@ -1405,11 +1265,10 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
 #[cfg(test)]
 mod tests {
     use super::{
-        build_cleanup_user_content, build_system_prompt, complete_unless_cancelled,
-        is_blank_transcription, prepare_explicit_spellings, preserve_explicit_spellings,
-        should_use_streaming_overlay, strip_think_block, ACTION_MAP,
-        MAX_CLEANUP_VOCABULARY_JSON_BYTES, MAX_CLEANUP_VOCABULARY_TERMS,
-        MAX_CLEANUP_VOCABULARY_TERM_BYTES,
+        build_cleanup_user_content, build_system_prompt, complete_unless_cancelled, guard_cleanup,
+        is_blank_transcription, prepare_explicit_spellings, should_use_streaming_overlay,
+        strip_think_block, ACTION_MAP, MAX_CLEANUP_VOCABULARY_JSON_BYTES,
+        MAX_CLEANUP_VOCABULARY_TERMS, MAX_CLEANUP_VOCABULARY_TERM_BYTES,
     };
     use crate::settings::{get_default_settings, OverlayStyle};
     use std::future;
@@ -1520,27 +1379,21 @@ mod tests {
             "Contact tomorrow!",
         ] {
             assert_eq!(
-                preserve_explicit_spellings(cleaned.to_string(), &prepared, &spellings),
-                prepared
+                guard_cleanup(cleaned.to_string(), &prepared, &spellings).unwrap(),
+                (prepared.clone(), false)
             );
         }
         let cleaned = "Contact SEMYON tomorrow!";
         assert_eq!(
-            preserve_explicit_spellings(cleaned.to_string(), &prepared, &spellings),
-            cleaned
+            guard_cleanup(cleaned.to_string(), &prepared, &spellings).unwrap(),
+            (cleaned.to_string(), true)
         );
-        let cleaned = "The original question?";
-        assert_eq!(
-            preserve_explicit_spellings(cleaned.to_string(), "raw", &[]),
-            cleaned
-        );
-
         let (prepared, spellings) = prepare_explicit_spellings(
             "Semyon met Simion spelt S-E-M-Y-O-N and Simion spelt S-E-M-Y-O-N",
         );
         assert_eq!(
-            preserve_explicit_spellings("Semyon met Semyon".to_string(), &prepared, &spellings),
-            prepared
+            guard_cleanup("Semyon met Semyon".to_string(), &prepared, &spellings).unwrap(),
+            (prepared, false)
         );
     }
 

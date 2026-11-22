@@ -247,7 +247,7 @@ impl LiveTake {
                     return Ok(None);
                 }
             };
-            if !piece.is_empty() {
+            if !piece.trim().is_empty() {
                 if !joined.is_empty() {
                     joined.push(' ');
                 }

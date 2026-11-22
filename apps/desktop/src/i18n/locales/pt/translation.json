@@ -1,4 +1,10 @@
 {
+  "startup": {
+    "legacyConflictTitle": "Não foi possível migrar os dados anteriores do Murmur",
+    "legacyConflictMessage": "Os dados anteriores do Murmur entram em conflito com os dados atuais. Os dados anteriores continuam em {{path}}.",
+    "newerHistoryTitle": "A base de dados do histórico requer uma versão mais recente",
+    "newerHistoryMessage": "Uma versão mais recente do Murmur escreveu esta base de dados. Atualize o Murmur para abrir o seu histórico.\n\n{{path}}\n\nPara começar com um histórico vazio, feche o Murmur e mova a base de dados e todos os ficheiros com nomes que correspondam a history.db-* para outra pasta."
+  },
   "tray": {
     "settings": "Configurações...",
     "checkUpdates": "Verificar Atualizações...",
@@ -118,7 +124,10 @@
         "checkFailed": "Erro ao verificar permissões. Por favor, tente novamente.",
         "requestFailed": "Erro ao solicitar permissão. Por favor, tente novamente."
       }
-    }
+    },
+    "configureEndpoint": "Usar um endpoint de voz",
+    "configureEndpointDescription": "Configure um fornecedor online ou um servidor próprio em Modelos.",
+    "noModels": "De momento não há modelos para transferir."
   },
   "modelSelector": {
     "custom": "Personalizado",
@@ -660,7 +669,10 @@
     "open": "Abrir",
     "copy": "Copiar",
     "clear": "Limpar",
-    "noOptionsFound": "Nenhuma opção encontrada"
+    "noOptionsFound": "Nenhuma opção encontrada",
+    "download": "Transferir",
+    "retry": "Tentar novamente",
+    "cancel": "Cancelar"
   },
   "accessibility": {
     "permissionsDescription": "O Murmur precisa de permissões de acessibilidade para digitar o texto transcrito.",
@@ -714,5 +726,390 @@
     "learnMore": "Como resolver isso",
     "recorderBlocked": "Não é possível gravar atalhos agora — o Secure Input do macOS está bloqueando os eventos de tecla. Resolva primeiro o aviso do Secure Input.",
     "dismiss": "Dispensar"
+  },
+  "murmur": {
+    "cleanup": {
+      "errors": {
+        "authentication": "Não foi possível autenticar o pedido. Verifique a chave API.",
+        "credit": "O crédito no fornecedor esgotou-se. Verifique as definições de faturação.",
+        "rateLimit": "Foi atingido o limite de pedidos do fornecedor. Tente mais tarde.",
+        "server": "O fornecedor está indisponível. Tente mais tarde.",
+        "invalidOutput": "O fornecedor devolveu uma transcrição inutilizável.",
+        "timeout": "O fornecedor demorou demasiado tempo a responder.",
+        "reasoning": "Este modelo requer o raciocínio ativo. Escolha outro modelo.",
+        "credentialStore": "A revisão não conseguiu aceder ao armazenamento de credenciais do sistema.",
+        "configuration": "O pedido foi rejeitado. Verifique as definições do fornecedor e do modelo."
+      },
+      "failed": "A revisão por IA falhou",
+      "removeKey": "Remover chave",
+      "keyStatusUnknown": "A verificar o armazenamento de credenciais do sistema…",
+      "keyStored": "Chave guardada no armazenamento de credenciais do sistema",
+      "keyMissing": "Nenhuma chave guardada",
+      "formality": {
+        "veryCasual": "Muito descontraído",
+        "casual": "Descontraído",
+        "natural": "Natural",
+        "professional": "Profissional",
+        "formal": "Formal",
+        "title": "Tom",
+        "description": "Escolha o grau de revisão da pontuação e gramática. Todos os níveis mantêm as suas palavras."
+      },
+      "basic": {
+        "title": "Neste dispositivo",
+        "description": "Corre sempre localmente, mesmo com a revisão por IA desativada."
+      },
+      "title": "Revisão por IA",
+      "description": "Corrige a pontuação e erros evidentes e divide ditados longos em frases legíveis, mantendo as suas palavras. Os fornecedores na nuvem recebem a transcrição, não a gravação.",
+      "instructions": {
+        "title": "Instruções personalizadas",
+        "description": "Opcional. Dê indicações adicionais ao modelo de revisão."
+      },
+      "model": {
+        "none": "Nenhum fornecedor escolhido"
+      }
+    },
+    "app": {
+      "loading": "A carregar o Murmur…",
+      "skip": "Ir para as definições",
+      "appearance": {
+        "title": "Aspeto"
+      },
+      "startup": {
+        "title": "Arranque e área de notificações"
+      },
+      "performance": {
+        "title": "Desempenho"
+      }
+    },
+    "nav": {
+      "dictation": "Ditado",
+      "lectures": "Aulas",
+      "dictionary": "Dicionário",
+      "insertion": "Inserção de texto",
+      "stats": "Estatísticas",
+      "privacy": "Privacidade",
+      "app": "Aplicação",
+      "label": "Definições"
+    },
+    "pages": {
+      "dictation": {
+        "description": "O seu atalho, microfone e idioma falado, e o que vê e ouve durante a gravação."
+      },
+      "lectures": {
+        "description": "Grave uma aula ou importe um ficheiro de áudio. A transcrição fica disponível no histórico."
+      },
+      "models": {
+        "description": "Escolha o que converte a sua voz em texto. Todas as chaves API guardadas também aparecem aqui."
+      },
+      "cleanup": {
+        "description": "Rever as transcrições antes de serem inseridas: palavras de preenchimento, o modelo de IA e a chave, tom e instruções."
+      },
+      "dictionary": {
+        "description": "Nomes e termos que o Murmur deve escrever à sua maneira."
+      },
+      "insertion": {
+        "description": "Como o texto final chega à aplicação onde está a escrever, e o que acontece a seguir."
+      },
+      "stats": {
+        "description": "Palavras, ritmo de fala, duração do áudio guardado e custo dos fornecedores."
+      },
+      "history": {
+        "description": "Ditados anteriores, retenção e exportação comprimida."
+      },
+      "privacy": {
+        "description": "O que sai deste computador, o que fica e durante quanto tempo."
+      },
+      "app": {
+        "description": "Aspeto, idioma da interface, arranque e desempenho."
+      },
+      "about": {
+        "description": "Versão, créditos e onde o Murmur guarda os seus ficheiros."
+      },
+      "debug": {
+        "description": "Diagnóstico para resolução de problemas."
+      }
+    },
+    "onboarding": {
+      "checking": "A verificar permissões…",
+      "checkFailed": "A verificação das permissões falhou. Use a ação de permissão abaixo para tentar novamente. As definições do sistema não foram alteradas.",
+      "microphoneWaiting": "Ative o acesso ao microfone nas definições do sistema e volte aqui. O Murmur volta a verificar automaticamente.",
+      "recheck": "Verificar novamente",
+      "accessibilityWaiting": "Ative o Murmur nas definições de acessibilidade do sistema e volte aqui. O Murmur volta a verificar automaticamente."
+    },
+    "models": {
+      "downloadNamed": "Transferir {{model}}",
+      "browse": "Ver {{count}} modelos para transferir",
+      "local": {
+        "title": "Modelos no dispositivo"
+      },
+      "cleanup": {
+        "title": "Modelo de revisão",
+        "on": "A revisão por IA está ativa",
+        "off": "A revisão por IA está desativada",
+        "change": "Alterar em Revisão"
+      }
+    },
+    "dictionary": {
+      "saveError": "Não foi possível guardar esta entrada do dicionário.",
+      "search": "Pesquisar palavras guardadas",
+      "count": "{{count}} termos guardados",
+      "noMatches": "Nenhuma palavra corresponde.",
+      "title": "As suas palavras",
+      "description": "Usadas pelo reconhecimento no dispositivo e pela revisão por IA para escrever nomes e termos invulgares."
+    },
+    "history": {
+      "limit": {
+        "confirmMessage": "Manter os {{count}} ditados mais recentes? Os ditados mais antigos não assinalados e as respetivas gravações serão eliminados permanentemente.",
+        "confirmTitle": "Reduzir o limite do histórico"
+      },
+      "retention": {
+        "confirmMessage": "Alterar a retenção pode eliminar permanentemente gravações e transcrições existentes que ultrapassem o novo limite. Continuar?",
+        "confirmTitle": "Alterar a retenção do histórico"
+      },
+      "playbackError": "Não é possível reproduzir a gravação. Tente reproduzir novamente ou recupere a transcrição acima.",
+      "saveError": "Não foi possível alterar se este ditado é mantido. Tente novamente.",
+      "folderError": "Não foi possível abrir a pasta das gravações. As suas transcrições continuam disponíveis aqui.",
+      "archive": {
+        "partial": "{{count}} ditados arquivados, mas faltavam já {{missing}} gravações.",
+        "complete": "{{count}} ditados arquivados. Os originais não foram alterados.",
+        "error": "Não foi possível exportar o histórico.",
+        "working": "A criar o arquivo…",
+        "action": "Exportar arquivo comprimido",
+        "note": "A compressão sem perdas mantém o áudio WAV original. O arquivo não é encriptado e a exportação nunca elimina o histórico local."
+      },
+      "loadError": "Não foi possível carregar o histórico. Os ditados guardados não foram removidos.",
+      "retryLoad": "Carregar novamente",
+      "storage": {
+        "title": "Armazenamento e arquivo",
+        "description": "Escolha durante quanto tempo manter gravações e transcrições. Exporte uma cópia comprimida com o texto original e o revisto sempre que quiser um arquivo a longo prazo."
+      },
+      "copied": "Transcrição apresentada copiada.",
+      "deleteMessage": "Isto remove permanentemente o texto original, o texto revisto e a gravação.",
+      "deleteTitle": "Eliminar ditado?",
+      "retryFinished": "Pedido de transcrição concluído. Veja o resultado nesta entrada.",
+      "raw": "Transcrição original",
+      "cleaned": "Transcrição revista",
+      "processed": "Transcrição processada",
+      "showCleaned": "Mostrar texto revisto",
+      "showProcessed": "Mostrar texto processado",
+      "showRaw": "Mostrar texto original",
+      "rawFallback": "A revisão por IA não estava disponível para esta entrada.",
+      "stats": {
+        "noPreviousWeek": "Sem semana anterior para comparar",
+        "totalWords": "Palavras mantidas",
+        "thisWeek": "Esta semana",
+        "recordedPace": "Ritmo gravado",
+        "wpm": "ppm",
+        "minutes": "min",
+        "retainedOnly": "Com base no histórico mantido. Os ditados eliminados não contam.",
+        "stale": "Não foi possível atualizar as estatísticas. Estes valores podem estar desatualizados.",
+        "loading": "A carregar estatísticas…",
+        "unavailable": "As estatísticas não estão disponíveis de momento.",
+        "weeklyWords": "Palavras por semana",
+        "vsPrevious": "vs. última semana completa",
+        "weekBar": "{{date}}: {{count}} palavras",
+        "weeklyPace": "Ritmo gravado por semana",
+        "weekPaceUnavailable": "{{date}}: sem dados de gravação",
+        "weekPaceValue": "{{date}}: {{wpm}} palavras por minuto",
+        "method": "O ritmo usa o áudio guardado de {{covered}} de {{count}} gravações. O silêncio filtrado durante a captura não conta. Esta semana ainda está a decorrer."
+      }
+    },
+    "lectures": {
+      "saved": "Transcrição da aula guardada no Histórico",
+      "imported": "Transcrição do áudio guardada no Histórico",
+      "importFailed": "A importação ou transcrição falhou: {{error}}",
+      "recordTitle": "Gravar uma aula",
+      "recordDescription": "Grave a partir do microfone. O áudio é guardado enquanto grava e transcrito quando terminar.",
+      "finish": "Terminar e transcrever",
+      "record": "Gravar aula",
+      "recordingSince": "A gravar desde {{time}}",
+      "earlier": "mais cedo",
+      "progress": "A transcrever a parte {{completed}} de {{total}}",
+      "working": "A processar…",
+      "importTitle": "Transcrever um ficheiro de áudio",
+      "importDescription": "Escolha uma gravação para a adicionar ao Histórico. O Murmur usa os fornecedores de voz e de revisão que selecionou.",
+      "choose": "Escolher ficheiro de áudio",
+      "privacy": "O áudio original e as transcrições seguem as definições de retenção do Histórico. Os fornecedores na nuvem só recebem áudio quando seleciona um modo de voz com endpoint."
+    },
+    "dictation": {
+      "resetMicrophone": "Repor o microfone predefinido",
+      "indicator": {
+        "visibility": "Mostrar indicador de gravação",
+        "description": "Uma alternativa visível aos sinais sonoros. A disponibilidade depende do ambiente de trabalho e das suas permissões."
+      },
+      "previewSounds": "Ouvir o tema de sons: início e depois fim",
+      "status": {
+        "hold": "Mantenha {{shortcut}} premido para ditar e solte para terminar",
+        "toggle": "Prima {{shortcut}} para começar e prima novamente para terminar",
+        "holdOrToggle": "Mantenha {{shortcut}} premido, ou toque para começar e toque novamente para terminar",
+        "speechCloud": "O áudio é enviado para {{host}} para transcrição",
+        "speechLocal": "O áudio fica neste dispositivo ({{model}})",
+        "noModel": "nenhum modelo selecionado",
+        "cleanupOff": "A revisão por IA está desativada",
+        "cleanupLocal": "A revisão por IA corre localmente com {{provider}}",
+        "cleanupCloud": "O texto da transcrição é enviado para {{provider}} para revisão",
+        "unavailable": "Estado do microfone indisponível",
+        "chooseModel": "Escolha um modelo de reconhecimento para começar",
+        "checking": "A verificar o estado do ditado…",
+        "change": "Alterar modelos",
+        "captureOnly": "O microfone já não está a gravar. O reconhecimento ou a revisão podem ainda estar a decorrer. Veja o resultado no indicador de gravação ou no Histórico.",
+        "release": "Solte o atalho para terminar.",
+        "pressAgain": "Prima o atalho novamente para terminar.",
+        "releaseOrPress": "Solte se estiver a manter premido, ou toque no atalho novamente para terminar."
+      },
+      "shortcut": {
+        "title": "Atalho"
+      },
+      "microphone": {
+        "title": "Microfone"
+      },
+      "sounds": {
+        "title": "Sons",
+        "theme": "Som",
+        "themeDescription": "Os sinais de gravação usam a saída de áudio e o volume do sistema."
+      },
+      "language": {
+        "title": "Idioma falado",
+        "model": "As opções dependem do modelo ativo, {{model}}."
+      }
+    },
+    "download": {
+      "pending": "A transferir…",
+      "multiple": "{{count}} a transferir…"
+    },
+    "about": {
+      "versionDescription": "Versão atual do Murmur",
+      "ggml": {
+        "details": "O Murmur usa transcribe.cpp e ggml para o reconhecimento de voz local. Obrigado a Georgi Gerganov e aos contribuidores."
+      }
+    },
+    "general": {
+      "status": {
+        "recording": "A gravar agora",
+        "idle": "Sem gravação"
+      },
+      "indicator": {
+        "title": "Indicador de gravação"
+      }
+    },
+    "insertion": {
+      "method": {
+        "title": "Inserir texto",
+        "description": "Se as transcrições aparecem no Histórico mas não na sua aplicação, experimente aqui outro método."
+      },
+      "after": {
+        "title": "Depois de inserir"
+      }
+    },
+    "keys": {
+      "removed": "Chave de {{name}} removida",
+      "title": "Chaves API guardadas",
+      "description": "As chaves ficam no armazenamento de credenciais do sistema, nunca no ficheiro de definições do Murmur.",
+      "unavailable": "O estado do armazenamento de credenciais não está disponível. As chaves guardadas não foram removidas.",
+      "loading": "A verificar o armazenamento de credenciais…",
+      "none": "Nenhuma chave API guardada.",
+      "speech": "Reconhecimento de voz",
+      "cleanup": "Revisão por IA",
+      "remove": "Remover"
+    },
+    "stt": {
+      "inUse": "Em uso",
+      "keySaved": "Chave API de voz guardada",
+      "keyRemoved": "Chave API de voz removida",
+      "saved": "Fonte de voz guardada",
+      "refreshFailed": "A fonte de voz foi guardada, mas não foi possível recarregar as definições. Tente carregar as definições novamente.",
+      "title": "Reconhecimento de voz",
+      "description": "Escolha onde a sua voz é convertida em texto.",
+      "source": "Fonte de transcrição",
+      "local": {
+        "title": "Neste dispositivo",
+        "description": "Escolha ou transfira um modelo abaixo. O áudio nunca sai deste computador."
+      },
+      "endpoint": {
+        "title": "API na nuvem ou servidor próprio",
+        "description": "OpenAI, Groq ou qualquer serviço compatível com OpenAI. Requer uma chave API, exceto se correr localmente.",
+        "notice": "Cada gravação é enviada para este serviço, que pode cobrar pela utilização. O Murmur nunca muda para outro serviço por iniciativa própria."
+      },
+      "service": "Serviço",
+      "presetOther": "ou introduza abaixo qualquer servidor compatível",
+      "baseUrl": "URL base da API",
+      "baseUrlHelp": "Para um servidor neste computador, experimente http://127.0.0.1:8000/v1. Um URL /audio/transcriptions completo também funciona.",
+      "model": "ID do modelo",
+      "modelHelp": "Use o nome de modelo que o seu servidor de voz aceita.",
+      "apiKey": "Chave da API",
+      "apiKeyPlaceholder": "Cole a sua chave",
+      "saveKey": "Guardar chave",
+      "removeKey": "Remover",
+      "keySavedWithSource": "A sua chave é guardada com o URL e o modelo quando premir Guardar.",
+      "keyStored": "Há uma chave guardada para este endpoint no armazenamento de credenciais do sistema.",
+      "noKey": "Nenhuma chave guardada. Deixe vazio só para um servidor que não precise de chave.",
+      "keyStatusError": "Não foi possível verificar o armazenamento de credenciais do sistema. Tente novamente abaixo.",
+      "keyStatusUnknown": "A verificar o armazenamento de credenciais do sistema…",
+      "retryKeyCheck": "Verificar chave novamente",
+      "retryRefresh": "Carregar definições novamente",
+      "saving": "A guardar…",
+      "save": "Guardar"
+    },
+    "privacy": {
+      "loading": "As definições de privacidade não estão disponíveis enquanto a configuração carrega. Use Tentar novamente para verificar outra vez.",
+      "change": "Alterar",
+      "reporting": "Utilização e erros anónimos",
+      "reportingSwitch": "Partilhar utilização e erros anónimos",
+      "reportingNotice": "Apenas contagens de ecrãs e ações num servidor próprio e categorias fixas de erros. Sem rastreio de visitantes, gravações, transcrições, palavras do dicionário ou chaves API. Desativado até o proprietário configurar um endpoint. Do Not Track e Global Privacy Control sobrepõem-se a este interruptor. As contagens expiram após 30 dias e os erros após 14 dias.",
+      "reportingUnconfigured": "Os relatórios não estão configurados nesta versão. Nada é enviado.",
+      "reportingSaveError": "Não foi possível guardar a preferência de relatórios. Os relatórios ficam desativados até ser possível ler a preferência.",
+      "leaves": {
+        "title": "O que sai deste computador",
+        "description": "A sua voz e o seu texto só vão para serviços que escolher. O Murmur nunca muda para outro por iniciativa própria."
+      },
+      "speech": {
+        "title": "A sua voz",
+        "cloud": "Cada gravação é enviada para {{host}} para ser transcrita.",
+        "local": "Transcrito neste computador. As gravações nunca são enviadas."
+      },
+      "cleanup": {
+        "title": "As suas transcrições",
+        "off": "A revisão por IA está desativada, por isso as transcrições ficam aqui.",
+        "local": "Revisto neste computador por {{provider}}.",
+        "cloud": "O texto da transcrição e as palavras do seu dicionário são enviados para {{provider}} para revisão. O áudio não."
+      },
+      "stored": {
+        "title": "O que fica neste computador"
+      },
+      "history": {
+        "title": "Gravações e transcrições",
+        "detail": "Mantidas: {{period}}. Os ditados assinalados com estrela são sempre mantidos."
+      },
+      "keys": {
+        "title": "Chaves API",
+        "detail": "{{count}} guardadas no armazenamento de credenciais do sistema, nunca no ficheiro de definições do Murmur."
+      },
+      "manage": "Gerir"
+    },
+    "stats": {
+      "providerCost": "Custo do fornecedor",
+      "openrouterKeys": "Utilização do OpenRouter para as chaves configuradas",
+      "refresh": "Atualizar",
+      "costStale": "Não foi possível atualizar a utilização do fornecedor. Estes valores podem estar desatualizados.",
+      "costLoading": "A verificar a utilização do OpenRouter…",
+      "costUnavailable": "A utilização do OpenRouter não está disponível. Verifique a ligação e a chave e tente novamente.",
+      "noOpenrouterKey": "Adicione uma chave de voz OpenRouter em Modelos ou uma chave de revisão em Revisão para ver aqui a sua utilização.",
+      "costWeek": "Esta semana",
+      "costMonth": "Este mês",
+      "costAll": "Desde sempre",
+      "byokValue": "O OpenRouter indica também {{value}} em utilização de modelos BYOK este mês. O seu fornecedor fatura isso à parte.",
+      "costScope": "Estes totais abrangem {{count}} chave(s) OpenRouter configurada(s), incluindo a utilização fora do Murmur. Os modelos locais e as chaves diretas de fornecedores não contam.",
+      "totalWordsDescription": "Palavras nos ditados guardados",
+      "thisWeekDescription": "Palavras guardadas desde segunda-feira",
+      "recordedDescription": "Com base no áudio guardado após filtrar o silêncio",
+      "recordedMinutes": "Minutos de áudio guardado",
+      "title": "As suas estatísticas de ditado",
+      "unavailableHelp": "Tente novamente quando o Murmur terminar de arrancar.",
+      "position": "Estatística {{current}} de {{total}}",
+      "swipeHint": "Arraste ou deslize para navegar",
+      "metricCards": "Cartões de estatísticas de ditado",
+      "noAudioShort": "Sem áudio mantido",
+      "noAudio": "Não há gravações mantidas com áudio, por isso não é possível calcular o ritmo gravado nem os minutos. Esta semana ainda está a decorrer."
+    }
   }
 }

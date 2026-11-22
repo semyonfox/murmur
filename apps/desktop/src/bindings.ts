@@ -169,7 +169,7 @@ export const commands = {
 	deleteHistoryEntry: (id: number, options?: InvokeOptions) => typedError<null, string>(__TAURI_INVOKE("delete_history_entry", { id }, options)),
 	retryHistoryEntryTranscription: (id: number, options?: InvokeOptions) => typedError<null, string>(__TAURI_INVOKE("retry_history_entry_transcription", { id }, options)),
 	startLectureRecording: (options?: InvokeOptions) => typedError<number, string>(__TAURI_INVOKE("start_lecture_recording", undefined, options)),
-	getActiveLecture: (options?: InvokeOptions) => typedError<number | null, string>(__TAURI_INVOKE("get_active_lecture", undefined, options)),
+	getActiveLecture: (options?: InvokeOptions) => typedError<LectureStatus, string>(__TAURI_INVOKE("get_active_lecture", undefined, options)),
 	finishLectureRecording: (options?: InvokeOptions) => typedError<number, string>(__TAURI_INVOKE("finish_lecture_recording", undefined, options)),
 	importLectureAudio: (source: string, options?: InvokeOptions) => typedError<number, string>(__TAURI_INVOKE("import_lecture_audio", { source }, options)),
 	updateHistoryLimit: (limit: number, options?: InvokeOptions) => typedError<null, string>(__TAURI_INVOKE("update_history_limit", { limit }, options)),
@@ -196,6 +196,9 @@ export const events = {
  *  object, so a partial store can never fail the whole load (#1619).
  *  Field-level defaults below take precedence where present.
  */
+export type LectureStatus = { state: "idle" } | { state: "recording"; started_at: number } | { state: "working"; progress: LectureProgress | null };
+export type LectureProgress = { completed: number; total: number };
+
 export type AppSettings = {
 	/**
 	 *  Internal settings schema marker for one-time migrations. Fresh installs
@@ -310,6 +313,7 @@ export type AppSettings = {
 	 *  `overlay_position` (position `none` → style `None`).
 	 */
 	overlay_style?: OverlayStyle,
+	overlay_style_when_visible?: OverlayStyle,
 };
 
 export type ArchiveExportSummary = {
@@ -369,6 +373,7 @@ export type HistoryEntry = {
 	post_processed_text: string | null,
 	post_process_prompt: string | null,
 	post_process_requested: boolean,
+	cleanup_succeeded: boolean | null,
 };
 
 export type HistoryStats = {

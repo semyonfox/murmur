@@ -1,7 +1,7 @@
 use natural::phonetics::soundex;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use strsim::levenshtein;
+use strsim::osa_distance;
 
 /// Builds an n-gram string by cleaning and concatenating words
 ///
@@ -79,6 +79,8 @@ fn find_best_match<'a>(
     custom_words: &'a [String],
     custom_word_match_keys: &[CustomWordMatchKey],
     threshold: f64,
+    exact_or_letter_expansion: bool,
+    ends_in_initial: bool,
 ) -> Option<(&'a String, f64)> {
     if candidate.is_empty() || candidate.chars().count() > 50 {
         return None;
@@ -106,31 +108,36 @@ fn find_best_match<'a>(
             continue;
         }
 
-        // Skip if lengths are too different (optimization + prevents over-matching)
-        // Use percentage-based check: max 25% length difference (prevents n-grams from
-        // matching significantly shorter custom words, e.g., "openaigpt" vs "openai")
-        let candidate_len = candidate.chars().count();
-        let custom_word_len = custom_word_key.key.chars().count();
-        let len_diff = candidate_len.abs_diff(custom_word_len) as f64;
-        let max_len = candidate_len.max(custom_word_len) as f64;
-        let max_allowed_diff = (max_len * 0.25).max(2.0); // At least 2 chars difference allowed
-        if len_diff > max_allowed_diff {
+        let candidate_len = candidate.len();
+        let max_len = candidate_len.max(custom_word_key.key.len());
+        let distance = osa_distance(candidate, &custom_word_key.key);
+        if exact_or_letter_expansion {
+            // permit a short phonetic expansion of a spelled letter, as in Charge B
+            if !ends_in_initial || distance > 2 || !custom_word_key.key.starts_with(candidate) {
+                continue;
+            }
+        } else if distance > 2 {
             continue;
         }
-
-        // Calculate Levenshtein distance (normalized by length)
-        let levenshtein_dist = levenshtein(candidate, &custom_word_key.key);
-        let levenshtein_score = if max_len > 0.0 {
-            levenshtein_dist as f64 / max_len
-        } else {
-            1.0
-        };
+        let levenshtein_score = distance as f64 / max_len as f64;
 
         // Soundex is an English/ASCII phonetic algorithm. Numeric terms can
         // still use edit distance, but must not receive a phonetic boost.
         let phonetic_match = supports_soundex(candidate)
             && supports_soundex(&custom_word_key.key)
             && soundex(candidate, &custom_word_key.key);
+
+        if !exact_or_letter_expansion
+            && max_len < 7
+            && distance > 1
+            && !(phonetic_match
+                && candidate
+                    .get(..3)
+                    .is_some_and(|prefix| custom_word_key.key.starts_with(prefix))
+                && candidate_len.abs_diff(custom_word_key.key.len()) <= 1)
+        {
+            continue;
+        }
 
         // Combine scores: favor phonetic matches, but also consider string similarity
         let combined_score = if phonetic_match {
@@ -183,11 +190,11 @@ pub fn apply_custom_words(text: &str, custom_words: &[String], threshold: f64) -
     while i < words.len() {
         let mut best_match: Option<(usize, &String, f64)> = None;
 
-        // Consider n-grams up to three words and choose the closest match. A
+        // Consider short n-grams and choose the closest match. A
         // longest-first match can consume a following ordinary word when both
         // candidates happen to share a Soundex code (for example,
         // "Charge B, che" matching "ChargeBee").
-        for n in (1..=3).rev() {
+        for n in (1..=4).rev() {
             if i + n > words.len() {
                 continue;
             }
@@ -203,9 +210,18 @@ pub fn apply_custom_words(text: &str, custom_words: &[String], threshold: f64) -
             }
             let ngram = build_ngram(ngram_words);
 
-            if let Some((replacement, score)) =
-                find_best_match(&ngram, custom_words, &custom_word_match_keys, threshold)
-            {
+            let ends_in_initial = ngram_words.last().is_some_and(|last| {
+                let key = build_match_key(last);
+                key.len() == 1 && supports_soundex(&key)
+            });
+            if let Some((replacement, score)) = find_best_match(
+                &ngram,
+                custom_words,
+                &custom_word_match_keys,
+                threshold,
+                n > 1,
+                ends_in_initial,
+            ) {
                 let is_better = best_match
                     .as_ref()
                     .is_none_or(|(_, _, best_score)| score < *best_score);
@@ -329,7 +345,7 @@ fn gated_filler_words_for_language(lang: &str) -> &'static [&'static str] {
     let base_lang = lang.split(&['-', '_'][..]).next().unwrap_or(lang);
 
     match base_lang {
-        "en" => &["um", "ah", "eh", "ha"],
+        "en" => &["um", "ah", "eh"],
         "de" => &["äh", "ähm"],
         "fr" => &["euh"],
         _ => &[],
@@ -337,45 +353,6 @@ fn gated_filler_words_for_language(lang: &str) -> &'static [&'static str] {
 }
 
 static MULTI_SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s{2,}").unwrap());
-
-/// Collapses repeated words (3+ repetitions) to a single instance.
-/// E.g., "wh wh wh wh" -> "wh", "I I I I" -> "I"
-fn collapse_stutters(text: &str) -> String {
-    let words: Vec<&str> = text.split_whitespace().collect();
-    if words.is_empty() {
-        return text.to_string();
-    }
-
-    let mut result: Vec<&str> = Vec::new();
-    let mut i = 0;
-
-    while i < words.len() {
-        let word = words[i];
-        let word_lower = word.to_lowercase();
-
-        if word_lower.chars().all(|c| c.is_alphabetic()) {
-            // Count consecutive repetitions (case-insensitive)
-            let mut count = 1;
-            while i + count < words.len() && words[i + count].to_lowercase() == word_lower {
-                count += 1;
-            }
-
-            // If 3+ repetitions, collapse to single instance
-            if count >= 3 {
-                result.push(word);
-                i += count;
-            } else {
-                result.push(word);
-                i += 1;
-            }
-        } else {
-            result.push(word);
-            i += 1;
-        }
-    }
-
-    result.join(" ")
-}
 
 /// Removes filler words from transcription output when enabled.
 ///
@@ -424,29 +401,37 @@ pub fn remove_filler_words(
             .collect(),
     };
 
-    // Remove filler words
     let mut filtered = text.to_string();
+    let joins_compound = |character: char| matches!(character, '-' | '‐' | '‑' | '\'' | '’');
     for pattern in &patterns {
-        filtered = pattern.replace_all(&filtered, "").to_string();
+        let mut kept = String::new();
+        let mut copied_up_to = 0;
+        for matched in pattern.find_iter(&filtered) {
+            if filtered[..matched.start()]
+                .chars()
+                .next_back()
+                .is_some_and(joins_compound)
+                || filtered[matched.end()..]
+                    .chars()
+                    .next()
+                    .is_some_and(joins_compound)
+            {
+                continue;
+            }
+            kept.push_str(&filtered[copied_up_to..matched.start()]);
+            copied_up_to = matched.end();
+        }
+        kept.push_str(&filtered[copied_up_to..]);
+        filtered = kept;
     }
 
     filtered
 }
 
-/// Applies non-filler transcription cleanup.
-///
-/// Kept separate from [`remove_filler_words`] so disabling filler deletion
-/// does not also disable the existing repeated-word and whitespace cleanup.
 pub fn normalize_transcription_output(text: &str) -> String {
-    let mut normalized = collapse_stutters(text);
-
-    // Clean up multiple spaces to single space
-    normalized = MULTI_SPACE_PATTERN
-        .replace_all(&normalized, " ")
-        .to_string();
-
-    // Trim leading/trailing whitespace
-    normalized.trim().to_string()
+    MULTI_SPACE_PATTERN
+        .replace_all(text.trim(), " ")
+        .into_owned()
 }
 
 #[cfg(test)]
@@ -561,38 +546,16 @@ mod tests {
     }
 
     #[test]
-    fn test_filter_stutter_collapse() {
-        let text = "w wh wh wh wh wh wh wh wh wh why";
-        let result = filter_transcription_output(text, "en", &None);
-        assert_eq!(result, "w wh why");
+    fn cleanup_preserves_repetitions_names_and_compounds() {
+        let text = "no no no near Ha Long Bay, uh-huh";
+        assert_eq!(filter_transcription_output(text, "en", &None), text);
     }
 
     #[test]
-    fn test_filter_stutter_short_words() {
-        let text = "I I I I think so so so so";
-        let result = filter_transcription_output(text, "en", &None);
-        assert_eq!(result, "I think so");
-    }
-
-    #[test]
-    fn test_filter_stutter_longer_words() {
-        let text = "Check data doc doc doc doc documentation.";
-        let result = filter_transcription_output(text, "en", &None);
-        assert_eq!(result, "Check data doc documentation.");
-    }
-
-    #[test]
-    fn test_filter_stutter_mixed_case() {
-        let text = "No NO no NO no";
-        let result = filter_transcription_output(text, "en", &None);
-        assert_eq!(result, "No");
-    }
-
-    #[test]
-    fn test_filter_stutter_preserves_two_repetitions() {
-        let text = "no no is fine";
-        let result = filter_transcription_output(text, "en", &None);
-        assert_eq!(result, "no no is fine");
+    fn dictionary_preserves_ordinary_phrases() {
+        let text = "ask Simon if he can see my own black box";
+        let words = vec!["Semyon".into(), "BlackFox".into()];
+        assert_eq!(apply_custom_words(text, &words, 0.5), text);
     }
 
     #[test]

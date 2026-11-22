@@ -4,6 +4,7 @@ import { Select } from "../../ui/Select";
 
 type ModelSelectProps = {
   value: string;
+  label: string;
   options: ModelOption[];
   disabled?: boolean;
   placeholder?: string;
@@ -17,6 +18,7 @@ type ModelSelectProps = {
 export const ModelSelect: React.FC<ModelSelectProps> = React.memo(
   ({
     value,
+    label,
     options,
     disabled,
     placeholder,
@@ -36,6 +38,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = React.memo(
 
     return (
       <Select
+        ariaLabel={label}
         className={computedClassName}
         value={value || null}
         options={options}

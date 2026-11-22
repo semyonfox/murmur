@@ -1,12 +1,11 @@
 use crate::settings::PostProcessProvider;
-use log::{debug, error, info};
+use log::{debug, warn};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashSet;
-use std::error::Error as StdError;
-use std::sync::{Mutex, OnceLock};
-use std::time::Duration;
+use std::collections::{HashMap, HashSet};
+use std::sync::{LazyLock, Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Serialize)]
 struct ChatMessage {
@@ -28,32 +27,23 @@ struct ResponseFormat {
     json_schema: JsonSchema,
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
-struct ReasoningConfig {
-    enabled: bool,
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum ReasoningOff {
+    ReasoningEffort(&'static str),
+    Reasoning(Value),
+    Thinking(Value),
+    EnableThinking(bool),
 }
 
-/// Request fields used to ask an endpoint to skip reasoning/thinking.
-/// Providers disagree on the field name and accepted values, so at most one of
-/// these is set per request (see `reasoning_disable_params`).
-#[derive(Debug, Serialize, Clone, Default, PartialEq)]
-struct ReasoningParams {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reasoning_effort: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reasoning: Option<ReasoningConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    thinking: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    enable_thinking: Option<bool>,
-}
-
-impl ReasoningParams {
-    fn is_empty(&self) -> bool {
-        self.reasoning_effort.is_none()
-            && self.reasoning.is_none()
-            && self.thinking.is_none()
-            && self.enable_thinking.is_none()
+impl ReasoningOff {
+    fn field(&self) -> &'static str {
+        match self {
+            Self::ReasoningEffort(_) => "reasoning_effort",
+            Self::Reasoning(_) => "reasoning",
+            Self::Thinking(_) => "thinking",
+            Self::EnableThinking(_) => "enable_thinking",
+        }
     }
 }
 
@@ -76,60 +66,192 @@ fn require_non_thinking(provider: &PostProcessProvider, disable_reasoning: bool)
 /// Pick the reasoning-disable request fields an endpoint understands.
 /// Unknown endpoints get the common OpenAI-style field; if they reject it,
 /// the request is retried without it (see `send_chat_completion_with_schema`).
-fn reasoning_disable_params(provider: &PostProcessProvider) -> ReasoningParams {
-    let base_url = provider.base_url.to_lowercase();
+fn reasoning_disable_params(provider: &PostProcessProvider) -> ReasoningOff {
+    let is_deepseek = reqwest::Url::parse(&provider.base_url)
+        .is_ok_and(|url| url.host_str() == Some("api.deepseek.com"));
     if is_siliconflow(provider) {
-        // SiliconFlow uses a top-level boolean for supported reasoning models.
-        // https://docs.siliconflow.cn/docs/api/chat-completions-post
-        ReasoningParams {
-            enable_thinking: Some(false),
-            ..Default::default()
-        }
-    } else if base_url.contains("api.deepseek.com") {
-        // DeepSeek rejects reasoning_effort "none" and uses its own field:
-        // https://api-docs.deepseek.com/guides/thinking_mode
-        ReasoningParams {
-            thinking: Some(serde_json::json!({ "type": "disabled" })),
-            ..Default::default()
-        }
+        ReasoningOff::EnableThinking(false)
+    } else if is_deepseek {
+        ReasoningOff::Thinking(serde_json::json!({ "type": "disabled" }))
     } else if provider.id == "openrouter" {
-        // Excluding reasoning only hides it from the response; disabling it
-        // asks the endpoint to skip reasoning and its billable tokens.
-        // https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
-        ReasoningParams {
-            reasoning: Some(ReasoningConfig { enabled: false }),
-            ..Default::default()
-        }
+        ReasoningOff::Reasoning(serde_json::json!({ "enabled": false }))
     } else {
-        ReasoningParams {
-            reasoning_effort: Some("none".to_string()),
-            ..Default::default()
+        ReasoningOff::ReasoningEffort("none")
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum OptionalField {
+    Reasoning,
+    Temperature,
+    ResponseFormat,
+    OutputCap,
+}
+
+type EndpointModel = (String, String, String);
+
+static REJECTED_FIELDS: LazyLock<Mutex<HashMap<EndpointModel, HashSet<OptionalField>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn endpoint_key(provider: &PostProcessProvider, model: &str) -> EndpointModel {
+    (
+        provider.id.clone(),
+        provider.base_url.trim_end_matches('/').to_string(),
+        model.to_string(),
+    )
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CleanupFailure {
+    Authentication,
+    Credit,
+    RateLimit,
+    Server,
+    InvalidOutput,
+    Timeout,
+    Reasoning,
+    Configuration,
+    CredentialStore,
+}
+
+impl std::fmt::Display for CleanupFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Authentication => "Cleanup authentication failed",
+            Self::Credit => "Cleanup provider requires payment",
+            Self::RateLimit => "Cleanup provider rate limit reached",
+            Self::Server => "Cleanup provider unavailable",
+            Self::InvalidOutput => "Cleanup returned invalid output or reached its output limit",
+            Self::Timeout => "Cleanup provider timed out",
+            Self::Reasoning => "Cleanup provider rejected disabling reasoning",
+            Self::Configuration => "Cleanup request or configuration was rejected",
+            Self::CredentialStore => "Cleanup could not access the system credential store",
+        })
+    }
+}
+
+impl CleanupFailure {
+    fn http(status: reqwest::StatusCode) -> Self {
+        match status.as_u16() {
+            401 | 403 => Self::Authentication,
+            402 => Self::Credit,
+            408 | 504 => Self::Timeout,
+            429 => Self::RateLimit,
+            500..=599 => Self::Server,
+            _ => Self::Configuration,
+        }
+    }
+
+    fn transport(error: reqwest::Error, request_url: &str) -> Self {
+        let kind = if error.is_timeout() {
+            "timeout"
+        } else if error.is_connect() {
+            "connect"
+        } else if error.is_body() {
+            "body"
+        } else if error.is_decode() {
+            "decode"
+        } else if error.is_request() {
+            "request"
+        } else {
+            "other"
+        };
+        let fallback = reqwest::Url::parse(request_url).ok();
+        let host = error
+            .url()
+            .or(fallback.as_ref())
+            .and_then(reqwest::Url::host_str)
+            .unwrap_or("<unknown>");
+        warn!("Cleanup transport failure ({kind}) at {host}");
+
+        if error.is_timeout() {
+            Self::Timeout
+        } else {
+            Self::Server
         }
     }
 }
 
-/// Endpoints (base_url|model) that rejected the reasoning-disable fields with a
-/// 4xx. Remembered for the lifetime of the process so every dictation after the
-/// first skips the doomed attempt and goes straight to a plain request.
-fn reasoning_rejections() -> &'static Mutex<HashSet<String>> {
-    static REJECTED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
-    REJECTED.get_or_init(|| Mutex::new(HashSet::new()))
+#[derive(Debug)]
+pub struct CleanupCompletion {
+    pub text: Option<String>,
+    pub structured: bool,
 }
 
-fn endpoint_key(provider: &PostProcessProvider, model: &str) -> String {
-    format!("{}|{}", provider.base_url.trim_end_matches('/'), model)
+const MAX_RESPONSE_BYTES: usize = 1_048_576;
+const MAX_SCHEMA_ERROR_BYTES: usize = 65_536;
+
+async fn bounded_response(
+    mut response: reqwest::Response,
+    limit: usize,
+) -> Result<Vec<u8>, CleanupFailure> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > limit as u64)
+    {
+        return Err(CleanupFailure::InvalidOutput);
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| CleanupFailure::transport(error, response.url().as_str()))?
+    {
+        if chunk.len() > limit - bytes.len() {
+            return Err(CleanupFailure::InvalidOutput);
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(bytes)
 }
 
-fn is_known_rejected(key: &str) -> bool {
-    reasoning_rejections()
-        .lock()
-        .map(|set| set.contains(key))
-        .unwrap_or(false)
-}
+fn schema_rejection(
+    body: &[u8],
+    request: &ChatCompletionRequest,
+    cap_already_swapped: bool,
+) -> Option<OptionalField> {
+    let body = String::from_utf8_lossy(body).to_ascii_lowercase();
+    if ![
+        "unsupported",
+        "not supported",
+        "unknown",
+        "unrecognized",
+        "not allowed",
+        "does not support",
+        "not permitted",
+        "extra inputs",
+        "unexpected",
+        "must be",
+        "only supports",
+        "invalid parameter",
+    ]
+    .iter()
+    .any(|marker| body.contains(marker))
+    {
+        return None;
+    }
 
-fn remember_rejection(key: String) {
-    if let Ok(mut set) = reasoning_rejections().lock() {
-        set.insert(key);
+    let mentions = |field: &str| {
+        body.split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+            .any(|word| word == field)
+    };
+    if request
+        .reasoning
+        .as_ref()
+        .is_some_and(|value| mentions(value.field()))
+    {
+        Some(OptionalField::Reasoning)
+    } else if request.temperature.is_some() && mentions("temperature") {
+        Some(OptionalField::Temperature)
+    } else if request.response_format.is_some()
+        && (mentions("response_format") || mentions("json_schema"))
+    {
+        Some(OptionalField::ResponseFormat)
+    } else if !cap_already_swapped && mentions(request.output_cap.field()) {
+        Some(OptionalField::OutputCap)
+    } else {
+        None
     }
 }
 
@@ -145,7 +267,7 @@ struct ChatCompletionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     response_format: Option<ResponseFormat>,
     #[serde(flatten)]
-    reasoning: ReasoningParams,
+    reasoning: Option<ReasoningOff>,
     #[serde(flatten)]
     output_cap: OutputCap,
 }
@@ -154,32 +276,35 @@ struct ChatCompletionRequest {
 /// flag once ran single cleanups to its 262k output limit, so every request
 /// carries a cap. OpenAI's newer models reject `max_tokens` and want
 /// `max_completion_tokens`; everyone else takes `max_tokens`.
-#[derive(Debug, Serialize, Clone, Default, PartialEq)]
-struct OutputCap {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_tokens: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_completion_tokens: Option<u32>,
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum OutputCap {
+    MaxTokens(u32),
+    MaxCompletionTokens(u32),
 }
 
 impl OutputCap {
     fn for_provider(provider: &PostProcessProvider, content_chars: usize) -> Self {
-        let cap = Some(cleanup_output_cap(content_chars));
+        let cap = cleanup_output_cap(content_chars);
         if provider.id == "openai" {
-            Self {
-                max_completion_tokens: cap,
-                ..Default::default()
-            }
+            Self::MaxCompletionTokens(cap)
         } else {
-            Self {
-                max_tokens: cap,
-                ..Default::default()
-            }
+            Self::MaxTokens(cap)
         }
     }
 
-    fn is_empty(&self) -> bool {
-        self.max_tokens.is_none() && self.max_completion_tokens.is_none()
+    fn field(self) -> &'static str {
+        match self {
+            Self::MaxTokens(_) => "max_tokens",
+            Self::MaxCompletionTokens(_) => "max_completion_tokens",
+        }
+    }
+
+    fn swap_fields(&mut self) {
+        *self = match *self {
+            Self::MaxTokens(cap) => Self::MaxCompletionTokens(cap),
+            Self::MaxCompletionTokens(cap) => Self::MaxTokens(cap),
+        };
     }
 }
 
@@ -212,18 +337,15 @@ struct ChatMessageResponse {
     content: Option<String>,
 }
 
-fn completion_content(completion: ChatCompletionResponse) -> Result<Option<String>, String> {
+fn completion_content(
+    completion: ChatCompletionResponse,
+) -> Result<Option<String>, CleanupFailure> {
     let Some(choice) = completion.choices.into_iter().next() else {
         return Ok(None);
     };
 
     match choice.finish_reason.as_deref() {
-        Some("length") => {
-            Err("Cleanup response reached the provider output limit before it finished".to_string())
-        }
-        Some("content_filter") => {
-            Err("Cleanup response was stopped by the provider content filter".to_string())
-        }
+        Some("length" | "content_filter") => Err(CleanupFailure::InvalidOutput),
         _ => Ok(choice.message.content),
     }
 }
@@ -259,6 +381,10 @@ fn build_headers(provider: &PostProcessProvider, api_key: &str) -> Result<Header
 }
 
 pub(crate) fn validate_provider_url(base_url: &str) -> Result<(), String> {
+    parse_provider_url(base_url).map(|_| ())
+}
+
+pub(crate) fn parse_provider_url(base_url: &str) -> Result<reqwest::Url, String> {
     let url = reqwest::Url::parse(base_url.trim())
         .map_err(|_| "Invalid cleanup provider URL".to_string())?;
     let is_loopback = url.host_str().is_some_and(|host| {
@@ -282,7 +408,7 @@ pub(crate) fn validate_provider_url(base_url: &str) -> Result<(), String> {
         );
     }
 
-    Ok(())
+    Ok(url)
 }
 
 /// The shared client and this provider's headers. The headers go on each
@@ -299,66 +425,6 @@ fn client_and_headers(
 /// The raw text is the fallback, so a stalled model should not hold it for long.
 fn cleanup_timeout(content_chars: usize) -> Duration {
     Duration::from_millis(20_000 + 20 * content_chars as u64).min(Duration::from_secs(60))
-}
-
-/// Format a bounded error source chain.
-///
-/// `reqwest::Error`'s Display implementation intentionally gives only a short
-/// summary. Nested causes contain the useful transport details, such as a
-/// certificate validation failure, an HTTP/2 error, or a connection reset.
-/// Callers must skip source types whose Display text can quote payload data.
-fn error_source_chain(error: &(dyn StdError + 'static)) -> Vec<String> {
-    let mut causes = Vec::new();
-    let mut source = error.source();
-
-    // Defensive cap in case a third-party error exposes a cyclic source chain.
-    for _ in 0..16 {
-        let Some(cause) = source else {
-            break;
-        };
-        causes.push(cause.to_string());
-        source = cause.source();
-    }
-
-    causes
-}
-
-fn reqwest_error_kinds(error: &reqwest::Error) -> String {
-    let mut kinds = Vec::new();
-
-    if error.is_builder() {
-        kinds.push("builder");
-    }
-    if error.is_connect() {
-        kinds.push("connect");
-    }
-    if error.is_request() {
-        kinds.push("request");
-    }
-    if error.is_redirect() {
-        kinds.push("redirect");
-    }
-    if error.is_timeout() {
-        kinds.push("timeout");
-    }
-    if error.is_status() {
-        kinds.push("status");
-    }
-    if error.is_body() {
-        kinds.push("body");
-    }
-    if error.is_decode() {
-        kinds.push("decode");
-    }
-    if error.is_upgrade() {
-        kinds.push("upgrade");
-    }
-
-    if kinds.is_empty() {
-        "unknown".to_string()
-    } else {
-        kinds.join(", ")
-    }
 }
 
 fn sanitized_url(url: &reqwest::Url) -> String {
@@ -382,41 +448,7 @@ fn sanitized_url_for_log(url: &str) -> String {
         .unwrap_or_else(|_| "<invalid URL>".to_string())
 }
 
-fn report_reqwest_error(context: &str, error: &reqwest::Error) -> String {
-    let kinds = reqwest_error_kinds(error);
-    let url = error
-        .url()
-        .map(sanitized_url)
-        .map(|url| format!(", url: {url}"))
-        .unwrap_or_default();
-
-    // serde_json's error text can quote values from a malformed response. That
-    // response may contain transcription content, so retain the useful decode
-    // classification but never put its nested source in logs or UI errors.
-    let causes = if error.is_decode() {
-        Vec::new()
-    } else {
-        error_source_chain(error)
-    };
-    let cause_details = if !causes.is_empty() {
-        format!(": caused by: {}", causes.join(" -> "))
-    } else if error.url().is_none() {
-        // Reqwest's short Display text is safe when it cannot append a raw URL.
-        format!(": {error}")
-    } else {
-        // The sanitized URL is already included above. Avoid formatting the
-        // original error because its Display implementation includes the raw URL.
-        String::new()
-    };
-
-    let details = format!("{context} (kind: {kinds}{url}){cause_details}");
-    error!("{details}");
-    details
-}
-
-/// Send a chat completion request to an OpenAI-compatible API
-/// Returns Ok(Some(content)) on success, Ok(None) if response has no content,
-/// or Err on actual errors (HTTP, parsing, etc.)
+#[cfg(test)]
 pub async fn send_chat_completion(
     provider: &PostProcessProvider,
     api_key: String,
@@ -434,18 +466,10 @@ pub async fn send_chat_completion(
         disable_reasoning,
     )
     .await
+    .map(|completion| completion.text)
+    .map_err(|error| error.to_string())
 }
 
-/// Send a chat completion request with structured output support.
-/// When json_schema is provided, uses structured outputs mode.
-/// system_prompt is used as the system message when provided.
-///
-/// When disable_reasoning is set, the request carries the reasoning-disable
-/// fields the endpoint is expected to understand. Not every OpenAI-compatible
-/// endpoint accepts them (DeepSeek, Gemini's compat layer, and some OpenRouter
-/// upstreams reject with 400), so a 400/422 answer to such a request triggers
-/// one retry without the fields, and the rejection is remembered per
-/// (base_url, model) so later requests skip the failing attempt entirely.
 pub async fn send_chat_completion_with_schema(
     provider: &PostProcessProvider,
     api_key: String,
@@ -454,7 +478,7 @@ pub async fn send_chat_completion_with_schema(
     system_prompt: Option<String>,
     json_schema: Option<Value>,
     disable_reasoning: bool,
-) -> Result<Option<String>, String> {
+) -> Result<CleanupCompletion, CleanupFailure> {
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/chat/completions", base_url);
 
@@ -463,14 +487,13 @@ pub async fn send_chat_completion_with_schema(
         sanitized_url_for_log(&url)
     );
 
-    let (client, headers) = client_and_headers(provider, &api_key)?;
+    let (client, headers) =
+        client_and_headers(provider, &api_key).map_err(|_| CleanupFailure::Configuration)?;
     let content_chars = user_content.chars().count();
     let timeout = cleanup_timeout(content_chars);
 
-    // Build messages vector
     let mut messages = Vec::new();
 
-    // Add system prompt if provided
     if let Some(system) = system_prompt {
         messages.push(ChatMessage {
             role: "system".to_string(),
@@ -478,13 +501,11 @@ pub async fn send_chat_completion_with_schema(
         });
     }
 
-    // Add user message
     messages.push(ChatMessage {
         role: "user".to_string(),
         content: user_content,
     });
 
-    // Build response_format if schema is provided
     let response_format = json_schema.map(|schema| ResponseFormat {
         format_type: "json_schema".to_string(),
         json_schema: JsonSchema {
@@ -496,115 +517,93 @@ pub async fn send_chat_completion_with_schema(
 
     let key = endpoint_key(provider, model);
     let strict_disable = require_non_thinking(provider, disable_reasoning);
-    // an endpoint that rejected the optional fields once gets a plain request
-    let plain = !strict_disable && is_known_rejected(&key);
-    let reasoning = if disable_reasoning && !plain {
-        reasoning_disable_params(provider)
-    } else {
-        ReasoningParams::default()
-    };
-
-    let mut request_body = ChatCompletionRequest {
+    let mut rejected = REJECTED_FIELDS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get(&key)
+        .cloned()
+        .unwrap_or_default();
+    let reasoning = (disable_reasoning
+        && (strict_disable || !rejected.contains(&OptionalField::Reasoning)))
+    .then(|| reasoning_disable_params(provider));
+    let mut output_cap = OutputCap::for_provider(provider, content_chars);
+    if rejected.contains(&OptionalField::OutputCap) {
+        output_cap.swap_fields();
+    }
+    let mut request = ChatCompletionRequest {
         model: model.to_string(),
         messages,
         stream: false,
-        temperature: (!plain).then_some(0.0),
-        response_format,
+        temperature: (!rejected.contains(&OptionalField::Temperature)).then_some(0.0),
+        response_format: response_format
+            .filter(|_| !rejected.contains(&OptionalField::ResponseFormat)),
         reasoning,
-        output_cap: if plain {
-            OutputCap::default()
-        } else {
-            OutputCap::for_provider(provider, content_chars)
-        },
+        output_cap,
     };
+    let deadline = Instant::now() + timeout;
 
-    let mut response = client
-        .post(&url)
-        .headers(headers.clone())
-        .timeout(timeout)
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|e| report_reqwest_error("HTTP request failed", &e))?;
-    let mut status = response.status();
-    debug!(
-        "Chat completion response received with status {} over {:?} from {}",
-        status,
-        response.version(),
-        sanitized_url(response.url())
-    );
-
-    // A cleanup run that promises no thinking must not retry with thinking
-    // enabled just because a model rejects the provider's disable field.
-    if strict_disable && !status.is_success() && matches!(status.as_u16(), 400 | 422) {
-        return Err(format!(
-            "{} rejected non-thinking cleanup for model '{}' (status {}). Choose a model that supports disabling reasoning.",
-            provider.label, model, status
-        ));
-    }
-
-    // Unknown OpenAI-compatible endpoints may reject the disable field or the
-    // output cap, and some models only accept their default temperature. Retry
-    // without all three there, but never on SiliconFlow or OpenRouter.
-    if !status.is_success()
-        && matches!(status.as_u16(), 400 | 422)
-        && (!request_body.reasoning.is_empty()
-            || request_body.temperature.is_some()
-            || !request_body.output_cap.is_empty())
-    {
-        let error_text = response.text().await.unwrap_or_else(|e| {
-            report_reqwest_error("Failed to read reasoning rejection response", &e)
-        });
-        info!(
-            "Endpoint rejected request with reasoning disabled or temperature 0 (status {}): {}. Retrying without those fields",
-            status, error_text
-        );
-
-        request_body.reasoning = ReasoningParams::default();
-        request_body.temperature = None;
-        request_body.output_cap = OutputCap::default();
-        response = client
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(CleanupFailure::Timeout);
+        }
+        let response = client
             .post(&url)
-            .headers(headers)
-            .timeout(timeout)
-            .json(&request_body)
+            .headers(headers.clone())
+            .timeout(remaining)
+            .json(&request)
             .send()
             .await
-            .map_err(|e| report_reqwest_error("HTTP retry failed", &e))?;
-        status = response.status();
-        debug!(
-            "Chat completion retry response received with status {} over {:?} from {}",
-            status,
-            response.version(),
-            sanitized_url(response.url())
-        );
+            .map_err(|error| CleanupFailure::transport(error, &url))?;
+        let status = response.status();
 
         if status.is_success() {
-            info!(
-                "Retry without the optional fields succeeded; '{}' (model '{}') will skip them from now on",
-                sanitized_url_for_log(base_url), model
-            );
-            remember_rejection(key);
+            let body = bounded_response(response, MAX_RESPONSE_BYTES).await?;
+            let completion =
+                serde_json::from_slice(&body).map_err(|_| CleanupFailure::InvalidOutput)?;
+            let text = completion_content(completion)?;
+            if !rejected.is_empty() {
+                REJECTED_FIELDS
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .entry(key)
+                    .or_default()
+                    .extend(rejected);
+            }
+            return Ok(CleanupCompletion {
+                text,
+                structured: request.response_format.is_some(),
+            });
         }
+
+        debug!("Cleanup request returned HTTP {status}");
+        if matches!(status.as_u16(), 400 | 422) {
+            // Provider text is read only to recognise a supported schema rejection.
+            let body = match bounded_response(response, MAX_SCHEMA_ERROR_BYTES).await {
+                Ok(body) => body,
+                Err(CleanupFailure::Timeout) => return Err(CleanupFailure::Timeout),
+                Err(_) => return Err(CleanupFailure::http(status)),
+            };
+            if let Some(field) = schema_rejection(
+                &body,
+                &request,
+                rejected.contains(&OptionalField::OutputCap),
+            ) {
+                match field {
+                    OptionalField::Reasoning if strict_disable => {
+                        return Err(CleanupFailure::Reasoning)
+                    }
+                    OptionalField::Reasoning => request.reasoning = None,
+                    OptionalField::Temperature => request.temperature = None,
+                    OptionalField::ResponseFormat => request.response_format = None,
+                    OptionalField::OutputCap => request.output_cap.swap_fields(),
+                }
+                rejected.insert(field);
+                continue;
+            }
+        }
+        return Err(CleanupFailure::http(status));
     }
-
-    if !status.is_success() {
-        let error_text = response
-            .text()
-            .await
-            .unwrap_or_else(|e| report_reqwest_error("Failed to read API error response", &e));
-        return Err(format!(
-            "API request failed with status {}: {}",
-            status, error_text
-        ));
-    }
-
-    let completion: ChatCompletionResponse = response
-        .json()
-        .await
-        .map_err(|e| report_reqwest_error("Failed to parse API response", &e))?;
-
-    completion_content(completion)
 }
 
 /// Fetch available models from an OpenAI-compatible API
@@ -626,30 +625,18 @@ pub async fn fetch_models(
         .timeout(Duration::from_secs(30))
         .send()
         .await
-        .map_err(|e| report_reqwest_error("Failed to fetch models", &e))?;
+        .map_err(|error| CleanupFailure::transport(error, &url).to_string())?;
 
     let status = response.status();
-    debug!(
-        "Model list response received with status {} over {:?} from {}",
-        status,
-        response.version(),
-        sanitized_url(response.url())
-    );
     if !status.is_success() {
-        let error_text = response
-            .text()
-            .await
-            .unwrap_or_else(|e| report_reqwest_error("Failed to read model list error", &e));
-        return Err(format!(
-            "Model list request failed ({}): {}",
-            status, error_text
-        ));
+        return Err(format!("Model list request failed (HTTP {status})"));
     }
 
-    let parsed: serde_json::Value = response
-        .json()
+    let body = bounded_response(response, MAX_RESPONSE_BYTES)
         .await
-        .map_err(|e| report_reqwest_error("Failed to parse model list response", &e))?;
+        .map_err(|error| error.to_string())?;
+    let parsed: Value = serde_json::from_slice(&body)
+        .map_err(|_| "Model list response was not valid JSON".to_string())?;
 
     let mut models = Vec::new();
 
@@ -678,28 +665,7 @@ pub async fn fetch_models(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fmt;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-    #[derive(Debug)]
-    struct TestError {
-        message: &'static str,
-        source: Option<Box<TestError>>,
-    }
-
-    impl fmt::Display for TestError {
-        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-            formatter.write_str(self.message)
-        }
-    }
-
-    impl StdError for TestError {
-        fn source(&self) -> Option<&(dyn StdError + 'static)> {
-            self.source
-                .as_deref()
-                .map(|source| source as &(dyn StdError + 'static))
-        }
-    }
 
     fn provider(id: &str, base_url: &str) -> PostProcessProvider {
         PostProcessProvider {
@@ -712,7 +678,7 @@ mod tests {
         }
     }
 
-    fn request_json(reasoning: ReasoningParams) -> Value {
+    fn request_json(reasoning: Option<ReasoningOff>) -> Value {
         let request = ChatCompletionRequest {
             model: "test-model".to_string(),
             messages: vec![ChatMessage {
@@ -723,7 +689,7 @@ mod tests {
             temperature: Some(0.0),
             response_format: None,
             reasoning,
-            output_cap: OutputCap::default(),
+            output_cap: OutputCap::MaxTokens(512),
         };
         serde_json::to_value(&request).unwrap()
     }
@@ -747,25 +713,6 @@ mod tests {
     }
 
     #[test]
-    fn error_source_chain_includes_all_nested_causes() {
-        let error = TestError {
-            message: "request failed",
-            source: Some(Box::new(TestError {
-                message: "TLS handshake failed",
-                source: Some(Box::new(TestError {
-                    message: "unknown certificate authority",
-                    source: None,
-                })),
-            })),
-        };
-
-        assert_eq!(
-            error_source_chain(&error),
-            vec!["TLS handshake failed", "unknown certificate authority"]
-        );
-    }
-
-    #[test]
     fn log_url_sanitization_removes_credentials_and_tokens() {
         let url = "https://user:password@example.com/v1/models?api_key=secret#private";
         assert_eq!(sanitized_url_for_log(url), "https://example.com/v1/models");
@@ -777,22 +724,6 @@ mod tests {
             sanitized_url_for_log("not a URL containing secret"),
             "<invalid URL>"
         );
-    }
-
-    #[tokio::test]
-    async fn decode_error_does_not_echo_response_values() {
-        let base_url =
-            serve_one_response("200 OK", r#"{"choices":"PRIVATE TRANSCRIPTION CONTENT"}"#).await;
-        let error = reqwest::get(base_url)
-            .await
-            .unwrap()
-            .json::<ChatCompletionResponse>()
-            .await
-            .unwrap_err();
-
-        let details = report_reqwest_error("Failed to parse API response", &error);
-        assert!(details.contains("kind: decode"));
-        assert!(!details.contains("PRIVATE TRANSCRIPTION CONTENT"));
     }
 
     #[tokio::test]
@@ -816,40 +747,47 @@ mod tests {
         assert_eq!(result.as_deref(), Some("Keep this."));
     }
 
-    /// Answers one request and hands back the JSON body it was sent.
-    async fn capture_one_request() -> (String, tokio::task::JoinHandle<Value>) {
+    const SHORT_SUCCESS: &str =
+        r#"{"choices":[{"message":{"content":"ok"},"finish_reason":"stop"}]}"#;
+
+    async fn capture_requests(
+        replies: Vec<(&'static str, &'static str)>,
+    ) -> (String, tokio::task::JoinHandle<Vec<Value>>) {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let handle = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let mut received = Vec::new();
-            let mut buffer = [0_u8; 4096];
-            let body = loop {
-                let read = stream.read(&mut buffer).await.unwrap();
-                received.extend_from_slice(&buffer[..read]);
-                let text = String::from_utf8_lossy(&received).into_owned();
-                if let Some((head, body)) = text.split_once("\r\n\r\n") {
-                    let length = head
-                        .lines()
-                        .find_map(|line| {
-                            let (name, value) = line.split_once(':')?;
-                            name.eq_ignore_ascii_case("content-length")
-                                .then(|| value.trim().parse::<usize>().ok())?
-                        })
-                        .unwrap_or(0);
-                    if body.len() >= length {
-                        break body.to_string();
+            let mut requests = Vec::new();
+            for (status, reply) in replies {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut received = Vec::new();
+                let mut buffer = [0_u8; 4096];
+                let body = loop {
+                    let read = stream.read(&mut buffer).await.unwrap();
+                    received.extend_from_slice(&buffer[..read]);
+                    let text = String::from_utf8_lossy(&received).into_owned();
+                    if let Some((head, body)) = text.split_once("\r\n\r\n") {
+                        let length = head
+                            .lines()
+                            .find_map(|line| {
+                                let (name, value) = line.split_once(':')?;
+                                name.eq_ignore_ascii_case("content-length")
+                                    .then(|| value.trim().parse::<usize>().ok())?
+                            })
+                            .unwrap_or(0);
+                        if body.len() >= length {
+                            break body.to_string();
+                        }
                     }
-                }
-                assert!(read > 0, "connection closed before the body arrived");
-            };
-            let reply = r#"{"choices":[{"message":{"content":"ok"},"finish_reason":"stop"}]}"#;
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}",
-                reply.len()
-            );
-            stream.write_all(response.as_bytes()).await.unwrap();
-            serde_json::from_str(&body).unwrap()
+                    assert!(read > 0, "connection closed before the body arrived");
+                };
+                let response = format!(
+                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}",
+                    reply.len()
+                );
+                stream.write_all(response.as_bytes()).await.unwrap();
+                requests.push(serde_json::from_str(&body).unwrap());
+            }
+            requests
         });
         (format!("http://{address}"), handle)
     }
@@ -861,7 +799,7 @@ mod tests {
             ("openrouter", "max_tokens", "max_completion_tokens"),
             ("openai", "max_completion_tokens", "max_tokens"),
         ] {
-            let (base_url, server) = capture_one_request().await;
+            let (base_url, server) = capture_requests(vec![("200 OK", SHORT_SUCCESS)]).await;
             send_chat_completion(
                 &provider(id, &base_url),
                 String::new(),
@@ -871,13 +809,43 @@ mod tests {
             )
             .await
             .unwrap();
-            let body = server.await.unwrap();
+            let body = server.await.unwrap().pop().unwrap();
             let cap = body[field].as_u64().expect("output cap missing");
             assert!(
                 (500..=2_048).contains(&cap),
                 "{id}: cap {cap} is not sized to a 2000 character transcript"
             );
             assert!(body.get(other).is_none(), "{id}: sent both cap fields");
+        }
+    }
+
+    #[tokio::test]
+    async fn schema_retry_keeps_the_cap_and_remembers_only_the_rejected_field() {
+        let (base_url, received) = capture_requests(vec![
+            (
+                "400 Bad Request",
+                r#"{"error":{"message":"Unsupported parameter: temperature"}}"#,
+            ),
+            ("200 OK", SHORT_SUCCESS),
+            ("200 OK", SHORT_SUCCESS),
+        ])
+        .await;
+        let provider = provider("custom", &base_url);
+        for _ in 0..2 {
+            let result =
+                send_chat_completion(&provider, String::new(), "model", "input".into(), true)
+                    .await
+                    .unwrap();
+            assert_eq!(result.as_deref(), Some("ok"));
+        }
+        let requests = received.await.unwrap();
+        assert_eq!(requests[0]["temperature"], 0.0);
+        for request in &requests[1..] {
+            assert!(request.get("temperature").is_none());
+        }
+        for request in requests {
+            assert!(request["max_tokens"].as_u64().is_some());
+            assert_eq!(request["reasoning_effort"], "none");
         }
     }
 
@@ -903,33 +871,16 @@ mod tests {
         assert!(!error.contains("Keep thi"));
     }
 
-    #[tokio::test]
-    async fn raw_error_url_is_not_reintroduced_without_a_source() {
-        let base_url = serve_one_response("400 Bad Request", "bad request").await;
-        let error = reqwest::get(format!(
-            "{base_url}/private?api_key=SECRET_QUERY_TOKEN#private"
-        ))
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap_err();
-
-        let details = report_reqwest_error("Request failed", &error);
-        assert!(details.contains(&format!("url: {base_url}/private")));
-        assert!(!details.contains("SECRET_QUERY_TOKEN"));
-        assert!(!details.contains("#private"));
-    }
-
     #[test]
     fn requests_explicitly_disable_streaming() {
-        let json = request_json(ReasoningParams::default());
+        let json = request_json(None);
         assert_eq!(json["stream"], false);
         assert_eq!(json["temperature"], 0.0);
     }
 
     #[test]
     fn default_reasoning_params_serialize_to_no_fields() {
-        let json = request_json(ReasoningParams::default());
+        let json = request_json(None);
         assert!(json.get("reasoning_effort").is_none());
         assert!(json.get("reasoning").is_none());
         assert!(json.get("thinking").is_none());
@@ -939,7 +890,7 @@ mod tests {
     #[test]
     fn custom_provider_uses_top_level_reasoning_effort() {
         let params = reasoning_disable_params(&provider("custom", "http://localhost:11434/v1"));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert_eq!(json["reasoning_effort"], "none");
         assert!(json.get("reasoning").is_none());
         assert!(json.get("thinking").is_none());
@@ -950,7 +901,7 @@ mod tests {
     fn openrouter_uses_nested_reasoning_object() {
         let params =
             reasoning_disable_params(&provider("openrouter", "https://openrouter.ai/api/v1"));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert!(json.get("reasoning_effort").is_none());
         assert_eq!(json["reasoning"], serde_json::json!({ "enabled": false }));
         assert!(json.get("thinking").is_none());
@@ -960,7 +911,7 @@ mod tests {
     #[test]
     fn deepseek_base_url_uses_thinking_disabled() {
         let params = reasoning_disable_params(&provider("custom", "https://api.deepseek.com"));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert!(json.get("reasoning_effort").is_none());
         assert!(json.get("reasoning").is_none());
         assert_eq!(json["thinking"]["type"], "disabled");
@@ -971,7 +922,7 @@ mod tests {
     fn siliconflow_provider_uses_enable_thinking_false() {
         let params =
             reasoning_disable_params(&provider("siliconflow", "https://api.siliconflow.cn/v1"));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert_eq!(json["enable_thinking"], false);
         assert!(json.get("reasoning_effort").is_none());
         assert!(json.get("reasoning").is_none());
@@ -982,7 +933,7 @@ mod tests {
     fn custom_siliconflow_url_uses_enable_thinking_false() {
         let params =
             reasoning_disable_params(&provider("custom", "https://api.siliconflow.com/v1"));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert_eq!(json["enable_thinking"], false);
         assert!(json.get("reasoning_effort").is_none());
     }
@@ -1013,40 +964,38 @@ mod tests {
             "custom",
             "https://api.siliconflow.cn.example.com/v1",
         ));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert_eq!(json["reasoning_effort"], "none");
         assert!(json.get("enable_thinking").is_none());
     }
 
-    #[test]
-    fn reasoning_params_is_empty_tracks_all_fields() {
-        assert!(ReasoningParams::default().is_empty());
-        assert!(!ReasoningParams {
-            reasoning_effort: Some("none".to_string()),
-            ..Default::default()
-        }
-        .is_empty());
-        assert!(!ReasoningParams {
-            thinking: Some(serde_json::json!({ "type": "disabled" })),
-            ..Default::default()
-        }
-        .is_empty());
-        assert!(!ReasoningParams {
-            enable_thinking: Some(false),
-            ..Default::default()
-        }
-        .is_empty());
+    #[tokio::test]
+    async fn cleanup_error_reports_status_without_provider_text() {
+        let base_url = serve_one_response("402 Payment Required", "private response text").await;
+        let result = send_chat_completion(
+            &provider("custom", &base_url),
+            String::new(),
+            "model",
+            "input".into(),
+            true,
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(result, CleanupFailure::Credit.to_string());
     }
 
-    #[test]
-    fn rejection_memo_is_keyed_by_base_url_and_model() {
-        let deepseek = provider("custom", "https://api.deepseek.com/");
-        let key = endpoint_key(&deepseek, "deepseek-chat");
-        assert_eq!(key, "https://api.deepseek.com|deepseek-chat");
-        assert!(!is_known_rejected(&key));
-        remember_rejection(key.clone());
-        assert!(is_known_rejected(&key));
-        // A different model on the same endpoint is tracked separately
-        assert!(!is_known_rejected(&endpoint_key(&deepseek, "other-model")));
+    #[tokio::test]
+    async fn oversized_response_is_rejected() {
+        let base_url = serve_one_response("200 OK", &"x".repeat(MAX_RESPONSE_BYTES + 1)).await;
+        let result = send_chat_completion(
+            &provider("custom", &base_url),
+            String::new(),
+            "model",
+            "input".into(),
+            true,
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(result, CleanupFailure::InvalidOutput.to_string());
     }
 }

@@ -21,6 +21,7 @@ mod llm_client;
 mod managers;
 mod memory;
 mod migration;
+mod native_i18n;
 mod overlay;
 mod paste_tx;
 pub mod portable;
@@ -31,7 +32,6 @@ mod shortcut;
 mod signal_handle;
 mod transcription_coordinator;
 mod tray;
-mod tray_i18n;
 mod utils;
 
 pub use cli::CliArgs;
@@ -194,7 +194,11 @@ fn should_force_show_permissions_window(app: &AppHandle) -> bool {
     false
 }
 
-fn initialize_core_logic(app_handle: &AppHandle) {
+fn initialize_core_logic(
+    app_handle: &AppHandle,
+    history_manager: HistoryManager,
+    history_backup: Option<std::path::PathBuf>,
+) -> anyhow::Result<()> {
     // Note: Enigo (keyboard/mouse simulation) is NOT initialized here.
     // The frontend is responsible for calling the `initialize_enigo` command
     // after onboarding completes. This avoids triggering permission dialogs
@@ -213,8 +217,19 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         AudioRecordingManager::new(app_handle, transcription_manager.stream_router())
             .expect("Failed to initialize recording manager"),
     );
-    let history_manager =
-        Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));
+    let history_manager = Arc::new(history_manager);
+    if let Some(backup) = history_backup {
+        use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+        app_handle
+            .dialog()
+            .message(format!(
+                "Murmur could not open your previous history and started with an empty history. Your previous database was preserved in {}. Your recordings are still in the recordings folder.",
+                backup.display()
+            ))
+            .title("History database preserved")
+            .kind(MessageDialogKind::Warning)
+            .show(|_| {});
+    }
 
     // Initialize the transcribe-cpp native backend (logging + backend module
     // registration) once, before any whisper model is loaded.
@@ -379,6 +394,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
+    Ok(())
 }
 
 #[tauri::command]
@@ -584,7 +600,7 @@ fn run_headless_transcription(app: &AppHandle, args: &CliArgs) -> i32 {
         }
         let t = Instant::now();
         match tm.transcribe(samples.clone()) {
-            Ok(out) => text = out,
+            Ok(out) => text = out.adjusted.unwrap_or(out.raw),
             Err(e) => {
                 eprintln!("error: transcribe failed: {}", e);
                 return 1;
@@ -876,6 +892,9 @@ pub fn run(cli_args: CliArgs) {
     // instance instead.
     if !headless_mode {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if app.try_state::<Arc<HistoryManager>>().is_none() {
+                return;
+            }
             if args.iter().any(|a| a == "--toggle-transcription") {
                 signal_handle::send_transcription_input(app, "transcribe", "CLI");
             } else if args.iter().any(|a| a == "--toggle-post-process") {
@@ -912,7 +931,7 @@ pub fn run(cli_args: CliArgs) {
         ))
         .manage(cli_args.clone())
         .setup(move |app| {
-            migration::migrate_legacy_data(app.handle())?;
+            migration::migrate_legacy_data(app.handle(), headless_mode)?;
 
             #[cfg(target_os = "windows")]
             log::info!(
@@ -964,6 +983,34 @@ pub fn run(cli_args: CliArgs) {
                 });
                 return Ok(());
             }
+
+            let (history_manager, history_backup) = match HistoryManager::new(app.handle()) {
+                Ok(history) => history,
+                Err(error) => {
+                    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+
+                    let Some(newer_database) =
+                        error.downcast_ref::<managers::history::UnsupportedHistoryVersion>()
+                    else {
+                        return Err(error.into());
+                    };
+                    log::error!("{error}");
+                    let settings = get_settings(app.handle());
+                    let strings =
+                        native_i18n::get_startup_translations(Some(&settings.app_language));
+                    let handle = app.handle().clone();
+                    app.dialog()
+                        .message(
+                            strings
+                                .newer_history_message
+                                .replace("{{path}}", &newer_database.path.to_string_lossy()),
+                        )
+                        .title(&strings.newer_history_title)
+                        .kind(MessageDialogKind::Error)
+                        .show(move |_| handle.exit(1));
+                    return Ok(());
+                }
+            };
 
             // Create main window programmatically so we can set data_directory
             // for portable mode (redirects WebView2 cache to portable Data dir)
@@ -1036,7 +1083,7 @@ pub fn run(cli_args: CliArgs) {
             let app_handle = app.handle().clone();
             app.manage(TranscriptionCoordinator::new(app_handle.clone()));
 
-            initialize_core_logic(&app_handle);
+            initialize_core_logic(&app_handle, history_manager, history_backup)?;
 
             // Secure Input monitor (macOS): detects stuck secure input that
             // silently blocks keyed shortcuts, warns the user, and activates
@@ -1127,11 +1174,10 @@ pub fn run(cli_args: CliArgs) {
             // that vanished (#1948): recreate it. When the window is
             // already visible this is just a focus request and the tray is
             // left alone.
-            let window_visible = app
-                .get_webview_window("main")
-                .and_then(|w| w.is_visible().ok())
-                .unwrap_or(false);
-            if !window_visible {
+            let Some(window) = app.get_webview_window("main") else {
+                return;
+            };
+            if !window.is_visible().unwrap_or(false) {
                 tray::recreate_tray_icon(app);
             }
             show_main_window(app);

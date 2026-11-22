@@ -1,4 +1,10 @@
 {
+  "startup": {
+    "legacyConflictTitle": "Previous Murmur data could not be migrated",
+    "legacyConflictMessage": "Your previous Murmur data conflicts with your current data. Your previous data remains in {{path}}.",
+    "newerHistoryTitle": "History database requires a newer version",
+    "newerHistoryMessage": "A newer version of Murmur wrote this history database. Update Murmur to open your history.\n\n{{path}}\n\nTo start with an empty history, close Murmur and move the database and any matching history.db-* files to another folder."
+  },
   "tray": {
     "settings": "Settings...",
     "checkUpdates": "Check for Updates...",
@@ -118,7 +124,10 @@
         "checkFailed": "Failed to check permissions. Please try again.",
         "requestFailed": "Failed to request permission. Please try again."
       }
-    }
+    },
+    "configureEndpoint": "Use a speech endpoint",
+    "configureEndpointDescription": "Configure an online provider or a server you run in Models.",
+    "noModels": "No downloadable models are listed right now."
   },
   "modelSelector": {
     "custom": "Custom",
@@ -663,7 +672,10 @@
     "open": "Open",
     "copy": "Copy",
     "clear": "Clear",
-    "noOptionsFound": "No options found"
+    "noOptionsFound": "No options found",
+    "download": "Download",
+    "retry": "Retry",
+    "cancel": "Cancel"
   },
   "accessibility": {
     "permissionsDescription": "Murmur needs accessibility permissions to type transcribed text.",
@@ -714,5 +726,390 @@
     "learnMore": "How to fix",
     "recorderBlocked": "Can't record shortcuts right now — macOS Secure Input is blocking key events. Resolve the Secure Input warning first.",
     "dismiss": "Dismiss"
+  },
+  "murmur": {
+    "cleanup": {
+      "errors": {
+        "authentication": "Cleanup could not sign in. Check your API key.",
+        "credit": "The cleanup provider is out of credit. Check its billing settings.",
+        "rateLimit": "The cleanup provider is rate limiting requests. Try again later.",
+        "server": "The cleanup provider is unavailable. Try again later.",
+        "invalidOutput": "The cleanup provider returned an unusable transcript.",
+        "timeout": "The cleanup provider took too long to respond.",
+        "reasoning": "This cleanup model cannot run with reasoning disabled. Choose another model.",
+        "credentialStore": "Cleanup could not access the system credential store.",
+        "configuration": "The cleanup request was rejected. Check the provider and model settings."
+      },
+      "failed": "AI cleanup failed",
+      "removeKey": "Remove key",
+      "keyStatusUnknown": "Checking the system credential store…",
+      "keyStored": "Key saved in the system credential store",
+      "keyMissing": "No key saved",
+      "formality": {
+        "veryCasual": "Very casual",
+        "casual": "Casual",
+        "natural": "Natural",
+        "professional": "Professional",
+        "formal": "Formal",
+        "title": "Tone",
+        "description": "Choose punctuation and grammar polish. Every level should keep your own words."
+      },
+      "basic": {
+        "title": "On this device",
+        "description": "Always runs locally, even when AI cleanup is off."
+      },
+      "title": "AI cleanup",
+      "description": "Fixes punctuation and clear errors and splits long dictation into readable sentences, keeping your words. Cloud providers receive the transcript, not the recording.",
+      "instructions": {
+        "title": "Custom instructions",
+        "description": "Optional. Tell the cleanup model anything extra."
+      },
+      "model": {
+        "none": "No provider chosen"
+      }
+    },
+    "app": {
+      "loading": "Loading Murmur…",
+      "skip": "Skip to settings",
+      "appearance": {
+        "title": "Appearance"
+      },
+      "startup": {
+        "title": "Startup and tray"
+      },
+      "performance": {
+        "title": "Performance"
+      }
+    },
+    "nav": {
+      "dictation": "Dictation",
+      "lectures": "Lectures",
+      "dictionary": "Dictionary",
+      "insertion": "Text insertion",
+      "stats": "Stats",
+      "privacy": "Privacy",
+      "app": "App",
+      "label": "Settings"
+    },
+    "pages": {
+      "dictation": {
+        "description": "Your shortcut, microphone and spoken language, plus what you see and hear while recording."
+      },
+      "lectures": {
+        "description": "Record a lecture or import audio, then transcribe it into History."
+      },
+      "models": {
+        "description": "Choose what turns your speech into text. Every saved API key is listed here too."
+      },
+      "cleanup": {
+        "description": "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions."
+      },
+      "dictionary": {
+        "description": "Names and terms Murmur should spell your way."
+      },
+      "insertion": {
+        "description": "How finished text reaches the app you are typing in, and what happens after."
+      },
+      "stats": {
+        "description": "Words, speaking pace, saved audio duration and provider cost."
+      },
+      "history": {
+        "description": "Past dictations, retention and compressed export."
+      },
+      "privacy": {
+        "description": "What leaves this computer, what stays on it, and for how long."
+      },
+      "app": {
+        "description": "Appearance, interface language, startup and performance."
+      },
+      "about": {
+        "description": "Version, credits and where Murmur keeps its files."
+      },
+      "debug": {
+        "description": "Diagnostics for troubleshooting."
+      }
+    },
+    "onboarding": {
+      "checking": "Checking permissions…",
+      "checkFailed": "Permission checks failed. Use the permission action below to retry. Your system settings have not been changed.",
+      "microphoneWaiting": "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
+      "recheck": "Check again",
+      "accessibilityWaiting": "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically."
+    },
+    "models": {
+      "downloadNamed": "Download {{model}}",
+      "browse": "Browse {{count}} models to download",
+      "local": {
+        "title": "On-device models"
+      },
+      "cleanup": {
+        "title": "Cleanup model",
+        "on": "AI cleanup is on",
+        "off": "AI cleanup is off",
+        "change": "Change in Cleanup"
+      }
+    },
+    "dictionary": {
+      "saveError": "Could not save this dictionary entry.",
+      "search": "Search saved words",
+      "count": "{{count}} terms saved",
+      "noMatches": "No matching words.",
+      "title": "Your words",
+      "description": "Used by on-device recognition and by AI cleanup to spell unusual names and terms."
+    },
+    "history": {
+      "limit": {
+        "confirmMessage": "Keep the latest {{count}} dictations? Older unsaved dictations and their recordings will be permanently deleted.",
+        "confirmTitle": "Reduce history limit"
+      },
+      "retention": {
+        "confirmMessage": "Changing retention may permanently delete existing recordings and transcripts that exceed the new limit. Continue?",
+        "confirmTitle": "Change history retention"
+      },
+      "playbackError": "Recording playback is unavailable. Try Play again or recover the transcript above.",
+      "saveError": "Could not change whether this dictation is kept. Try again.",
+      "folderError": "Could not open the recordings folder. Your transcripts are still available here.",
+      "archive": {
+        "partial": "Archived {{count}} dictations, but {{missing}} recordings were already missing.",
+        "complete": "Archived {{count}} dictations. Originals are unchanged.",
+        "error": "Could not export history.",
+        "working": "Creating archive…",
+        "action": "Export compressed archive",
+        "note": "Lossless compression keeps the original WAV audio. The archive is not encrypted, and exporting never deletes local history."
+      },
+      "loadError": "Could not load history. Your saved dictations have not been removed.",
+      "retryLoad": "Retry loading",
+      "storage": {
+        "title": "Storage and archive",
+        "description": "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive."
+      },
+      "copied": "Copied displayed transcript.",
+      "deleteMessage": "This permanently removes the raw and cleaned text and its recording.",
+      "deleteTitle": "Delete dictation?",
+      "retryFinished": "Transcription request finished. Check this entry for the result.",
+      "raw": "Raw transcript",
+      "cleaned": "Cleaned transcript",
+      "processed": "Processed transcript",
+      "showCleaned": "Show cleaned text",
+      "showProcessed": "Show processed text",
+      "showRaw": "Show raw text",
+      "rawFallback": "AI cleanup was unavailable for this entry.",
+      "stats": {
+        "noPreviousWeek": "No previous week to compare",
+        "totalWords": "Retained words",
+        "thisWeek": "This week",
+        "recordedPace": "Recorded pace",
+        "wpm": "wpm",
+        "minutes": "min",
+        "retainedOnly": "Based on retained history. Deleted dictations are not counted.",
+        "stale": "Could not refresh statistics. These figures may be out of date.",
+        "loading": "Loading statistics…",
+        "unavailable": "Statistics are unavailable right now.",
+        "weeklyWords": "Words each week",
+        "vsPrevious": "vs last full week",
+        "weekBar": "{{date}}: {{count}} words",
+        "weeklyPace": "Recorded pace each week",
+        "weekPaceUnavailable": "{{date}}: no recording data",
+        "weekPaceValue": "{{date}}: {{wpm}} words per minute",
+        "method": "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress."
+      }
+    },
+    "lectures": {
+      "saved": "Lecture transcript saved in History",
+      "imported": "Audio transcript saved in History",
+      "importFailed": "Import or transcription failed: {{error}}",
+      "recordTitle": "Record a lecture",
+      "recordDescription": "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
+      "finish": "Finish and transcribe",
+      "record": "Record lecture",
+      "recordingSince": "Recording since {{time}}",
+      "earlier": "earlier",
+      "progress": "Transcribing {{completed}} of {{total}} parts",
+      "working": "Working…",
+      "importTitle": "Transcribe an audio file",
+      "importDescription": "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
+      "choose": "Choose audio file",
+      "privacy": "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode."
+    },
+    "dictation": {
+      "resetMicrophone": "Reset microphone to default",
+      "indicator": {
+        "visibility": "Show recording indicator",
+        "description": "A visible alternative to sound cues. Availability depends on the desktop and its permissions."
+      },
+      "previewSounds": "Preview sound theme: start then stop",
+      "status": {
+        "hold": "Hold {{shortcut}} to dictate; release to finish",
+        "toggle": "Press {{shortcut}} to start; press again to finish",
+        "holdOrToggle": "Hold {{shortcut}}, or tap to start and tap again to finish",
+        "speechCloud": "Audio is sent to {{host}} for transcription",
+        "speechLocal": "Audio stays on this device ({{model}})",
+        "noModel": "no model selected",
+        "cleanupOff": "AI cleanup is off",
+        "cleanupLocal": "AI cleanup runs locally with {{provider}}",
+        "cleanupCloud": "Transcript text is sent to {{provider}} for cleanup",
+        "unavailable": "Microphone status unavailable",
+        "chooseModel": "Choose a recognition model to start",
+        "checking": "Checking dictation status…",
+        "change": "Change models",
+        "captureOnly": "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
+        "release": "Release the shortcut to finish.",
+        "pressAgain": "Press the shortcut again to finish.",
+        "releaseOrPress": "Release if holding, or tap the shortcut again to finish."
+      },
+      "shortcut": {
+        "title": "Shortcut"
+      },
+      "microphone": {
+        "title": "Microphone"
+      },
+      "sounds": {
+        "title": "Sounds",
+        "theme": "Sound",
+        "themeDescription": "Recording cues use your system output and volume."
+      },
+      "language": {
+        "title": "Spoken language",
+        "model": "Options depend on the active model, {{model}}."
+      }
+    },
+    "download": {
+      "pending": "Downloading…",
+      "multiple": "{{count}} downloading…"
+    },
+    "about": {
+      "versionDescription": "Current version of Murmur",
+      "ggml": {
+        "details": "Murmur uses transcribe.cpp and ggml for local speech recognition. Thanks to Georgi Gerganov and contributors."
+      }
+    },
+    "general": {
+      "status": {
+        "recording": "Recording now",
+        "idle": "Not recording"
+      },
+      "indicator": {
+        "title": "Recording indicator"
+      }
+    },
+    "insertion": {
+      "method": {
+        "title": "Inserting text",
+        "description": "If transcripts appear in History but not in your app, try another method here."
+      },
+      "after": {
+        "title": "After inserting"
+      }
+    },
+    "keys": {
+      "removed": "Removed the key for {{name}}",
+      "title": "Saved API keys",
+      "description": "Keys are kept in your system credential store, never in Murmur's settings file.",
+      "unavailable": "Credential-store status is unavailable. Saved keys have not been removed.",
+      "loading": "Checking the credential store…",
+      "none": "No API keys saved.",
+      "speech": "Speech recognition",
+      "cleanup": "AI cleanup",
+      "remove": "Remove"
+    },
+    "stt": {
+      "inUse": "In use",
+      "keySaved": "Speech API key saved",
+      "keyRemoved": "Speech API key removed",
+      "saved": "Speech source saved",
+      "refreshFailed": "Speech source was saved, but settings could not be reloaded. Retry loading settings.",
+      "title": "Speech recognition",
+      "description": "Choose where your speech is turned into text.",
+      "source": "Transcription source",
+      "local": {
+        "title": "On this device",
+        "description": "Pick or download a model below. Audio never leaves this computer."
+      },
+      "endpoint": {
+        "title": "Cloud API or your own server",
+        "description": "OpenAI, Groq or any OpenAI-compatible service. Needs an API key unless it runs locally.",
+        "notice": "Each recording is sent to this service, which may charge for usage. Murmur never switches to another service on its own."
+      },
+      "service": "Service",
+      "presetOther": "or enter any compatible server below",
+      "baseUrl": "API base URL",
+      "baseUrlHelp": "For a server on this computer, try http://127.0.0.1:8000/v1. A full /audio/transcriptions URL also works.",
+      "model": "Model ID",
+      "modelHelp": "Use the model name your speech server accepts.",
+      "apiKey": "API key",
+      "apiKeyPlaceholder": "Paste your key",
+      "saveKey": "Save key",
+      "removeKey": "Remove",
+      "keySavedWithSource": "Your key is saved with the URL and model when you press Save.",
+      "keyStored": "A key is saved for this endpoint in the system credential store.",
+      "noKey": "No key saved. Leave it empty only for a server that does not need one.",
+      "keyStatusError": "Could not check the system credential store. Retry below.",
+      "keyStatusUnknown": "Checking the system credential store…",
+      "retryKeyCheck": "Retry key check",
+      "retryRefresh": "Retry loading settings",
+      "saving": "Saving…",
+      "save": "Save"
+    },
+    "privacy": {
+      "loading": "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
+      "change": "Change",
+      "reporting": "Anonymous usage and errors",
+      "reportingSwitch": "Share anonymous usage and errors",
+      "reportingNotice": "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
+      "reportingUnconfigured": "Reporting is not configured in this build. Nothing is sent.",
+      "reportingSaveError": "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+      "leaves": {
+        "title": "What leaves this computer",
+        "description": "Your voice and text only go to services you choose. Murmur never switches to one on its own."
+      },
+      "speech": {
+        "title": "Your voice",
+        "cloud": "Each recording is sent to {{host}} to be transcribed.",
+        "local": "Transcribed on this computer. Recordings are never uploaded."
+      },
+      "cleanup": {
+        "title": "Your transcripts",
+        "off": "AI cleanup is off, so transcripts stay here.",
+        "local": "Cleaned up on this computer by {{provider}}.",
+        "cloud": "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not."
+      },
+      "stored": {
+        "title": "What stays on this computer"
+      },
+      "history": {
+        "title": "Recordings and transcripts",
+        "detail": "Kept: {{period}}. Starred dictations are always kept."
+      },
+      "keys": {
+        "title": "API keys",
+        "detail": "{{count}} saved in your system credential store, never in Murmur's settings file."
+      },
+      "manage": "Manage"
+    },
+    "stats": {
+      "providerCost": "Provider cost",
+      "openrouterKeys": "OpenRouter usage for your configured keys",
+      "refresh": "Refresh",
+      "costStale": "Could not refresh provider usage. These figures may be out of date.",
+      "costLoading": "Checking OpenRouter usage…",
+      "costUnavailable": "OpenRouter usage is unavailable. Check your connection and key, then retry.",
+      "noOpenrouterKey": "Add an OpenRouter speech key in Models or a cleanup key in Cleanup to see its usage here.",
+      "costWeek": "This week",
+      "costMonth": "This month",
+      "costAll": "All time",
+      "byokValue": "OpenRouter also reports {{value}} in BYOK model usage this month. Your provider bills that separately.",
+      "costScope": "These totals cover {{count}} configured OpenRouter key(s), including use outside Murmur. Local models and direct provider keys are not counted.",
+      "totalWordsDescription": "Words in saved dictations",
+      "thisWeekDescription": "Words saved since Monday",
+      "recordedDescription": "Based on saved audio after silence filtering",
+      "recordedMinutes": "Saved audio minutes",
+      "title": "Your dictation stats",
+      "unavailableHelp": "Try again after Murmur has finished starting up.",
+      "position": "Stat {{current}} of {{total}}",
+      "swipeHint": "Drag or swipe to browse",
+      "metricCards": "Dictation stat cards",
+      "noAudioShort": "No retained audio",
+      "noAudio": "No retained recordings with audio are available, so recorded pace and minutes cannot be calculated. This week is still in progress."
+    }
   }
 }

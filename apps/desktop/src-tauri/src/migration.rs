@@ -2,17 +2,19 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::Path;
 use tauri::{AppHandle, Manager};
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 const LEGACY_APP_ID: &str = "dev.local.murmur";
 const MIGRATION_MARKER: &str = "migration-dev-local-murmur.complete";
 
-pub fn migrate_legacy_data(app: &AppHandle) -> io::Result<()> {
+pub fn migrate_legacy_data(app: &AppHandle, headless: bool) -> io::Result<()> {
     if crate::portable::is_portable() {
         return Ok(());
     }
 
     let current = app.path().app_data_dir().map_err(io::Error::other)?;
-    if current.join(MIGRATION_MARKER).exists() {
+    let marker = current.join(MIGRATION_MARKER);
+    if marker.exists() {
         return Ok(());
     }
     let legacy = current
@@ -24,14 +26,46 @@ pub fn migrate_legacy_data(app: &AppHandle) -> io::Result<()> {
         return Ok(());
     }
 
-    copy_data_dir(&legacy, &current)?;
-    fs::write(current.join(MIGRATION_MARKER), b"complete\n")?;
-    log::info!("Migrated previous Murmur data to {}", current.display());
+    match copy_data_dir(&legacy, &current) {
+        Ok(()) => log::info!("Migrated previous Murmur data to {}", current.display()),
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+            log::warn!("Keeping current data after a legacy migration conflict: {error}");
+            if headless {
+                return Ok(());
+            }
+            let settings = crate::settings::get_settings(app);
+            let strings =
+                crate::native_i18n::get_startup_translations(Some(&settings.app_language));
+            app.dialog()
+                .message(
+                    strings
+                        .legacy_conflict_message
+                        .replace("{{path}}", &legacy.to_string_lossy()),
+                )
+                .title(&strings.legacy_conflict_title)
+                .kind(MessageDialogKind::Warning)
+                .show(move |_| {
+                    if let Err(error) = fs::write(marker, b"complete\n") {
+                        log::warn!("Could not mark legacy migration complete: {error}");
+                    }
+                });
+            return Ok(());
+        }
+        Err(error) => return Err(error),
+    }
+    fs::write(marker, b"complete\n")?;
     Ok(())
 }
 
 fn copy_data_dir(source: &Path, target: &Path) -> io::Result<()> {
-    fs::create_dir_all(target)?;
+    visit_data_dir(source, target, false)?;
+    visit_data_dir(source, target, true)
+}
+
+fn visit_data_dir(source: &Path, target: &Path, copy: bool) -> io::Result<()> {
+    if copy {
+        fs::create_dir_all(target)?;
+    }
 
     for entry in fs::read_dir(source)? {
         let entry = entry?;
@@ -53,9 +87,9 @@ fn copy_data_dir(source: &Path, target: &Path) -> io::Result<()> {
                     format!("Migration destination is a file: {}", target_path.display()),
                 ));
             }
-            copy_data_dir(&source_path, &target_path)?;
+            visit_data_dir(&source_path, &target_path, copy)?;
         } else if file_type.is_file() {
-            copy_file(&source_path, &target_path)?;
+            copy_file(&source_path, &target_path, copy)?;
         } else {
             return Err(io::Error::other(format!(
                 "Cannot migrate unsupported file type: {}",
@@ -67,9 +101,9 @@ fn copy_data_dir(source: &Path, target: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn copy_file(source: &Path, target: &Path) -> io::Result<()> {
+fn copy_file(source: &Path, target: &Path, copy: bool) -> io::Result<()> {
     if target.exists() {
-        if files_match(source, target)? {
+        if target.is_file() && files_match(source, target)? {
             return Ok(());
         }
         return Err(io::Error::new(
@@ -79,6 +113,10 @@ fn copy_file(source: &Path, target: &Path) -> io::Result<()> {
                 target.display()
             ),
         ));
+    }
+
+    if !copy {
+        return Ok(());
     }
 
     let temporary = target.with_extension(format!("murmur-migration-{}", std::process::id()));
@@ -155,6 +193,21 @@ mod tests {
             fs::read(target.join("settings_store.json")).unwrap(),
             b"new settings"
         );
+        fs::remove_file(source.join("settings_store.json")).unwrap();
+        let source_file = source.join("recordings");
+        let target_dir = target.join("recordings");
+        fs::remove_dir_all(&source_file).unwrap();
+        fs::write(
+            &source_file,
+            vec![0; fs::metadata(&target_dir).unwrap().len() as usize],
+        )
+        .unwrap();
+        assert_eq!(
+            copy_data_dir(&source, &target).unwrap_err().kind(),
+            io::ErrorKind::AlreadyExists
+        );
+        assert!(target_dir.join("one.wav").is_file());
+
         fs::remove_dir_all(root).unwrap();
     }
 }

@@ -5,55 +5,52 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { FileAudio, Mic, Square } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type { LectureStatus } from "@/bindings";
 import { Button } from "../ui/Button";
 
 export default function LecturesSettings() {
   const { t } = useTranslation();
-  const [recording, setRecording] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [started, setStarted] = useState<number | null>(null);
-  const [progress, setProgress] = useState<{
-    completed: number;
-    total: number;
-  } | null>(null);
+  const [status, setStatus] = useState<LectureStatus | null>(null);
+  const [pending, setPending] = useState(false);
+  const recording = status?.state === "recording";
+  const started = status?.state === "recording" ? status.started_at : null;
+  const progress = status?.state === "working" ? status.progress : null;
+  const busy = status === null || pending || status.state === "working";
 
   useEffect(() => {
-    const unlisten = listen<{ id: number; completed: number; total: number }>(
-      "lecture-progress",
-      (event) => {
-        setProgress(event.payload);
-      },
-    );
+    let active = true;
+    let receivedUpdate = false;
+    const unlisten = listen<LectureStatus>("lecture-status", (event) => {
+      receivedUpdate = true;
+      if (active) setStatus(event.payload);
+    });
+    void unlisten
+      .then(() => invoke<LectureStatus>("get_active_lecture"))
+      .then((snapshot) => {
+        if (active && !receivedUpdate) setStatus(snapshot);
+      })
+      .catch((error) => {
+        if (active) toast.error(String(error));
+      });
     return () => {
-      unlisten.then((stop) => stop());
+      active = false;
+      void unlisten.then((stop) => stop());
     };
   }, []);
 
-  useEffect(() => {
-    invoke<number | null>("get_active_lecture")
-      .then((id) => {
-        setRecording(id !== null);
-        if (id !== null) setStarted(Date.now());
-      })
-      .catch((error) => toast.error(String(error)));
-  }, []);
-
   const start = async () => {
-    setBusy(true);
+    setPending(true);
     try {
       await invoke<number>("start_lecture_recording");
-      setStarted(Date.now());
-      setRecording(true);
     } catch (error) {
       toast.error(String(error));
     } finally {
-      setBusy(false);
+      setPending(false);
     }
   };
 
   const finish = async () => {
-    setBusy(true);
-    setRecording(false);
+    setPending(true);
     try {
       await invoke<number>("finish_lecture_recording");
       toast.success(
@@ -62,17 +59,9 @@ export default function LecturesSettings() {
         }),
       );
     } catch (error) {
-      toast.error(
-        t("murmur.lectures.retry", {
-          defaultValue:
-            "Recording saved. Transcription needs a retry: {{error}}",
-          error: String(error),
-        }),
-      );
+      toast.error(String(error));
     } finally {
-      setBusy(false);
-      setStarted(null);
-      setProgress(null);
+      setPending(false);
     }
   };
 
@@ -87,7 +76,7 @@ export default function LecturesSettings() {
       ],
     });
     if (typeof file !== "string") return;
-    setBusy(true);
+    setPending(true);
     try {
       await invoke<number>("import_lecture_audio", { source: file });
       toast.success(
@@ -103,8 +92,7 @@ export default function LecturesSettings() {
         }),
       );
     } finally {
-      setBusy(false);
-      setProgress(null);
+      setPending(false);
     }
   };
 
