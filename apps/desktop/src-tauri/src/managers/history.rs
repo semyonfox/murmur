@@ -77,6 +77,33 @@ impl HistoryEntry {
             .as_deref()
             .unwrap_or(&self.transcription_text)
     }
+
+    fn with_retry(
+        mut self,
+        raw: String,
+        processed: Option<String>,
+        prompt: Option<String>,
+        cleanup_succeeded: Option<bool>,
+    ) -> Self {
+        // a lecture can have a successful part and still report a cleanup failure
+        let keep_previous = cleanup_succeeded == Some(false)
+            && prompt.is_none()
+            && raw.trim() == self.transcription_text.trim()
+            && (self.post_process_prompt.is_some()
+                || self
+                    .cleanup_succeeded
+                    .unwrap_or(self.post_process_requested))
+            && self.post_processed_text.as_deref().is_some_and(|text| {
+                !text.trim().is_empty() && text.trim() != self.transcription_text.trim()
+            });
+        self.transcription_text = raw;
+        if !keep_previous {
+            self.post_processed_text = processed;
+            self.post_process_prompt = prompt;
+            self.cleanup_succeeded = cleanup_succeeded;
+        }
+        self
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Type)]
@@ -669,25 +696,14 @@ impl HistoryManager {
         prompt: Option<String>,
         cleanup_succeeded: Option<bool>,
     ) -> Result<()> {
-        let keep_previous = cleanup_succeeded == Some(false)
-            && raw.trim() == previous.transcription_text.trim()
-            && (previous.post_process_prompt.is_some()
-                || previous
-                    .cleanup_succeeded
-                    .unwrap_or(previous.post_process_requested))
-            && previous.post_processed_text.as_deref().is_some_and(|text| {
-                !text.trim().is_empty() && text.trim() != previous.transcription_text.trim()
-            });
-        let (processed, prompt, cleanup_succeeded) = if keep_previous {
-            (
-                previous.post_processed_text,
-                previous.post_process_prompt,
-                previous.cleanup_succeeded,
-            )
-        } else {
-            (processed, prompt, cleanup_succeeded)
-        };
-        self.update_transcription(previous.id, raw, processed, prompt, cleanup_succeeded)
+        let updated = previous.with_retry(raw, processed, prompt, cleanup_succeeded);
+        self.update_transcription(
+            updated.id,
+            updated.transcription_text,
+            updated.post_processed_text,
+            updated.post_process_prompt,
+            updated.cleanup_succeeded,
+        )
     }
 
     pub fn update_transcription(
@@ -1207,6 +1223,50 @@ mod tests {
     use chrono::TimeZone;
     use hound::{SampleFormat, WavSpec, WavWriter};
     use rusqlite::{params, Connection};
+
+    #[test]
+    fn lecture_retry_keeps_previous_cleanup_only_when_no_part_succeeds_and_raw_matches() {
+        let raw = "[00:00] first part\n\n[02:00] second part";
+        let previous_text = "[00:00] First part.\n\n[02:00] Second part.";
+        let previous = HistoryEntry {
+            id: 1,
+            file_name: "lecture-1.wav".into(),
+            timestamp: 0,
+            saved: false,
+            title: "Lecture".into(),
+            transcription_text: raw.into(),
+            post_processed_text: Some(previous_text.into()),
+            post_process_prompt: Some("Previous prompt".into()),
+            post_process_requested: false,
+            cleanup_succeeded: Some(true),
+        };
+
+        let failed = previous
+            .clone()
+            .with_retry(raw.into(), None, None, Some(false));
+        assert_eq!(failed.final_text(), previous_text);
+        assert_eq!(
+            failed.post_process_prompt.as_deref(),
+            Some("Previous prompt")
+        );
+        assert_eq!(failed.cleanup_succeeded, Some(true));
+
+        let mixed_text = "[00:00] First part!\n\n[02:00] second part";
+        let mixed = previous.clone().with_retry(
+            raw.into(),
+            Some(mixed_text.into()),
+            Some("New prompt".into()),
+            Some(false),
+        );
+        assert_eq!(mixed.final_text(), mixed_text);
+        assert_eq!(mixed.post_process_prompt.as_deref(), Some("New prompt"));
+        assert_eq!(mixed.cleanup_succeeded, Some(false));
+
+        let changed_raw = "[00:00] first part";
+        let changed = previous.with_retry(changed_raw.into(), None, None, Some(false));
+        assert_eq!(changed.final_text(), changed_raw);
+        assert_eq!(changed.cleanup_succeeded, Some(false));
+    }
 
     #[test]
     fn startup_preserves_unreadable_database_and_opens_an_empty_history() {

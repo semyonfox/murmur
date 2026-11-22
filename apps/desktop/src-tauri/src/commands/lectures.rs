@@ -2,7 +2,7 @@ use crate::actions::process_transcription_output;
 use crate::audio_toolkit::quietest_cut;
 use crate::managers::{
     audio::AudioRecordingManager,
-    history::{HistoryManager, HistoryWork},
+    history::{HistoryEntry, HistoryManager, HistoryWork},
     transcription::TranscriptionManager,
 };
 use crate::settings::SttSource;
@@ -197,7 +197,7 @@ pub async fn finish_lecture_recording(
                 &transcription_manager,
                 id,
                 &path,
-                false,
+                None,
             )
             .await
         }
@@ -258,7 +258,7 @@ pub async fn import_lecture_audio(
         &transcription_manager,
         entry.id,
         &destination,
-        false,
+        None,
     )
     .await;
     drop(work);
@@ -284,12 +284,20 @@ pub async fn retry_lecture_transcription(
     app: &AppHandle,
     history: &HistoryManager,
     transcription: &Arc<TranscriptionManager>,
-    id: i64,
+    previous: HistoryEntry,
     path: &Path,
     work: HistoryWork,
 ) -> Result<(), String> {
     let _job = LectureJob::begin(app)?;
-    let result = transcribe_long_audio(app, history, transcription, id, path, true).await;
+    let result = transcribe_long_audio(
+        app,
+        history,
+        transcription,
+        previous.id,
+        path,
+        Some(previous),
+    )
+    .await;
     drop(work);
     history.prune_after_work();
     result
@@ -370,7 +378,7 @@ async fn transcribe_long_audio(
     transcription: &Arc<TranscriptionManager>,
     id: i64,
     path: &Path,
-    is_retry: bool,
+    previous: Option<HistoryEntry>,
 ) -> Result<(), String> {
     let settings = crate::settings::get_settings(app);
     let mut reader = hound::WavReader::open(path)
@@ -456,7 +464,7 @@ async fn transcribe_long_audio(
         if output.post_process_prompt.is_some() {
             prompt = output.post_process_prompt;
         }
-        if !is_retry {
+        if previous.is_none() {
             history
                 .update_transcription(
                     id,
@@ -472,10 +480,10 @@ async fn transcribe_long_audio(
     if raw.is_empty() {
         return Err("The recording contains no speech".into());
     }
-    if is_retry {
+    if let Some(previous) = previous {
         let processed = (cleaned != raw).then_some(cleaned);
         history
-            .update_transcription(id, raw, processed, prompt, cleanup_succeeded)
+            .update_after_retry(previous, raw, processed, prompt, cleanup_succeeded)
             .map_err(|error| error.to_string())?;
     }
     Ok(())
