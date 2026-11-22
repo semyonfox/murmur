@@ -72,7 +72,12 @@ internal class LectureService : Service() {
     @Volatile private var destroyed = false
 
     // both workers take the job lock when saving a transcript snapshot
-    private class Job(val id: Long, endpoint: TranscriptionEndpoint, val cleanup: CleanupEndpoint?) {
+    private class Job(
+        val id: Long,
+        endpoint: TranscriptionEndpoint,
+        val cleanup: CleanupEndpoint?,
+        val retry: Boolean = false,
+    ) {
         @Volatile var endpoint = endpoint
         val raw = StringBuilder()
         val cleaned = mutableListOf<String>()
@@ -245,8 +250,8 @@ internal class LectureService : Service() {
             val file = history.lectureFile(record.fileName)
             require(file.exists()) { "Saved audio is missing." }
             val endpoint = requireEndpoint().let { if (language != null) it.withLanguage(language) else it }
-            val job = Job(id, endpoint, settings.cleanupEndpointOrNull()).apply { durationMs = LectureAudio.durationMs(file) }
-            history.updateLecture(id, record.raw, record.finalText, record.durationMs, "processing")
+            val job = Job(id, endpoint, settings.cleanupEndpointOrNull(), retry = true)
+                .apply { durationMs = LectureAudio.durationMs(file) }
             enqueue(id) { transcribeWhole(job, file) }
         }.onFailure { error ->
             Diagnostics.error("lecture", "retry could not start", error)
@@ -362,7 +367,7 @@ internal class LectureService : Service() {
     }
 
     private fun save(job: Job, status: String) {
-        if (job.discarded) return
+        if (job.discarded || (job.retry && status != "done")) return
         history.updateLecture(job.id, job.raw.toString().trim(), job.cleaned.joinToString("\n").trim(), job.durationMs, status)
     }
 
@@ -398,7 +403,7 @@ internal class LectureService : Service() {
         if (destroyed || job.discarded) return@synchronized
         job.failure = error
         Diagnostics.error("lecture", "lecture ${job.id} failed", error)
-        markFailed(job.id, job.durationMs.takeIf { it > 0 })
+        if (!job.retry) markFailed(job.id, job.durationMs.takeIf { it > 0 })
         mainHandler.post {
             if (!destroyed && !job.discarded) {
                 mutable.update { it.copy(failed = true,
