@@ -499,6 +499,7 @@ struct DownloadCleanup<'a> {
     available_models: &'a Mutex<HashMap<String, ModelInfo>>,
     cancel_flags: &'a Arc<Mutex<HashMap<String, CancellationToken>>>,
     model_id: String,
+    completed: bool,
 }
 
 impl<'a> Drop for DownloadCleanup<'a> {
@@ -512,11 +513,14 @@ impl<'a> Drop for DownloadCleanup<'a> {
             .remove(&self.model_id)
             .is_some_and(|token| token.is_cancelled());
         drop(models);
-        if cancelled {
-            let _ = self
-                .app_handle
-                .emit("model-download-cancelled", &self.model_id);
-        }
+        let event = if self.completed {
+            "model-download-complete"
+        } else if cancelled {
+            "model-download-cancelled"
+        } else {
+            return;
+        };
+        let _ = self.app_handle.emit(event, &self.model_id);
     }
 }
 
@@ -1384,6 +1388,7 @@ impl ModelManager {
 
         for model in models.values_mut() {
             let downloading = downloads.contains_key(&model.id);
+            model.is_downloading = downloading;
             if let ModelSource::HuggingFace { repo_id, revision } = &model.source {
                 // A models-dir copy counts too: mirror-fallback downloads land
                 // there, and it makes manual drop-ins of catalog files work.
@@ -1391,9 +1396,6 @@ impl ModelManager {
                 let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
                 model.is_downloaded = hf_cached_path(repo_id, revision, &model.filename).is_some()
                     || local_path.exists();
-                if !downloading {
-                    model.is_downloading = false;
-                }
                 model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
                 // Alternate-quant entries exist only because their file was
                 // discovered on disk — the catalog offers just the default
@@ -1424,9 +1426,6 @@ impl ModelManager {
                 }
 
                 model.is_downloaded = model_path.exists() && model_path.is_dir();
-                if !downloading {
-                    model.is_downloading = false;
-                }
 
                 // Get partial file size if it exists (for the .tar.gz being downloaded)
                 if partial_path.exists() {
@@ -1440,9 +1439,6 @@ impl ModelManager {
                 let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
 
                 model.is_downloaded = model_path.exists();
-                if !downloading {
-                    model.is_downloading = false;
-                }
 
                 // Get partial file size if it exists
                 if partial_path.exists() {
@@ -2177,7 +2173,7 @@ impl ModelManager {
             model_info.ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_id))?;
 
         let cancel_token = CancellationToken::new();
-        let cleanup = {
+        let mut cleanup = {
             let mut flags = self.cancel_flags.lock().unwrap();
             let std::collections::hash_map::Entry::Vacant(slot) = flags.entry(model_id.to_string())
             else {
@@ -2193,19 +2189,16 @@ impl ModelManager {
                 available_models: &self.available_models,
                 cancel_flags: &self.cancel_flags,
                 model_id: model_id.to_string(),
+                completed: false,
             }
         };
 
         let (url, expected_sha256) = match &model_info.source {
             ModelSource::Url { url, sha256 } => (url.clone(), sha256.clone()),
             ModelSource::HuggingFace { repo_id, revision } => {
-                let result = self
+                cleanup.completed = self
                     .download_hf_model(&model_info, repo_id.clone(), revision.clone(), cancel_token)
-                    .await;
-                drop(cleanup);
-                if result? {
-                    let _ = self.app_handle.emit("model-download-complete", model_id);
-                }
+                    .await?;
                 return Ok(());
             }
             ModelSource::Local => {
@@ -2224,6 +2217,7 @@ impl ModelManager {
                 let _ = fs::remove_file(&partial_path);
             }
             self.update_download_status()?;
+            cleanup.completed = true;
             return Ok(());
         }
 
@@ -2349,10 +2343,7 @@ impl ModelManager {
                 model.partial_size = 0;
             }
         }
-        drop(cleanup);
-
-        // Emit completion event
-        let _ = self.app_handle.emit("model-download-complete", model_id);
+        cleanup.completed = true;
 
         info!(
             "Successfully downloaded model {} to {:?}",
