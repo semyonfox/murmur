@@ -8,27 +8,24 @@ internal object TranscriptText {
         "fr" to listOf("euh"),
     )
 
+    private val quotation = Regex("""(?s)"[^"]*"|“[^”]*”|‘.*?’(?!\p{L})|(?<!\p{L})'.*?'(?!\p{L})|«[^»]*»|「[^」]*」|『[^』]*』""")
+    private val repeated = Regex("""(?i)(?<!\S)(\p{L}+)(?:\s+\1){2,}(?!\S)""")
+    private val spacing = Regex("""\s+""")
+
     fun prepare(raw: String, language: String, removeFillers: Boolean): String {
-        var text = raw
-        if (removeFillers) {
-            val words = universal + languageWords[language.substringBefore('-')].orEmpty()
-            words.forEach { word ->
-                text = text.replace(Regex("(?i)\\b${Regex.escape(word)}\\b[,.]?"), "")
+        if (!removeFillers) return raw.trim()
+        val words = universal + languageWords[language.substringBefore('-')].orEmpty()
+        val filler = Regex("""(?i)\b(?:${words.joinToString("|", transform = Regex::escape)})\b[,.]?""")
+        fun clean(text: String) = text.replace(filler, "").replace(repeated, "$1").replace(spacing, " ")
+        val result = buildString {
+            var start = 0
+            for (quote in quotation.findAll(raw)) {
+                append(clean(raw.substring(start, quote.range.first)))
+                append(quote.value)
+                start = quote.range.last + 1
             }
-        }
-        val words = text.split(Regex("\\s+")).filter(String::isNotEmpty)
-        val collapsed = buildList {
-            var index = 0
-            while (index < words.size) {
-                val word = words[index]
-                var count = 1
-                if (word.all(Char::isLetter)) {
-                    while (index + count < words.size && words[index + count].equals(word, ignoreCase = true)) count++
-                }
-                add(word)
-                index += if (count >= 3) count else 1
-            }
-        }.joinToString(" ").trim()
-        return collapsed.ifEmpty { raw.trim() }
+            append(clean(raw.substring(start)))
+        }.trim()
+        return result.ifEmpty { raw.trim() }
     }
 }
