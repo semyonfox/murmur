@@ -217,9 +217,14 @@ internal class ChunkedTranscription(
 
 internal fun pcmToWav(pcm: ByteArray, directory: File): File {
     val file = File.createTempFile("murmur-chunk-", ".wav", directory)
-    file.outputStream().use { output ->
-        output.write(PcmRecorder.wavHeader(pcm.size))
-        output.write(pcm)
+    try {
+        file.outputStream().use { output ->
+            output.write(PcmRecorder.wavHeader(pcm.size))
+            output.write(pcm)
+        }
+    } catch (error: Exception) {
+        file.delete()
+        throw error
     }
     return file
 }
