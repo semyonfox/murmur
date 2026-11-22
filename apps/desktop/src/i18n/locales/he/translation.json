@@ -1,5 +1,7 @@
 {
   "startup": {
+    "legacyConflictTitle": "לא ניתן היה להעביר את הנתונים הקודמים של Murmur",
+    "legacyConflictMessage": "הנתונים הקודמים של Murmur מתנגשים עם הנתונים הנוכחיים. הנתונים הקודמים נשמרו בנתיב {{path}}.",
     "newerHistoryTitle": "מסד הנתונים של ההיסטוריה דורש גרסה חדשה יותר",
     "newerHistoryMessage": "גרסה חדשה יותר של Murmur כתבה את מסד הנתונים הזה. יש לעדכן את Murmur כדי לפתוח את ההיסטוריה."
   },

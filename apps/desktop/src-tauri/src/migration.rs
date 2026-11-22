@@ -2,11 +2,12 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::Path;
 use tauri::{AppHandle, Manager};
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 const LEGACY_APP_ID: &str = "dev.local.murmur";
 const MIGRATION_MARKER: &str = "migration-dev-local-murmur.complete";
 
-pub fn migrate_legacy_data(app: &AppHandle) -> io::Result<()> {
+pub fn migrate_legacy_data(app: &AppHandle, headless: bool) -> io::Result<()> {
     if crate::portable::is_portable() {
         return Ok(());
     }
@@ -28,6 +29,20 @@ pub fn migrate_legacy_data(app: &AppHandle) -> io::Result<()> {
         Ok(()) => log::info!("Migrated previous Murmur data to {}", current.display()),
         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
             log::warn!("Keeping current data after a legacy migration conflict: {error}");
+            if !headless {
+                let settings = crate::settings::get_settings(app);
+                let strings =
+                    crate::native_i18n::get_startup_translations(Some(&settings.app_language));
+                app.dialog()
+                    .message(
+                        strings
+                            .legacy_conflict_message
+                            .replace("{{path}}", &legacy.to_string_lossy()),
+                    )
+                    .title(&strings.legacy_conflict_title)
+                    .kind(MessageDialogKind::Warning)
+                    .show(|_| {});
+            }
         }
         Err(error) => return Err(error),
     }

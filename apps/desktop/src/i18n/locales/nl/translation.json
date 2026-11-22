@@ -1,5 +1,7 @@
 {
   "startup": {
+    "legacyConflictTitle": "Eerdere Murmur-gegevens konden niet worden overgezet",
+    "legacyConflictMessage": "De eerdere en huidige Murmur-gegevens zijn met elkaar in conflict. Je eerdere gegevens staan nog in {{path}}.",
     "newerHistoryTitle": "De geschiedenisdatabase vereist een nieuwere versie",
     "newerHistoryMessage": "Een nieuwere versie van Murmur heeft deze database geschreven. Werk Murmur bij om je geschiedenis te openen."
   },

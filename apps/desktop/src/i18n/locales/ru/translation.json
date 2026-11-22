@@ -1,5 +1,7 @@
 {
   "startup": {
+    "legacyConflictTitle": "Не удалось перенести прежние данные Murmur",
+    "legacyConflictMessage": "Прежние данные Murmur конфликтуют с текущими. Прежние данные остались в {{path}}.",
     "newerHistoryTitle": "Для базы данных истории нужна более новая версия",
     "newerHistoryMessage": "Эту базу данных истории записала более новая версия Murmur. Обновите Murmur, чтобы открыть историю."
   },

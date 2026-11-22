@@ -1,5 +1,7 @@
 {
   "startup": {
+    "legacyConflictTitle": "No se pudieron migrar los datos anteriores de Murmur",
+    "legacyConflictMessage": "Los datos anteriores de Murmur entran en conflicto con los actuales. Tus datos anteriores se conservan en {{path}}.",
     "newerHistoryTitle": "La base de datos del historial requiere una versión más reciente",
     "newerHistoryMessage": "Una versión más reciente de Murmur escribió esta base de datos del historial. Actualiza Murmur para abrir tu historial."
   },

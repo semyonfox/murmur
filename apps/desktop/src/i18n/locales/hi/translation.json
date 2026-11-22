@@ -1,5 +1,7 @@
 {
   "startup": {
+    "legacyConflictTitle": "Murmur का पिछला डेटा स्थानांतरित नहीं हुआ",
+    "legacyConflictMessage": "Murmur का पिछला डेटा मौजूदा डेटा से टकराता है। आपका पिछला डेटा {{path}} में सुरक्षित है।",
     "newerHistoryTitle": "इतिहास डेटाबेस के लिए नया संस्करण चाहिए",
     "newerHistoryMessage": "यह इतिहास डेटाबेस Murmur के नए संस्करण ने लिखा है। अपना इतिहास खोलने के लिए Murmur अपडेट करें।"
   },

@@ -1,5 +1,7 @@
 {
   "startup": {
+    "legacyConflictTitle": "Bisherige Murmur-Daten wurden nicht übertragen",
+    "legacyConflictMessage": "Die bisherigen Murmur-Daten stehen im Konflikt mit den aktuellen Daten. Deine bisherigen Daten bleiben in {{path}}.",
     "newerHistoryTitle": "Die Verlaufsdatenbank erfordert eine neuere Version",
     "newerHistoryMessage": "Eine neuere Version von Murmur hat diese Verlaufsdatenbank geschrieben. Aktualisiere Murmur, um deinen Verlauf zu öffnen."
   },

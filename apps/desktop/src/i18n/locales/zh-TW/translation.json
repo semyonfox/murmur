@@ -1,5 +1,7 @@
 {
   "startup": {
+    "legacyConflictTitle": "無法移轉舊版 Murmur 資料",
+    "legacyConflictMessage": "舊版 Murmur 資料與現有資料衝突。舊資料仍保存在 {{path}}。",
     "newerHistoryTitle": "歷史記錄資料庫需要較新版本",
     "newerHistoryMessage": "此歷史記錄資料庫由較新版本的 Murmur 寫入。請更新 Murmur 以開啟歷史記錄。"
   },

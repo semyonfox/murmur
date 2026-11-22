@@ -928,7 +928,7 @@ pub fn run(cli_args: CliArgs) {
         ))
         .manage(cli_args.clone())
         .setup(move |app| {
-            migration::migrate_legacy_data(app.handle())?;
+            migration::migrate_legacy_data(app.handle(), headless_mode)?;
 
             #[cfg(target_os = "windows")]
             log::info!(

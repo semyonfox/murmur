@@ -1,5 +1,7 @@
 {
   "startup": {
+    "legacyConflictTitle": "Les anciennes données de Murmur n’ont pas pu être transférées",
+    "legacyConflictMessage": "Les anciennes données de Murmur entrent en conflit avec les données actuelles. Tes anciennes données sont toujours dans {{path}}.",
     "newerHistoryTitle": "La base de données de l’historique nécessite une version plus récente",
     "newerHistoryMessage": "Une version plus récente de Murmur a écrit cette base de données. Mets Murmur à jour pour ouvrir ton historique."
   },

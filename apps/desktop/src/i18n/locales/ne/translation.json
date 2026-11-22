@@ -1,5 +1,7 @@
 {
   "startup": {
+    "legacyConflictTitle": "Murmur को पुरानो डेटा सार्न सकिएन",
+    "legacyConflictMessage": "Murmur को पुरानो डेटा हालको डेटासँग बाझिएको छ। तपाईंको पुरानो डेटा {{path}} मा सुरक्षित छ।",
     "newerHistoryTitle": "इतिहास डाटाबेसका लागि नयाँ संस्करण चाहिन्छ",
     "newerHistoryMessage": "यो इतिहास डाटाबेस Murmur को नयाँ संस्करणले लेखेको हो। आफ्नो इतिहास खोल्न Murmur अपडेट गर्नुहोस्।"
   },

@@ -1,5 +1,7 @@
 {
   "startup": {
+    "legacyConflictTitle": "Önceki Murmur verileri taşınamadı",
+    "legacyConflictMessage": "Önceki Murmur verileriniz mevcut verilerinizle çakışıyor. Önceki verileriniz {{path}} konumunda duruyor.",
     "newerHistoryTitle": "Geçmiş veritabanı daha yeni bir sürüm gerektiriyor",
     "newerHistoryMessage": "Bu geçmiş veritabanını Murmur’un daha yeni bir sürümü yazdı. Geçmişinizi açmak için Murmur’u güncelleyin."
   },

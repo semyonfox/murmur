@@ -1,5 +1,7 @@
 {
   "startup": {
+    "legacyConflictTitle": "Previous Murmur data could not be migrated",
+    "legacyConflictMessage": "Your previous Murmur data conflicts with your current data. Your previous data remains in {{path}}.",
     "newerHistoryTitle": "History database requires a newer version",
     "newerHistoryMessage": "A newer version of Murmur wrote this history database. Update Murmur to open your history."
   },
