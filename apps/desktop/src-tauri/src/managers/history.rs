@@ -98,7 +98,7 @@ pub struct HistoryWeekStats {
     pub week_start: String,
     pub words: u64,
     pub recording_seconds: f64,
-    /// raw transcript words per minute of recorded audio, including silence
+    /// raw transcript words per minute of saved audio after capture filtering
     pub recorded_wpm: Option<f64>,
 }
 
@@ -109,7 +109,7 @@ pub struct HistoryStats {
     pub transcription_count: u64,
     pub recordings_with_duration: u64,
     pub recording_seconds: f64,
-    /// raw transcript words per minute of recorded audio, including silence
+    /// raw transcript words per minute of saved audio after capture filtering
     pub recorded_wpm: Option<f64>,
     pub this_week_words: u64,
     pub previous_week_words: u64,

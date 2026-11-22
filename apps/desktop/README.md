@@ -151,7 +151,7 @@ The History page can export retained entries to a `.tar.gz` archive on request. 
 Statistics are calculated from retained history:
 
 - Word totals use the processed transcript when present, otherwise the raw transcript.
-- Recorded WPM uses raw transcript words divided by the duration of recordings whose WAV files still exist. Pauses count toward that duration.
+- Recorded WPM uses raw transcript words divided by the duration of recordings whose WAV files still exist. When silence filtering is enabled, the statistic excludes pauses removed during capture.
 - The week starts on Monday in local time. The percentage compares the current week so far with the entire previous week.
 - The chart shows eight weeks of word counts and recorded WPM where audio is available.
 

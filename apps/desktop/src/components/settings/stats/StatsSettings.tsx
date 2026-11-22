@@ -168,19 +168,19 @@ export const StatsSettings: React.FC = () => {
               ? "—"
               : `${number.format(Math.round(stats.recorded_wpm))} ${t("murmur.history.stats.wpm", { defaultValue: "wpm" })}`,
           description: t("murmur.stats.recordedDescription", {
-            defaultValue: "From recordings with duration",
+            defaultValue: "Based on saved audio after silence filtering",
           }),
           unavailable: !hasAudio,
         },
         {
           label: t("murmur.stats.recordedMinutes", {
-            defaultValue: "Recorded minutes",
+            defaultValue: "Saved audio minutes",
           }),
           value: hasAudio
             ? `${new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format((stats.recording_seconds ?? 0) / 60)} ${t("murmur.history.stats.minutes", { defaultValue: "min" })}`
             : "—",
           description: t("murmur.stats.recordedDescription", {
-            defaultValue: "From recordings with duration",
+            defaultValue: "Based on saved audio after silence filtering",
           }),
           unavailable: !hasAudio,
         },
@@ -511,7 +511,7 @@ export const StatsSettings: React.FC = () => {
                       covered: stats.recordings_with_duration,
                       count: stats.transcription_count,
                       defaultValue:
-                        "Pace uses {{covered}} of {{count}} recordings with audio and includes pauses. This week is still in progress.",
+                        "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress.",
                     })
                   : t("murmur.stats.noAudio", {
                       defaultValue:
