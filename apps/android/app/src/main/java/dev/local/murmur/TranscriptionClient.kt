@@ -119,7 +119,7 @@ internal class TranscriptionClient {
                 String(output, 0, used, StandardCharsets.UTF_8)
             }
             check(!cancelled.get()) { "Transcription cancelled." }
-            val text = JSONObject(response).optString("text").trim()
+            val text = parseSpeechResponse(response)
             reusable = true
             return text
         } finally {
@@ -158,3 +158,12 @@ internal fun warmUpConnections(endpoints: List<URI>) {
 internal fun elapsedMs(startedNanos: Long): Long = (System.nanoTime() - startedNanos) / 1_000_000
 
 internal class HttpStatusException(val statusCode: Int) : IOException("Transcription server returned HTTP $statusCode.")
+
+internal fun parseSpeechResponse(response: String): String {
+    val text = try {
+        JSONObject(response).opt("text")
+    } catch (_: org.json.JSONException) {
+        null
+    }
+    return (text as? String)?.trim() ?: throw IOException("Invalid transcription server response.")
+}

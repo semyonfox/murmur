@@ -2,6 +2,7 @@ package dev.local.murmur
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import java.io.IOException
 import org.junit.Test
 
 class EndpointUrlTest {
@@ -52,5 +53,14 @@ class EndpointUrlTest {
                 AppSettings.parseCleanupUrl(url)
             }
         }
+    }
+
+    @Test
+    fun providerReplyRequiresAStringButCanContainSilence() {
+        for (reply in listOf("""{"error":"bad request"}""", """{"text":42}""", """{"text":null}""", "bad json")) {
+            assertThrows(IOException::class.java) { parseSpeechResponse(reply) }
+        }
+        assertEquals("", parseSpeechResponse("""{"text":"   "}"""))
+        assertEquals("speech", parseSpeechResponse("""{"text":" speech "}"""))
     }
 }
