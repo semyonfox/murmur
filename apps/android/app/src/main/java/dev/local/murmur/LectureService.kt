@@ -447,6 +447,7 @@ internal class LectureService : Service() {
 
     private fun finishTranscript(job: Job) = synchronized(job) {
         if (destroyed || job.discarded || job.failure != null || history.lecture(job.id) == null) return@synchronized
+        check(!job.retry || job.raw.isNotBlank()) { "No speech returned." }
         save(job, "done")
         mutable.update { it.copy(message = "Transcript ready.", failed = false) }
     }
