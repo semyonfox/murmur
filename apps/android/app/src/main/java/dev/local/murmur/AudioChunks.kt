@@ -1,11 +1,11 @@
 package dev.local.murmur
 
 import java.io.File
-import java.io.IOException
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
+import java.util.concurrent.RejectedExecutionException
 import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -182,7 +182,7 @@ internal class ChunkedTranscription(
                 try { client.transcribe(endpoint, file, allowEmpty = true) } finally { file.delete() }
             })
             parts += file to task
-        } catch (error: java.util.concurrent.RejectedExecutionException) {
+        } catch (error: RejectedExecutionException) {
             file.delete()
             throw error
         }
@@ -190,15 +190,20 @@ internal class ChunkedTranscription(
 
     // runs on the single worker after every queued part
     fun finish(fullRecording: File): String {
-        val joined = try {
-            parts.map { (_, task) -> task.get().trim() }.filter(String::isNotEmpty).joinToString(" ")
-        } catch (error: ExecutionException) {
-            if (endpoint.localModel == null) throw error.cause ?: error
-            ""
+        val replies = parts.map { (_, task) ->
+            try {
+                task.get()
+            } catch (error: ExecutionException) {
+                val cause = error.cause ?: error
+                if (endpoint.localModel == null && cause !is SpeechConnectionDropped) throw cause
+                null
+            }
         }
-        if (joined.isNotEmpty()) return joined
-        if (endpoint.localModel != null) return client.transcribe(endpoint, fullRecording)
-        throw IOException("No speech returned.")
+        if (replies.none { it == null }) {
+            val joined = replies.filterNotNull().filter(String::isNotEmpty).joinToString(" ")
+            if (joined.isNotEmpty()) return joined
+        }
+        return client.transcribe(endpoint, fullRecording, retryHttp = false)
     }
 
     fun cancel() {

@@ -1,9 +1,13 @@
 package dev.local.murmur
 
 import org.json.JSONObject
+import java.io.EOFException
 import java.io.File
 import java.io.IOException
 import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.URI
 import java.time.ZonedDateTime
@@ -32,8 +36,13 @@ internal class TranscriptionClient {
     }
 
     // onLanguage only fires for on-phone whisper running with automatic detection
-    fun transcribe(endpoint: TranscriptionEndpoint, audioFile: File, allowEmpty: Boolean = false,
-                   onLanguage: ((String) -> Unit)? = null): String {
+    fun transcribe(
+        endpoint: TranscriptionEndpoint,
+        audioFile: File,
+        allowEmpty: Boolean = false,
+        retryHttp: Boolean = true,
+        onLanguage: ((String) -> Unit)? = null,
+    ): String {
         check(!cancelled) { "Transcription cancelled." }
         val audioMs = (audioFile.length() - 44).coerceAtLeast(0) / 32
         val source = endpoint.localModel?.name?.removePrefix("ggml-")?.removeSuffix(".bin") ?: endpoint.uri.host
@@ -41,7 +50,7 @@ internal class TranscriptionClient {
         try {
             val text = endpoint.localModel?.let { model ->
                 LocalWhisper.transcribe(model, audioFile, endpoint.language, endpoint.translate, onLanguage)
-            } ?: upload(endpoint, audioFile, audioMs)
+            } ?: upload(endpoint, audioFile, audioMs, retryHttp)
             Diagnostics.info("speech", "$source: ${audioMs / 1000.0}s of audio in ${elapsedMs(started)} ms, ${text.length} chars")
             if (text.isEmpty() && !allowEmpty) throw IOException("No speech returned.")
             return text
@@ -51,7 +60,7 @@ internal class TranscriptionClient {
         }
     }
 
-    private fun upload(endpoint: TranscriptionEndpoint, audioFile: File, audioMs: Long): String {
+    private fun upload(endpoint: TranscriptionEndpoint, audioFile: File, audioMs: Long, retryHttp: Boolean): String {
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos((15_000 + audioMs).coerceIn(20_000, 120_000))
         val multipart = MultipartBody.Builder().setType(MultipartBody.FORM)
             .addFormDataPart("model", endpoint.model)
@@ -77,12 +86,16 @@ internal class TranscriptionClient {
         return try {
             send(request, deadline)
         } catch (error: HttpStatusException) {
-            if (error.statusCode !in 500..599 && error.statusCode != 408 && error.statusCode != 429) throw error
+            val retryable = error.statusCode in 500..599 || error.statusCode == 408 || error.statusCode == 429
+            if (!retryHttp || !retryable) throw error
             val delayMs = error.retryAfterMs ?: 1_000
             if (cancelled || delayMs >= TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime())) throw error
             Diagnostics.warn("speech", "retrying ${endpoint.uri.host} once", error)
             cancellation.await(delayMs, TimeUnit.MILLISECONDS)
             send(request, deadline)
+        } catch (error: IOException) {
+            if (retryHttp && !cancelled && connectionDropped(error)) throw SpeechConnectionDropped(error)
+            throw error
         }
     }
 
@@ -129,6 +142,15 @@ internal class TranscriptionClient {
             })
         }
     }
+}
+
+internal class SpeechConnectionDropped(cause: IOException) : IOException(cause.message, cause)
+
+private fun connectionDropped(error: IOException): Boolean = when (error) {
+    is ConnectException, is NoRouteToHostException, is InterruptedIOException -> false
+    is SocketException, is EOFException -> true
+    // okhttp wraps an eof before the response headers in an io exception
+    else -> error.cause is EOFException
 }
 
 internal fun retryAfterMs(value: String?): Long? {
