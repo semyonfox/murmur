@@ -64,6 +64,29 @@ class LectureAudioTest {
         }
     }
 
+    @Test fun findsSavedRecordingsMissingFromHistory() {
+        val directory = Files.createTempDirectory("lecture-recovery-test").toFile()
+        try {
+            val pcm = ByteArray(32_000)
+            val recording = File(directory, "lecture-missing.wav").apply {
+                writeBytes(header(pcm.size) + pcm)
+                assertTrue(setLastModified(1_700_000_000_000L))
+            }
+            val tracked = File(directory, "lecture-tracked.wav").apply { writeBytes(recording.readBytes()) }
+            File(directory, "murmur-chunk-1.wav").writeBytes(recording.readBytes())
+            File(directory, "lecture-directory.wav").mkdir()
+
+            val recovered = LectureAudio.unlistedRecordings(directory, setOf(tracked.name))
+
+            assertEquals(listOf(recording), recovered)
+            assertEquals(1_700_000_000_000L, recovered.single().lastModified())
+            assertEquals(1_000L, LectureAudio.durationMs(recovered.single()))
+            assertTrue(LectureAudio.unlistedRecordings(directory, setOf(tracked.name, recording.name)).isEmpty())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
     @Test fun rejectsIncompleteRecording() {
         val source = File.createTempFile("lecture-broken-", ".wav")
         try {

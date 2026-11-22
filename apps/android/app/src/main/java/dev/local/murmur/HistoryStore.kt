@@ -95,20 +95,33 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
     private val lectureDirectory: File get() = File(context.filesDir, "lectures").apply { mkdirs() }
 
     fun lectureFile(fileName: String): File {
-        require(fileName.matches(Regex("lecture-[A-Za-z0-9-]+\\.wav"))) { "Invalid lecture file" }
+        require(LectureAudio.isRecordingName(fileName)) { "Invalid lecture file" }
         return File(lectureDirectory, fileName)
     }
 
     fun addLecture(file: File, title: String, status: String = "recording"): Long {
-        require(file.canonicalFile.parentFile == lectureDirectory.canonicalFile) { "Invalid lecture location" }
-        val id = writableDatabase.insertOrThrow("lectures", null, ContentValues().apply {
-            put("timestamp", System.currentTimeMillis())
-            put("title", title.take(100))
-            put("file_name", file.name)
-            put("status", status)
-        })
+        val id = insertLecture(file, title, status, System.currentTimeMillis(), 0)
         pruneAndGetCutoff()
         return id
+    }
+
+    fun recoverLectures() {
+        val recordedNames = readableDatabase.query("lectures", arrayOf("file_name"), null, null, null, null, null)
+            .use { cursor -> buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) } }
+        for (file in LectureAudio.unlistedRecordings(lectureDirectory, recordedNames)) {
+            insertLecture(file, "Recovered recording", "failed", file.lastModified(), LectureAudio.durationMs(file))
+        }
+    }
+
+    private fun insertLecture(file: File, title: String, status: String, timestamp: Long, durationMs: Long): Long {
+        require(file.canonicalFile.parentFile == lectureDirectory.canonicalFile) { "Invalid lecture location" }
+        return writableDatabase.insertOrThrow("lectures", null, ContentValues().apply {
+            put("timestamp", timestamp)
+            put("title", title.take(100))
+            put("file_name", file.name)
+            put("duration_ms", durationMs)
+            put("status", status)
+        })
     }
 
     fun updateLecture(id: Long, raw: String, finalText: String, durationMs: Long, status: String) {

@@ -9,7 +9,12 @@ class MurmurApplication : Application() {
         super.onCreate()
         Diagnostics.install(this)
         LectureAudio.removeTemporaryRecordings(File(filesDir, "lectures"), cacheDir)
-        runCatching { HistoryStore(this).use { it.pruneExpired() } }
-            .onFailure { Diagnostics.warn("history", "could not apply recording retention", it) }
+        runCatching {
+            HistoryStore(this).use { history ->
+                runCatching { history.recoverLectures() }
+                    .onFailure { Diagnostics.warn("history", "could not recover saved lecture recordings", it) }
+                history.pruneExpired()
+            }
+        }.onFailure { Diagnostics.warn("history", "could not apply recording retention", it) }
     }
 }

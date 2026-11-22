@@ -34,6 +34,13 @@ internal object LectureAudio {
     // a provider can block both the copy and the cancellation call
     private val stagingSlots = Semaphore(2)
 
+    private val recordingName = Regex("lecture-[A-Za-z0-9-]+\\.wav")
+
+    fun isRecordingName(name: String): Boolean = recordingName.matches(name)
+
+    fun unlistedRecordings(directory: File, listedNames: Set<String>): List<File> =
+        directory.listFiles()?.filter { it.isFile && isRecordingName(it.name) && it.name !in listedNames }.orEmpty()
+
     fun removeTemporaryRecordings(lectureDirectory: File, cacheDirectory: File) {
         val liveChunk = Regex("murmur-chunk-[A-Za-z0-9-]+\\.wav")
         val cachedAudio = Regex("murmur-((capture|chunk|lecture-part|lecture-import)-[A-Za-z0-9-]+\\.wav|lecture-source-[A-Za-z0-9-]+\\.audio)")
