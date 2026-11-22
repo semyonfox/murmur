@@ -806,6 +806,11 @@ fn default_model_for_provider(provider_id: &str) -> String {
     if provider_id == APPLE_INTELLIGENCE_PROVIDER_ID {
         return APPLE_INTELLIGENCE_DEFAULT_MODEL_ID.to_string();
     }
+    if provider_id == "openrouter" {
+        // picked for price on 22 november 2026. it drops some wording that
+        // qwen3.5-35b keeps, see docs/cleanup-benchmark.md. a saved choice wins
+        return "qwen/qwen3.7-flash".to_string();
+    }
     String::new()
 }
 

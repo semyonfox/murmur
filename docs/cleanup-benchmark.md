@@ -1,5 +1,20 @@
 # Cleanup model benchmark
 
+## 22 November 2026: Qwen3.7 Flash against Qwen3.5 35B
+
+The runner sent all 35 fixtures once to each model through OpenRouter, with the current `evals/benchmark-prompt.txt`, temperature 0, a 1,200-token cap and reasoning off. Results are in the ignored `evals/private/cleanup-openrouter-20261122T173909Z.jsonl`.
+
+| OpenRouter model       | Median first text / total | Lexical flags | Reported cost, 35 requests |
+| ---------------------- | ------------------------: | ------------: | -------------------------: |
+| `qwen/qwen3.7-flash`   |            627 / 755 ms |             5 |                  $0.000841 |
+| `qwen/qwen3.5-35b-a3b` |            588 / 697 ms |             3 |                  $0.003599 |
+
+Neither model reported reasoning tokens. Qwen3.7 Flash lost meaning that 35B kept. "Meet at the library Thursday" became "Meet Thursday", "Do not enable the feature" became "Do not enable it", "really, really" became "really" and `OghmaNotes` became "Oghma Notes". It also leaves off the final full stop on many short sentences. It got the spaced spelling of "Marian" right where 35B wrote "Marion". Both still turn "eleven twelve" into `11:12`. A strict JSON-schema cleanup request, which is what Murmur sends, worked on both models through OpenRouter.
+
+Murmur now preselects `qwen/qwen3.7-flash` for OpenRouter for its price, accepting those losses. At about 100 dictations a day either model costs well under a euro a month once reasoning is off.
+
+## 26 September 2026: first five-model comparison
+
 Tested 26 September 2026 through OpenRouter with a provider key configured as BYOK. Both runs sent the same 23 synthetic transcripts to each of five models once. The first used the original neutral 3/5 formality prompt. The second used a revised prompt that explicitly preserves deliberate emphasis, treats dictated questions as speech, and leaves ambiguous spoken numbers alone. The saved results are in the ignored local files `evals/private/cleanup-openrouter-20260926T222447Z.jsonl` and `evals/private/cleanup-openrouter-20260926T223356Z.jsonl`.
 
 The default prompt changed again on 27 September after live dictation showed unwanted synonym swaps and excessive formality at Natural. The new prompt tells every formality level to keep the speaker's own wording; a new synthetic fixture protects “with a bit of” from becoming “with a touch of.” The numbers below describe the earlier prompt, not the revised build. Model-level accuracy and latency for the new prompt have not yet been measured.
