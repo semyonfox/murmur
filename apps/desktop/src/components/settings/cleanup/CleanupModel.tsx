@@ -51,6 +51,7 @@ export const CleanupModel: React.FC = () => {
             >
               <div className="flex items-center gap-2">
                 <BaseUrlField
+                  key={state.selectedProviderId}
                   value={state.baseUrl}
                   onBlur={state.handleBaseUrlChange}
                   placeholder={t(
@@ -87,7 +88,9 @@ export const CleanupModel: React.FC = () => {
                     <Button
                       variant="secondary"
                       size="md"
-                      disabled={state.isApiKeyUpdating || state.isBaseUrlUpdating}
+                      disabled={
+                        state.isApiKeyUpdating || state.isBaseUrlUpdating
+                      }
                       onClick={state.handleApiKeyRemove}
                     >
                       {t("murmur.cleanup.removeKey", {

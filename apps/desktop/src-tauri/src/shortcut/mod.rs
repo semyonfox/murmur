@@ -1039,6 +1039,9 @@ pub fn change_post_process_base_url_setting(
 
     crate::llm_client::validate_provider_url(&base_url)?;
     provider.base_url = base_url;
+    settings
+        .post_process_models
+        .insert(provider_id, String::new());
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -1091,6 +1094,9 @@ pub async fn is_post_process_api_key_configured(
     let provider = settings
         .post_process_provider(&provider_id)
         .ok_or("Unknown provider")?;
+    if provider.id == "custom" && provider.base_url.trim().is_empty() {
+        return Ok(false);
+    }
     let origin = crate::secrets::cleanup_key_scope(&settings, provider)?;
     tauri::async_runtime::spawn_blocking(move || {
         crate::secrets::get_cleanup_key(&provider_id, origin.as_deref()).map(|key| key.is_some())

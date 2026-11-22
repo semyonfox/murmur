@@ -79,7 +79,8 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   // Use settings directly as single source of truth
   const baseUrl = selectedProvider?.base_url ?? "";
   const apiKey = "";
-  const keyStatusId = selectedProviderId === "custom" ? baseUrl : selectedProviderId;
+  const keyStatusId =
+    selectedProviderId === "custom" ? baseUrl : selectedProviderId;
   const apiKeyConfigured = keyStatus[keyStatusId] ?? null;
   const model = settings?.post_process_models?.[selectedProviderId] ?? "";
 
@@ -124,7 +125,13 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     return () => {
       active = false;
     };
-  }, [selectedProviderId, keyStatusId, isAppleProvider, settings !== null, apiKeysVersion]);
+  }, [
+    selectedProviderId,
+    keyStatusId,
+    isAppleProvider,
+    settings !== null,
+    apiKeysVersion,
+  ]);
 
   const providerOptions = useMemo<DropdownOption[]>(() => {
     return providers.map((provider) => ({
