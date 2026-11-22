@@ -7,6 +7,7 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
 import android.os.CancellationSignal
+import android.os.StatFs
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
@@ -28,7 +29,7 @@ internal object LectureAudio {
     private const val FRAME_BYTES = 640
     private const val SEARCH_BYTES = BYTES_PER_SECOND * 10
     private const val MAX_SAMPLES = SAMPLE_RATE * 28_800L
-    private const val MAX_IMPORT_BYTES = 1024L * 1024 * 1024
+    private const val IMPORT_RESERVE_BYTES = 256L * 1024 * 1024
     private val importOpenTimeoutNs = TimeUnit.MINUTES.toNanos(10)
     private const val IMPORT_STALL_NS = 30_000_000_000L
     // a provider can block both the copy and the cancellation call
@@ -134,6 +135,7 @@ internal object LectureAudio {
     private fun stageImport(context: Context, uri: Uri, source: File, importSignal: CancellationSignal) {
         val signal = CancellationSignal()
         val deadline = AtomicLong(System.nanoTime() + importOpenTimeoutNs)
+        val cacheDir = context.cacheDir
         source.outputStream().use { output ->
             val copy = FutureTask {
                 val asset = context.contentResolver.openAssetFileDescriptor(uri, "r", signal)
@@ -142,17 +144,16 @@ internal object LectureAudio {
                     deadline.set(System.nanoTime() + IMPORT_STALL_NS)
                     signal.setOnCancelListener { runCatching { asset.close() } }
                     signal.throwIfCanceled()
-                    requireImportSize(asset.length)
+                    val length = asset.length
+                    if (length >= 0) requireImportSpace(cacheDir, length)
                     asset.createInputStream().use { input ->
-                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                        var stagedBytes = 0L
+                        val buffer = ByteArray(256 * 1024)
                         while (true) {
                             signal.throwIfCanceled()
                             val count = input.read(buffer)
                             if (count < 0) break
                             if (count == 0) continue
-                            stagedBytes += count
-                            requireImportSize(stagedBytes)
+                            requireImportSpace(cacheDir, count.toLong())
                             output.write(buffer, 0, count)
                             deadline.set(System.nanoTime() + IMPORT_STALL_NS)
                         }
@@ -202,8 +203,10 @@ internal object LectureAudio {
         }
     }
 
-    private fun requireImportSize(bytes: Long) {
-        require(bytes <= MAX_IMPORT_BYTES) { "Audio files over 1 GiB cannot be imported." }
+    private fun requireImportSpace(cacheDir: File, bytes: Long) {
+        require(bytes <= StatFs(cacheDir.path).availableBytes - IMPORT_RESERVE_BYTES) {
+            "Not enough free storage to import this audio file."
+        }
     }
 
     private fun decodeImport(source: File, destination: File, signal: CancellationSignal) {
