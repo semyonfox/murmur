@@ -65,6 +65,7 @@ internal class LectureService : Service() {
     private val cleanupWorker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture-cleanup") }
     // lecture id to the number of its tasks still queued or running
     private val pending = LinkedHashMap<Long, Int>()
+    private val speechClient = TranscriptionClient()
     private var recorder: PcmRecorder? = null
     private var recordingJob: Job? = null
     private var foregroundType = 0
@@ -168,7 +169,7 @@ internal class LectureService : Service() {
             try {
                 if (job.discarded || job.failure != null) return@enqueue
                 showPart(job.id, index, if (job.recordingDone) job.pieces else 0)
-                transcribeInto(job, piece, offsetMs, index, null)
+                transcribeInto(job, piece, offsetMs)
                 mutable.update { it.copy(part = index + 1) }
             } catch (error: Exception) {
                 // the full recording is kept, so the lecture can be transcribed again from it
@@ -300,7 +301,7 @@ internal class LectureService : Service() {
             LectureAudio.forEachChunk(file, cacheDir) { chunk, index, total, offsetMs ->
                 check(!job.discarded) { "Lecture was deleted." }
                 showPart(job.id, index, total)
-                transcribeInto(job, chunk, offsetMs, index, total)
+                transcribeInto(job, chunk, offsetMs)
                 mutable.update { it.copy(part = index + 1) }
             }
             complete(job)
@@ -314,8 +315,8 @@ internal class LectureService : Service() {
         if (failure != null) fail(job, failure) else complete(job)
     }
 
-    private fun transcribeInto(job: Job, chunk: File, offsetMs: Long, index: Int, total: Int?) {
-        val piece = transcribePart(job, chunk, index, total)
+    private fun transcribeInto(job: Job, chunk: File, offsetMs: Long) {
+        val piece = transcribePart(job, chunk)
         if (piece.isBlank()) return
         val stamp = LectureTranscript.stamp(offsetMs)
         val prepared = settings.prepareTranscript(piece)
@@ -347,22 +348,11 @@ internal class LectureService : Service() {
         }
     }
 
-    // nobody is waiting on a lecture in real time, so a part gets a second chance
-    // after a pause instead of failing the whole lecture on one bad request.
-    // with automatic detection, the language whisper finds in the first part with
-    // speech is kept for the rest, so one accented minute cannot switch languages
-    private fun transcribePart(job: Job, chunk: File, index: Int, total: Int?): String {
+    // keep the first detected language for the rest of the lecture
+    private fun transcribePart(job: Job, chunk: File): String {
         var detected: String? = null
         val endpoint = job.endpoint
-        val text = try {
-            TranscriptionClient().transcribe(endpoint, chunk, allowEmpty = true) { detected = it }
-        } catch (error: java.io.IOException) {
-            val permanent = error is HttpStatusException && error.statusCode in 400..499 && error.statusCode != 408 && error.statusCode != 429
-            if (permanent || endpoint.localModel != null) throw error
-            Diagnostics.warn("lecture", "part ${index + 1}${total?.let { " of $it" }.orEmpty()} failed, retrying in 5 s", error)
-            Thread.sleep(5_000)
-            TranscriptionClient().transcribe(endpoint, chunk, allowEmpty = true) { detected = it }
-        }
+        val text = speechClient.transcribe(endpoint, chunk, allowEmpty = true) { detected = it }
         val code = detected
         if (code != null && text.isNotBlank() && endpoint.language == SpeechLanguages.AUTO) {
             job.endpoint = endpoint.withLanguage(code)
@@ -541,6 +531,7 @@ internal class LectureService : Service() {
 
     override fun onDestroy() {
         destroyed = true
+        speechClient.cancel()
         recorder?.stop()
         synchronized(pending) {
             worker.shutdownNow()
@@ -557,6 +548,7 @@ internal class LectureService : Service() {
 
     override fun onTimeout(startId: Int, fgsType: Int) {
         destroyed = true
+        speechClient.cancel()
         Diagnostics.error("lecture", "android ended the foreground job (type $fgsType) at its time limit")
         synchronized(pending) {
             worker.shutdownNow()

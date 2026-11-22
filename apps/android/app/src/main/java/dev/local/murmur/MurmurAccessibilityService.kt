@@ -423,7 +423,7 @@ class MurmurAccessibilityService : AccessibilityService() {
     private fun prepareWhileRecording(endpoint: TranscriptionEndpoint?, cleanup: CleanupEndpoint?) {
         val model = endpoint?.localModel
         if (model != null) worker.submit { LocalWhisper.preload(model) }
-        warmUpConnections(listOfNotNull(endpoint?.uri?.takeIf { model == null }))
+        endpoint?.uri?.takeIf { model == null }?.let(TranscriptionClient::warmUp)
         cleanup?.uri?.let(CleanupClient::warmUp)
     }
 
