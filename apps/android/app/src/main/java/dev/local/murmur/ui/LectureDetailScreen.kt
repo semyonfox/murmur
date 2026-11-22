@@ -300,9 +300,11 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
         text = "This removes the audio, raw transcript and cleaned transcript from this phone.",
         confirm = "Delete",
         onConfirm = {
-            player?.release()
             runCatching { model.history.deleteLecture(id) }
-                .onSuccess { model.refresh(); onBack() }
+                .onSuccess {
+                    model.refresh()
+                    onBack()
+                }
                 .onFailure { snackbar.showLater(it.message ?: "Could not delete the lecture.") }
         },
         onDismiss = { confirmDelete = false },
@@ -428,14 +430,18 @@ private fun rememberPlayer(file: File?): LecturePlayer? {
     val player = remember(file) {
         if (file == null || !file.exists() || file.length() <= 44) null else runCatching {
             LectureAudio.recoverRecording(file)
-            val media = MediaPlayer().apply {
-                setAudioAttributes(AudioAttributes.Builder()
+            val media = MediaPlayer()
+            try {
+                media.setAudioAttributes(AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-                setDataSource(file.absolutePath)
-                prepare()
+                media.setDataSource(file.absolutePath)
+                media.prepare()
+                LecturePlayer(media).also { player -> media.setOnCompletionListener { player.tick() } }
+            } catch (error: Exception) {
+                media.release()
+                throw error
             }
-            LecturePlayer(media).also { player -> media.setOnCompletionListener { player.tick() } }
         }.getOrNull()
     }
     DisposableEffect(player) { onDispose { player?.release() } }
@@ -469,7 +475,6 @@ private fun shareText(context: Context, title: String, text: String) {
     }, "Share transcript"))
 }
 
-// one export at a time lives in the cache, so shared files do not pile up
 private fun encodedAudio(context: Context, wav: File, title: String): File {
     val directory = File(context.cacheDir, "exports").apply { mkdirs() }
     val cutoff = System.currentTimeMillis() - java.util.concurrent.TimeUnit.DAYS.toMillis(1)

@@ -25,7 +25,7 @@ internal object LectureAudio {
     fun durationMs(file: File): Long = ((file.length() - HEADER_BYTES).coerceAtLeast(0) * 1000L) / BYTES_PER_SECOND
 
     // interrupted captures can have a zero or stale header, but their PCM is usable
-    fun recoverRecording(file: File): Long = RandomAccessFile(file, "rw").use { source ->
+    fun recoverRecording(file: File): Unit = RandomAccessFile(file, "rw").use { source ->
         val available = source.length() - HEADER_BYTES
         val pcmBytes = available - available % 2
         require(pcmBytes in 2..MAX_SAMPLES * 2) { "Recording is empty or incomplete." }
@@ -40,7 +40,6 @@ internal object LectureAudio {
             source.write(expected)
         }
         if (available != pcmBytes) source.setLength(HEADER_BYTES + pcmBytes)
-        pcmBytes * 1000L / BYTES_PER_SECOND
     }
 
     // parts of about two minutes. each one ends at the quietest moment of its last
