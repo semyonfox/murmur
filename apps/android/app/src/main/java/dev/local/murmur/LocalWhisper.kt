@@ -241,9 +241,13 @@ internal object LocalWhisper {
 
     // loading a model takes seconds, so dictation keeps it warm between takes
     // and only frees the memory after the user has been idle for a while
-    @Synchronized fun releaseWhenIdle() {
-        lastUsedAt = System.nanoTime()
-        idleReleaser.schedule({ releaseIfIdle() }, IDLE_RELEASE_MS, TimeUnit.MILLISECONDS)
+    fun releaseWhenIdle() {
+        idleReleaser.execute {
+            synchronized(this) {
+                lastUsedAt = System.nanoTime()
+                idleReleaser.schedule({ releaseIfIdle() }, IDLE_RELEASE_MS, TimeUnit.MILLISECONDS)
+            }
+        }
     }
 
     @Synchronized private fun releaseIfIdle() {
