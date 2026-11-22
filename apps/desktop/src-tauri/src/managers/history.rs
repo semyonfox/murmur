@@ -537,8 +537,6 @@ impl HistoryManager {
 
         debug!("Saved history entry with id {}", entry.id);
 
-        self.cleanup_old_entries()?;
-
         // Emit typed event for real-time frontend updates
         if let Err(e) = (HistoryUpdatePayload::Added {
             entry: entry.clone(),
@@ -546,6 +544,10 @@ impl HistoryManager {
         .emit(&self.app_handle)
         {
             error!("Failed to emit history-updated event: {}", e);
+        }
+
+        if let Err(error) = self.cleanup_old_entries() {
+            error!("Could not prune history after saving an entry: {error}");
         }
 
         Ok(entry)
@@ -656,11 +658,14 @@ impl HistoryManager {
         let mut deleted_count = 0;
 
         for (id, file_name) in entries {
-            // Delete database entry
-            conn.execute(
-                "DELETE FROM transcription_history WHERE id = ?1",
+            let deleted = conn.execute(
+                "DELETE FROM transcription_history WHERE id = ?1 AND saved = 0",
                 params![id],
             )?;
+            if deleted == 0 {
+                continue;
+            }
+            deleted_count += deleted;
 
             // Delete WAV file
             let file_path = self.recordings_dir.join(file_name);
@@ -669,8 +674,10 @@ impl HistoryManager {
                     error!("Failed to delete WAV file {}: {}", file_name, e);
                 } else {
                     debug!("Deleted old WAV file: {}", file_name);
-                    deleted_count += 1;
                 }
+            }
+            if let Err(error) = (HistoryUpdatePayload::Deleted { id: *id }).emit(&self.app_handle) {
+                error!("Failed to emit history deletion: {error}");
             }
         }
 

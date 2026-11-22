@@ -267,9 +267,19 @@ test("count-based history retention names its numeric limit", async ({
     },
   });
   await openHistory(page);
-  await expect(
-    page.getByRole("spinbutton", { name: "Recordings to keep" }),
-  ).toHaveValue("1000");
+  const limit = page.getByRole("spinbutton", { name: "Recordings to keep" });
+  await expect(limit).toHaveValue("1000");
+  await limit.fill("");
+  await limit.press("Tab");
+  await expect(limit).toHaveValue("1000");
+  expect(await commandsCalled(page, "update_history_limit")).toEqual([]);
+  await limit.fill("5");
+  await limit.press("Tab");
+  await expect
+    .poll(() => commandsCalled(page, "plugin:dialog|ask"))
+    .toEqual([
+      expect.objectContaining({ message: expect.stringContaining("5") }),
+    ]);
 });
 
 test("permission polling failure restores an actionable request button", async ({

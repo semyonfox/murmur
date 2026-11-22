@@ -93,10 +93,12 @@ export const HistorySettings: React.FC = () => {
     entriesRef.current = entries;
   }, [entries]);
 
+  const deletedDuringLoad = useRef(new Set<number>());
   const loadPage = useCallback(async (cursor?: number) => {
     const isFirstPage = cursor === undefined;
     if (loadingRef.current) return;
     loadingRef.current = true;
+    deletedDuringLoad.current.clear();
     const restoringFocus =
       document.activeElement?.hasAttribute("data-history-retry");
 
@@ -109,8 +111,11 @@ export const HistorySettings: React.FC = () => {
       );
       if (result.status === "ok") {
         const { entries: newEntries, has_more } = result.data;
+        const currentEntries = newEntries.filter(
+          (entry) => !deletedDuringLoad.current.has(entry.id),
+        );
         setEntries((prev) =>
-          isFirstPage ? newEntries : [...prev, ...newEntries],
+          isFirstPage ? currentEntries : [...prev, ...currentEntries],
         );
         setHasMore(has_more);
         setLoadError(false);
@@ -171,9 +176,10 @@ export const HistorySettings: React.FC = () => {
         setEntries((prev) =>
           prev.map((e) => (e.id === payload.entry.id ? payload.entry : e)),
         );
+      } else if (payload.action === "deleted") {
+        if (loadingRef.current) deletedDuringLoad.current.add(payload.id);
+        setEntries((prev) => prev.filter((entry) => entry.id !== payload.id));
       }
-      // "deleted" and "toggled" are handled by optimistic updates only,
-      // so we intentionally ignore them here to avoid double-mutation.
     });
 
     return () => {

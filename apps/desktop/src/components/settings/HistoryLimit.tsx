@@ -24,7 +24,12 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
 
   const commit = async () => {
     const value = Number(draft);
-    if (!Number.isInteger(value) || value < 0 || value > 1_000_000) {
+    if (
+      !draft.trim() ||
+      !Number.isInteger(value) ||
+      value < 0 ||
+      value > 1_000_000
+    ) {
       setDraft(String(historyLimit));
       return;
     }
@@ -32,8 +37,9 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
     if (value < historyLimit) {
       const confirmed = await ask(
         t("murmur.history.limit.confirmMessage", {
+          count: value,
           defaultValue:
-            "This smaller limit will permanently delete older unsaved recordings and transcripts. Continue?",
+            "Keep the latest {{count}} dictations? Older unsaved dictations and their recordings will be permanently deleted.",
         }),
         {
           title: t("murmur.history.limit.confirmTitle", {
