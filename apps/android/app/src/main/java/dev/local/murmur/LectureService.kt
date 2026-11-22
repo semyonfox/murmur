@@ -294,15 +294,17 @@ internal class LectureService : Service() {
     private fun startRetry(id: Long, language: String?) {
         if (!enterForeground(workType())) return
         runCatching {
-            require(id > 0) { "Lecture was not found." }
-            check(!state.value.isActive(id)) { "This lecture is already being transcribed." }
-            val record = history.lecture(id) ?: error("Lecture was not found.")
-            val file = history.lectureFile(record.fileName)
-            require(file.exists()) { "Saved audio is missing." }
-            val endpoint = requireEndpoint().let { if (language != null) it.withLanguage(language) else it }
-            val job = Job(id, endpoint, settings.cleanupEndpointOrNull(), retry = true)
-                .apply { durationMs = LectureAudio.recoverRecording(file) }
-            enqueue(id) { transcribeWhole(job, file) }
+            synchronized(LectureService) {
+                require(id > 0) { "Lecture was not found." }
+                check(!state.value.isActive(id)) { "This lecture is already being transcribed." }
+                val record = history.lecture(id) ?: error("Lecture was not found.")
+                val file = history.lectureFile(record.fileName)
+                require(file.exists()) { "Saved audio is missing." }
+                val endpoint = requireEndpoint().let { if (language != null) it.withLanguage(language) else it }
+                val job = Job(id, endpoint, settings.cleanupEndpointOrNull(), retry = true)
+                    .apply { durationMs = LectureAudio.durationMs(file) }
+                enqueue(id) { transcribeWhole(job, file) }
+            }
         }.onFailure { error ->
             Diagnostics.error("lecture", "retry could not start", error)
             mutable.update { it.copy(failed = true, message = describeFailure(error, "Could not transcribe again")) }

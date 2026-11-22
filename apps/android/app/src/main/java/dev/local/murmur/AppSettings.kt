@@ -155,7 +155,11 @@ internal class AppSettings(context: Context) {
             }.apply()
         }
 
-    fun saveTranscript(raw: String, cleaned: String?, historyId: Long?) {
+    fun removeExpiredLatestTranscript(cutoff: Long) = synchronized(preferences) {
+        if ((latestTranscriptTime ?: 0L) < cutoff) latestTranscript = null
+    }
+
+    fun saveTranscript(raw: String, cleaned: String?, historyId: Long?) = synchronized(preferences) {
         preferences.edit()
             .putString(LATEST_RAW_TRANSCRIPT, raw)
             .putString(LATEST_TRANSCRIPT, cleaned ?: raw)
@@ -164,7 +168,7 @@ internal class AppSettings(context: Context) {
             .apply()
     }
 
-    fun updateLatestTranscript(historyId: Long?, raw: String, cleaned: String) {
+    fun updateLatestTranscript(historyId: Long?, raw: String, cleaned: String) = synchronized(preferences) {
         if (latestHistoryId == historyId && latestRawTranscript == raw) {
             preferences.edit { putString(LATEST_TRANSCRIPT, cleaned) }
         }

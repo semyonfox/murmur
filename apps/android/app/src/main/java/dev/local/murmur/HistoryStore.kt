@@ -104,7 +104,7 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
             put("file_name", file.name)
             put("status", status)
         })
-        pruneOlderThan(AppSettings(context).historyRetentionDays)
+        pruneExpired()
         return id
     }
 
@@ -124,10 +124,13 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
         "id = ?", arrayOf(id.toString()), null, null, null, "1",
     ).use { cursor -> if (cursor.moveToFirst()) lectureFromCursor(cursor) else null }
 
-    fun lectures(limit: Int = 50): List<LectureRecord> = readableDatabase.query(
-        "lectures", arrayOf("id", "timestamp", "title", "file_name", "raw_text", "final_text", "duration_ms", "status"),
-        null, null, null, null, "timestamp DESC, id DESC", limit.coerceIn(1, 100).toString(),
-    ).use { cursor -> buildList { while (cursor.moveToNext()) add(lectureFromCursor(cursor)) } }
+    fun lectures(limit: Int = 50): List<LectureRecord> {
+        pruneExpired()
+        return readableDatabase.query(
+            "lectures", arrayOf("id", "timestamp", "title", "file_name", "raw_text", "final_text", "duration_ms", "status"),
+            null, null, null, null, "timestamp DESC, id DESC", limit.coerceIn(1, 100).toString(),
+        ).use { cursor -> buildList { while (cursor.moveToNext()) add(lectureFromCursor(cursor)) } }
+    }
 
     private fun lectureFromCursor(cursor: android.database.Cursor) = LectureRecord(
         cursor.getLong(0), cursor.getLong(1), cursor.getString(2), cursor.getString(3),
@@ -167,29 +170,40 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
             put("final_text", finalText)
             put("duration_ms", durationMs.coerceAtLeast(0))
         })
-        pruneOlderThan(AppSettings(context).historyRetentionDays)
+        pruneExpired()
         return id
     }
+
+    fun pruneExpired() = pruneOlderThan(AppSettings(context).historyRetentionDays)
 
     fun pruneOlderThan(days: Int) {
         if (days == 0) return
         val cutoff = System.currentTimeMillis() - days * 86_400_000L
+        AppSettings(context).removeExpiredLatestTranscript(cutoff)
         writableDatabase.delete("dictations", "timestamp < ?", arrayOf(cutoff.toString()))
         val expired = readableDatabase.query("lectures", arrayOf("id"), "timestamp < ?",
             arrayOf(cutoff.toString()), null, null, null).use { cursor ->
             buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) }
         }
-        expired.forEach(::deleteLecture)
+        synchronized(LectureService) {
+            expired.filterNot { LectureService.state.value.isActive(it) }.forEach { id ->
+                runCatching { deleteLecture(id) }
+                    .onFailure { Diagnostics.warn("history", "could not remove expired lecture audio", it) }
+            }
+        }
     }
 
-    fun recent(limit: Int = 50): List<DictationRecord> = readableDatabase.query(
-        "dictations", arrayOf("id", "timestamp", "raw_text", "final_text", "duration_ms"),
-        null, null, null, null, "timestamp DESC, id DESC", limit.coerceIn(1, 100).toString(),
-    ).use { cursor ->
-        buildList {
-            while (cursor.moveToNext()) add(DictationRecord(
-                cursor.getLong(0), cursor.getLong(1), cursor.getString(2), cursor.getString(3), cursor.getLong(4),
-            ))
+    fun recent(limit: Int = 50): List<DictationRecord> {
+        pruneExpired()
+        return readableDatabase.query(
+            "dictations", arrayOf("id", "timestamp", "raw_text", "final_text", "duration_ms"),
+            null, null, null, null, "timestamp DESC, id DESC", limit.coerceIn(1, 100).toString(),
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) add(DictationRecord(
+                    cursor.getLong(0), cursor.getLong(1), cursor.getString(2), cursor.getString(3), cursor.getLong(4),
+                ))
+            }
         }
     }
 
@@ -265,6 +279,7 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
     }
 
     fun writeExport(writer: JsonWriter) {
+        pruneExpired()
         writer.beginObject()
         writer.name("version").value(2)
         writer.name("exported_at").value(System.currentTimeMillis())
@@ -299,15 +314,18 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
         writer.flush()
     }
 
-    fun stats(): DictationStats = readableDatabase.query(
-        "dictations", arrayOf("timestamp", "raw_text", "final_text", "duration_ms"),
-        null, null, null, null, null,
-    ).use { cursor ->
-        calculateStats(sequence {
-            while (cursor.moveToNext()) {
-                yield(DictationRecord(0, cursor.getLong(0), cursor.getString(1), cursor.getString(2), cursor.getLong(3)))
-            }
-        }, System.currentTimeMillis())
+    fun stats(): DictationStats {
+        pruneExpired()
+        return readableDatabase.query(
+            "dictations", arrayOf("timestamp", "raw_text", "final_text", "duration_ms"),
+            null, null, null, null, null,
+        ).use { cursor ->
+            calculateStats(sequence {
+                while (cursor.moveToNext()) {
+                    yield(DictationRecord(0, cursor.getLong(0), cursor.getString(1), cursor.getString(2), cursor.getLong(3)))
+                }
+            }, System.currentTimeMillis())
+        }
     }
 }
 
