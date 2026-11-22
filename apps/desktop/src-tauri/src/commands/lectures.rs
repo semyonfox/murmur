@@ -23,7 +23,7 @@ struct LectureProgress {
     total: usize,
 }
 
-const BINDING: &str = "lecture";
+pub(crate) const BINDING: &str = "lecture";
 const CHUNK_SAMPLES: usize = 16_000 * 120;
 // each part ends at the quietest moment of its last ten seconds
 const CUT_SEARCH_SAMPLES: usize = 16_000 * 10;
