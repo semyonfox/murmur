@@ -1062,22 +1062,17 @@ pub async fn change_post_process_base_url_setting(
 
         if provider_id == "custom" {
             let new_origin = crate::secrets::cleanup_origin(&base_url)?;
-            let old_origin = crate::secrets::cleanup_origin(&provider.base_url).ok();
-            if old_origin
-                .as_deref()
-                .is_some_and(|origin| origin != new_origin)
+            if let Some(old_origin) = crate::secrets::cleanup_origin(&provider.base_url)
+                .ok()
+                .filter(|origin| origin != &new_origin)
             {
-                let old_scope = crate::secrets::cleanup_key_scope(&settings, provider)?;
                 if let Err(error) =
-                    crate::secrets::delete_cleanup_key(&provider_id, old_scope.as_deref())
+                    crate::secrets::delete_cleanup_key(&provider_id, Some(&old_origin))
                 {
                     warn!("Could not remove the previous Custom cleanup key: {error}");
                 }
                 // the credential store may have blocked while other settings changed
                 settings = settings::get_settings(&app);
-                if old_scope.is_none() {
-                    settings.legacy_custom_cleanup_origin = None;
-                }
             }
         }
 
@@ -1125,7 +1120,7 @@ pub async fn change_post_process_api_key_setting(
         let provider = settings
             .post_process_provider(&provider_id)
             .ok_or("Unknown provider")?;
-        let origin = crate::secrets::cleanup_key_scope(&settings, provider)?;
+        let origin = crate::secrets::cleanup_key_scope(provider)?;
         if api_key.trim().is_empty() {
             crate::secrets::delete_cleanup_key(&provider_id, origin.as_deref())
         } else {
@@ -1149,7 +1144,7 @@ pub async fn is_post_process_api_key_configured(
     if provider.id == "custom" && provider.base_url.trim().is_empty() {
         return Ok(false);
     }
-    let origin = crate::secrets::cleanup_key_scope(&settings, provider)?;
+    let origin = crate::secrets::cleanup_key_scope(provider)?;
     tauri::async_runtime::spawn_blocking(move || {
         crate::secrets::get_cleanup_key(&provider_id, origin.as_deref()).map(|key| key.is_some())
     })
@@ -1284,7 +1279,7 @@ pub async fn fetch_post_process_models(
         }
     }
 
-    let origin = crate::secrets::cleanup_key_scope(&settings, provider)?;
+    let origin = crate::secrets::cleanup_key_scope(provider)?;
     let stored_key = tauri::async_runtime::spawn_blocking(move || {
         crate::secrets::get_cleanup_key(&provider_id, origin.as_deref())
     })

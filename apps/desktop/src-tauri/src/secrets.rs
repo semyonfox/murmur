@@ -25,24 +25,34 @@ pub(crate) fn cleanup_origin(base_url: &str) -> Result<String, String> {
 
 fn cleanup_entry(provider_id: &str, custom_origin: Option<&str>) -> Result<Entry, String> {
     validate_provider_id(provider_id)?;
-    let account = match custom_origin {
-        Some(origin) => hashed_account_id(origin, "custom-origin"),
-        None => provider_id.to_string(),
+    let account = if provider_id == "custom" {
+        let origin = custom_origin.ok_or("Custom cleanup requires a server origin")?;
+        hashed_account_id(origin, "custom-origin")
+    } else {
+        provider_id.to_string()
     };
     Entry::new(CLEANUP_KEY_SERVICE, &account).map_err(store_error)
 }
 
 pub(crate) fn cleanup_key_scope(
-    settings: &crate::settings::AppSettings,
     provider: &crate::settings::PostProcessProvider,
 ) -> Result<Option<String>, String> {
-    if provider.id != "custom" {
-        return Ok(None);
+    if provider.id == "custom" {
+        return cleanup_origin(&provider.base_url).map(Some);
     }
+    Ok(None)
+}
 
-    let origin = cleanup_origin(&provider.base_url)?;
-    // the old slot is reserved for the origin saved when settings were upgraded
-    Ok((settings.legacy_custom_cleanup_origin.as_deref() != Some(&origin)).then_some(origin))
+pub(crate) fn retire_unscoped_custom_cleanup_key() {
+    let result =
+        Entry::new(CLEANUP_KEY_SERVICE, "custom").and_then(|entry| entry.delete_credential());
+    match result {
+        Ok(()) | Err(Error::NoEntry) => {}
+        Err(error) => log::warn!(
+            "Could not remove the legacy Custom cleanup key: {}",
+            store_error(error)
+        ),
+    }
 }
 
 fn store_error(error: Error) -> String {
@@ -154,26 +164,6 @@ mod tests {
 
         assert!(validate_provider_id(&"a".repeat(64)).is_ok());
         assert!(validate_provider_id(&"a".repeat(65)).is_err());
-    }
-
-    #[test]
-    fn legacy_cleanup_slot_is_only_used_for_its_original_origin() {
-        let mut settings = crate::settings::get_default_settings();
-        settings.legacy_custom_cleanup_origin = Some("https://example.com".into());
-        let mut provider = settings.post_process_provider("custom").unwrap().clone();
-        provider.base_url = "https://EXAMPLE.com:443/another/path".into();
-        assert_eq!(
-            super::cleanup_key_scope(&settings, &provider).unwrap(),
-            None
-        );
-
-        provider.base_url = "https://example.com:444/v1".into();
-        assert_eq!(
-            super::cleanup_key_scope(&settings, &provider)
-                .unwrap()
-                .as_deref(),
-            Some("https://example.com:444")
-        );
     }
 
     #[test]

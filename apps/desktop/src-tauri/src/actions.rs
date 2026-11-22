@@ -377,7 +377,7 @@ async fn post_process_transcription(
         String::new()
     } else {
         let provider_id = provider.id.clone();
-        let origin = crate::secrets::cleanup_key_scope(settings, provider)
+        let origin = crate::secrets::cleanup_key_scope(provider)
             .map_err(|_| CleanupFailure::Configuration)?;
         tokio::task::spawn_blocking(move || {
             crate::secrets::get_cleanup_key(&provider_id, origin.as_deref())
