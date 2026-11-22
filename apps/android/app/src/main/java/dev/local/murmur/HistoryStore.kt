@@ -120,9 +120,11 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
         check(updated == 1) { "Lecture was deleted." }
     }
 
-    fun lecture(id: Long): LectureRecord? = readableDatabase.query(
+    fun lecture(id: Long): LectureRecord? = storedLecture(id, retentionCutoff(AppSettings(context).historyRetentionDays))
+
+    fun storedLecture(id: Long, cutoff: Long = Long.MIN_VALUE): LectureRecord? = readableDatabase.query(
         "lectures", arrayOf("id", "timestamp", "title", "file_name", "raw_text", "final_text", "duration_ms", "status"),
-        "id = ?", arrayOf(id.toString()), null, null, null, "1",
+        "id = ? AND timestamp >= ?", arrayOf(id.toString(), cutoff.toString()), null, null, null, "1",
     ).use { cursor -> if (cursor.moveToFirst()) lectureFromCursor(cursor) else null }
 
     fun lectures(limit: Int = 50): List<LectureRecord> {
@@ -147,7 +149,7 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
     }
 
     fun deleteLecture(id: Long) {
-        val record = lecture(id) ?: return
+        val record = storedLecture(id) ?: return
         val audio = lectureFile(record.fileName)
         check(audio.delete() || !audio.exists()) { "Could not delete the saved audio. Try again." }
         writableDatabase.delete("lectures", "id = ?", arrayOf(id.toString()))
@@ -171,9 +173,12 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
 
     fun pruneExpired() = pruneOlderThan(AppSettings(context).historyRetentionDays)
 
+    private fun retentionCutoff(days: Int): Long =
+        if (days == 0) Long.MIN_VALUE else System.currentTimeMillis() - days * 86_400_000L
+
     fun pruneOlderThan(days: Int) {
         if (days == 0) return
-        val cutoff = System.currentTimeMillis() - days * 86_400_000L
+        val cutoff = retentionCutoff(days)
         AppSettings(context).removeExpiredLatestTranscript(cutoff)
         writableDatabase.delete("dictations", "timestamp < ?", arrayOf(cutoff.toString()))
         val expired = readableDatabase.query("lectures", arrayOf("id"), "timestamp < ?",

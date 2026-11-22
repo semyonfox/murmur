@@ -441,7 +441,7 @@ internal class LectureService : Service() {
     }
 
     private fun finishTranscript(job: Job) = synchronized(job) {
-        if (destroyed || job.discarded || job.failure != null || history.lecture(job.id) == null) return@synchronized
+        if (destroyed || job.discarded || job.failure != null || history.storedLecture(job.id) == null) return@synchronized
         check(!job.retry || job.raw.isNotBlank()) { "No speech returned." }
         save(job, "done")
         mutable.update { it.copy(message = "Transcript ready.", failed = false) }
@@ -464,7 +464,7 @@ internal class LectureService : Service() {
 
     private fun markFailed(id: Long, durationMs: Long?) {
         runCatching {
-            history.lecture(id)?.let { history.updateLecture(id, it.raw, it.finalText, durationMs ?: it.durationMs, "failed") }
+            history.storedLecture(id)?.let { history.updateLecture(id, it.raw, it.finalText, durationMs ?: it.durationMs, "failed") }
         }.onFailure { Diagnostics.warn("lecture", "could not mark lecture $id as failed", it) }
     }
 
