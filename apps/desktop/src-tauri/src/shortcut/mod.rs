@@ -1036,23 +1036,21 @@ pub fn change_post_process_base_url_setting(
     base_url: String,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    let label = settings
-        .post_process_provider(&provider_id)
-        .map(|provider| provider.label.clone())
-        .ok_or_else(|| format!("Provider '{}' not found", provider_id))?;
-
     let provider = settings
         .post_process_provider_mut(&provider_id)
-        .expect("Provider looked up above must exist");
+        .ok_or_else(|| format!("Provider '{provider_id}' not found"))?;
 
     if !provider.allow_base_url_edit {
         return Err(format!(
             "Provider '{}' does not allow editing the base URL",
-            label
+            provider.label
         ));
     }
 
     crate::llm_client::validate_provider_url(&base_url)?;
+    if provider.base_url == base_url {
+        return Ok(());
+    }
     provider.base_url = base_url;
     settings
         .post_process_models

@@ -1220,7 +1220,7 @@ fn apply_settings_migrations(
         settings.legacy_custom_cleanup_origin = settings
             .post_process_provider("custom")
             .and_then(|provider| crate::secrets::cleanup_origin(&provider.base_url).ok());
-        updated |= settings.legacy_custom_cleanup_origin.is_some();
+        updated = true;
     }
 
     // One-time onboarding migration: users with an explicit selected model have
@@ -1368,6 +1368,43 @@ pub fn get_recording_retention_period(app: &AppHandle) -> RecordingRetentionPeri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn upgrade_keeps_custom_cleanup_key_at_the_saved_origin() {
+        let mut old_settings = get_default_settings();
+        old_settings
+            .post_process_provider_mut("custom")
+            .unwrap()
+            .base_url = "https://cleanup.example/v1".into();
+        let mut stored = serde_json::to_value(old_settings).unwrap();
+        stored
+            .as_object_mut()
+            .unwrap()
+            .remove("legacy_custom_cleanup_origin");
+
+        let mut upgraded = serde_json::from_value::<AppSettings>(stored.clone()).unwrap();
+        assert!(apply_settings_migrations(&mut upgraded, &stored));
+        let provider = upgraded.post_process_provider("custom").unwrap();
+        assert_eq!(
+            crate::secrets::cleanup_key_scope(&upgraded, provider).unwrap(),
+            None
+        );
+
+        upgraded
+            .post_process_provider_mut("custom")
+            .unwrap()
+            .base_url = "https://other.example/v1".into();
+        let stored = serde_json::to_value(upgraded).unwrap();
+        let mut reloaded = serde_json::from_value::<AppSettings>(stored.clone()).unwrap();
+        apply_settings_migrations(&mut reloaded, &stored);
+        let provider = reloaded.post_process_provider("custom").unwrap();
+        assert_eq!(
+            crate::secrets::cleanup_key_scope(&reloaded, provider)
+                .unwrap()
+                .as_deref(),
+            Some("https://other.example")
+        );
+    }
 
     #[test]
     fn stored_binding_returns_the_requested_binding() {
