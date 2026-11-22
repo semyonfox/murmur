@@ -479,7 +479,6 @@ fn type_text_via_xdotool(text: &str) -> Result<(), String> {
 /// Type text directly via dotool (works on both Wayland and X11 via uinput).
 #[cfg(target_os = "linux")]
 fn type_text_via_dotool(text: &str) -> Result<(), String> {
-    use std::io::Write;
     use std::process::Stdio;
 
     let mut child = Command::new("dotool")
@@ -488,8 +487,7 @@ fn type_text_via_dotool(text: &str) -> Result<(), String> {
         .map_err(|e| format!("Failed to spawn dotool: {}", e))?;
 
     if let Some(mut stdin) = child.stdin.take() {
-        // dotool uses "type <text>" command
-        writeln!(stdin, "type {}", text)
+        write_dotool_actions(&mut stdin, text)
             .map_err(|e| format!("Failed to write to dotool stdin: {}", e))?;
     }
 
@@ -502,6 +500,19 @@ fn type_text_via_dotool(text: &str) -> Result<(), String> {
         return Err(format!("dotool failed: {}", stderr));
     }
 
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn write_dotool_actions(writer: &mut impl std::io::Write, text: &str) -> std::io::Result<()> {
+    for (index, line) in text.replace("\r\n", "\n").split(['\r', '\n']).enumerate() {
+        if index != 0 {
+            writeln!(writer, "key enter")?;
+        }
+        if !line.is_empty() {
+            writeln!(writer, "type {line}")?;
+        }
+    }
     Ok(())
 }
 
@@ -909,6 +920,17 @@ mod tests {
         std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
         path
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn multiline_dotool_text_keeps_blank_and_trailing_lines() {
+        let mut actions = Vec::new();
+        write_dotool_actions(&mut actions, "first\r\n\r\nsecond\n").unwrap();
+        assert_eq!(
+            actions,
+            b"type first\nkey enter\nkey enter\ntype second\nkey enter\n"
+        );
     }
 
     #[cfg(target_os = "linux")]
