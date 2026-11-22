@@ -30,7 +30,10 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
@@ -179,7 +182,9 @@ internal object MlKitSpeech {
             try {
                 collect(ready.recognizer, request)
             } finally {
-                runCatching { ready.recognizer.stopRecognition() }
+                withContext(NonCancellable) {
+                    runCatching { withTimeoutOrNull(2_000) { ready.recognizer.stopRecognition() } }
+                }
             }
         }
 
