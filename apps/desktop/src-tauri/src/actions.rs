@@ -1061,10 +1061,13 @@ impl ShortcutAction for TranscribeAction {
                         NEXT_RECORDING_FILE_ID.fetch_add(1, Ordering::Relaxed)
                     );
                     let wav_path = hm.recordings_dir().join(&file_name);
-                    let wav_path_for_verify = wav_path.clone();
+                    let wav_path_for_upload = wav_path.clone();
                     let samples_for_wav = samples.clone();
                     let wav_handle = tauri::async_runtime::spawn_blocking(move || {
-                        crate::audio_toolkit::save_wav_file(&wav_path, &samples_for_wav)
+                        let pending = tempfile::TempPath::try_from_path(wav_path)?;
+                        crate::audio_toolkit::save_wav_file(&pending, &samples_for_wav)?;
+                        crate::audio_toolkit::verify_wav_file(&pending, sample_count)?;
+                        Ok::<_, anyhow::Error>(pending)
                     });
 
                     // Transcribe concurrently with WAV save. If a live stream was
@@ -1087,29 +1090,18 @@ impl ShortcutAction for TranscribeAction {
                         })
                     };
 
-                    // Await WAV save and verify
-                    let wav_saved = match wav_handle.await {
-                        Ok(Ok(())) => {
-                            match crate::audio_toolkit::verify_wav_file(
-                                &wav_path_for_verify,
-                                sample_count,
-                            ) {
-                                Ok(()) => true,
-                                Err(e) => {
-                                    error!("WAV verification failed: {}", e);
-                                    false
-                                }
-                            }
+                    let mut pending_wav = match wav_handle.await {
+                        Ok(Ok(pending)) => Some(pending),
+                        Ok(Err(error)) => {
+                            error!("Could not save recording: {error}");
+                            None
                         }
-                        Ok(Err(e)) => {
-                            error!("Failed to save WAV file: {}", e);
-                            false
-                        }
-                        Err(e) => {
-                            error!("WAV save task panicked: {}", e);
-                            false
+                        Err(error) => {
+                            error!("Recording save task failed: {error}");
+                            None
                         }
                     };
+                    let wav_saved = pending_wav.is_some();
 
                     let transcription_result = if let Some(result) = local_result {
                         result
@@ -1128,7 +1120,7 @@ impl ShortcutAction for TranscribeAction {
                                     }
                                 }
                                 let wav =
-                                    tokio::fs::read(&wav_path_for_verify).await.map_err(|_| {
+                                    tokio::fs::read(&wav_path_for_upload).await.map_err(|_| {
                                         anyhow::anyhow!("Could not read the recorded audio")
                                     })?;
                                 if rm.was_cancelled_since(cancel_generation) {
@@ -1218,6 +1210,8 @@ impl ShortcutAction for TranscribeAction {
                                     processed.post_process_prompt.clone(),
                                 ) {
                                     error!("Failed to save history entry: {}", err);
+                                } else if let Some(wav) = pending_wav.as_mut() {
+                                    wav.disable_cleanup(true);
                                 }
                             }
 
@@ -1324,6 +1318,8 @@ impl ShortcutAction for TranscribeAction {
                                     None,
                                 ) {
                                     error!("Failed to save failed history entry: {}", save_err);
+                                } else if let Some(wav) = pending_wav.as_mut() {
+                                    wav.disable_cleanup(true);
                                 }
                             }
                             utils::hide_recording_overlay(&ah);
