@@ -478,7 +478,7 @@ class MurmurAccessibilityService : AccessibilityService() {
         val historyId = runCatching { history.add(raw, raw, durationMs) }
             .onFailure { Diagnostics.error("bubble", "could not save the dictation to history", it) }
             .getOrNull()
-        settings.saveTranscript(raw, null, historyId)
+        settings.saveRawTranscript(raw, historyId)
         val cleaner = cleanup?.let { CleanupClient().also { cleanupRequest = it } }
         if (recordingSession != session || destroyed) {
             cleaner?.cancel()

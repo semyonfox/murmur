@@ -105,7 +105,7 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
             put("file_name", file.name)
             put("status", status)
         })
-        pruneExpired()
+        pruneAfterInsert()
         return id
     }
 
@@ -171,8 +171,13 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
             put("final_text", finalText)
             put("duration_ms", durationMs.coerceAtLeast(0))
         })
-        pruneExpired()
+        pruneAfterInsert()
         return id
+    }
+
+    private fun pruneAfterInsert() {
+        runCatching { pruneExpired() }
+            .onFailure { Diagnostics.warn("history", "could not remove expired history", it) }
     }
 
     fun pruneExpired() = pruneOlderThan(AppSettings(context).historyRetentionDays)

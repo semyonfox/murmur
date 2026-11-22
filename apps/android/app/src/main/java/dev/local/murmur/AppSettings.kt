@@ -165,13 +165,13 @@ internal class AppSettings(context: Context) {
         if ((latestTranscriptTime ?: 0L) < cutoff) latestTranscript = null
     }
 
-    fun saveTranscript(raw: String, cleaned: String?, historyId: Long?) = synchronized(preferences) {
-        preferences.edit()
-            .putString(LATEST_RAW_TRANSCRIPT, raw)
-            .putString(LATEST_TRANSCRIPT, cleaned ?: raw)
-            .putLong(LATEST_TRANSCRIPT_TIME, System.currentTimeMillis())
-            .apply { if (historyId != null) putLong(LATEST_HISTORY_ID, historyId) else remove(LATEST_HISTORY_ID) }
-            .apply()
+    fun saveRawTranscript(raw: String, historyId: Long?) = synchronized(preferences) {
+        preferences.edit {
+            putString(LATEST_RAW_TRANSCRIPT, raw)
+            putString(LATEST_TRANSCRIPT, raw)
+            putLong(LATEST_TRANSCRIPT_TIME, System.currentTimeMillis())
+            if (historyId != null) putLong(LATEST_HISTORY_ID, historyId) else remove(LATEST_HISTORY_ID)
+        }
     }
 
     fun updateLatestTranscript(historyId: Long?, raw: String, cleaned: String) = synchronized(preferences) {
