@@ -87,15 +87,16 @@ impl HistoryEntry {
     ) -> Self {
         // a lecture can have a successful part and still report a cleanup failure
         let keep_previous = cleanup_succeeded == Some(false)
-            && prompt.is_none()
             && raw.trim() == self.transcription_text.trim()
-            && (self.post_process_prompt.is_some()
-                || self
-                    .cleanup_succeeded
-                    .unwrap_or(self.post_process_requested))
-            && self.post_processed_text.as_deref().is_some_and(|text| {
-                !text.trim().is_empty() && text.trim() != self.transcription_text.trim()
-            });
+            && (self.cleanup_succeeded == Some(true)
+                || (prompt.is_none()
+                    && (self.post_process_prompt.is_some()
+                        || self
+                            .cleanup_succeeded
+                            .unwrap_or(self.post_process_requested))
+                    && self.post_processed_text.as_deref().is_some_and(|text| {
+                        !text.trim().is_empty() && text.trim() != self.transcription_text.trim()
+                    })));
         self.transcription_text = raw;
         if !keep_previous {
             self.post_processed_text = processed;
@@ -1236,7 +1237,7 @@ mod tests {
     use rusqlite::{params, Connection};
 
     #[test]
-    fn lecture_retry_keeps_previous_cleanup_only_when_no_part_succeeds_and_raw_matches() {
+    fn lecture_retry_keeps_successful_cleanup_when_retry_fails_and_raw_matches() {
         let raw = "[00:00] first part\n\n[02:00] second part";
         let previous_text = "[00:00] First part.\n\n[02:00] Second part.";
         let previous = HistoryEntry {
@@ -1269,9 +1270,26 @@ mod tests {
             Some("New prompt".into()),
             Some(false),
         );
-        assert_eq!(mixed.final_text(), mixed_text);
-        assert_eq!(mixed.post_process_prompt.as_deref(), Some("New prompt"));
-        assert_eq!(mixed.cleanup_succeeded, Some(false));
+        assert_eq!(mixed.final_text(), previous_text);
+        assert_eq!(
+            mixed.post_process_prompt.as_deref(),
+            Some("Previous prompt")
+        );
+        assert_eq!(mixed.cleanup_succeeded, Some(true));
+
+        let previous_partial = HistoryEntry {
+            post_processed_text: Some("[00:00] first part\n\n[02:00] Second part.".into()),
+            cleanup_succeeded: Some(false),
+            ..previous.clone()
+        };
+        let mixed_after_partial = previous_partial.with_retry(
+            raw.into(),
+            Some(mixed_text.into()),
+            Some("New prompt".into()),
+            Some(false),
+        );
+        assert_eq!(mixed_after_partial.final_text(), mixed_text);
+        assert_eq!(mixed_after_partial.cleanup_succeeded, Some(false));
 
         let changed_raw = "[00:00] first part";
         let changed = previous.with_retry(changed_raw.into(), None, None, Some(false));
