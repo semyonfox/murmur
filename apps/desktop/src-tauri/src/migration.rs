@@ -81,7 +81,7 @@ fn visit_data_dir(source: &Path, target: &Path, copy: bool) -> io::Result<()> {
 
 fn copy_file(source: &Path, target: &Path, copy: bool) -> io::Result<()> {
     if target.exists() {
-        if files_match(source, target)? {
+        if target.is_file() && files_match(source, target)? {
             return Ok(());
         }
         return Err(io::Error::new(
@@ -171,6 +171,21 @@ mod tests {
             fs::read(target.join("settings_store.json")).unwrap(),
             b"new settings"
         );
+        fs::remove_file(source.join("settings_store.json")).unwrap();
+        let source_file = source.join("recordings");
+        let target_dir = target.join("recordings");
+        fs::remove_dir_all(&source_file).unwrap();
+        fs::write(
+            &source_file,
+            vec![0; fs::metadata(&target_dir).unwrap().len() as usize],
+        )
+        .unwrap();
+        assert_eq!(
+            copy_data_dir(&source, &target).unwrap_err().kind(),
+            io::ErrorKind::AlreadyExists
+        );
+        assert!(target_dir.join("one.wav").is_file());
+
         fs::remove_dir_all(root).unwrap();
     }
 }
