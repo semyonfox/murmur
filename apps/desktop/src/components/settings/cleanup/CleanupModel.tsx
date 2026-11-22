@@ -51,6 +51,7 @@ export const CleanupModel: React.FC = () => {
             >
               <div className="flex items-center gap-2">
                 <BaseUrlField
+                  label={t("settings.postProcessing.api.baseUrl.title")}
                   key={state.selectedProviderId}
                   value={state.baseUrl}
                   onBlur={state.handleBaseUrlChange}
@@ -75,6 +76,7 @@ export const CleanupModel: React.FC = () => {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <ApiKeyField
+                    label={t("settings.postProcessing.api.apiKey.title")}
                     key={`${state.selectedProviderId}-${state.baseUrl}-${state.apiKeyInputVersion}`}
                     value={state.apiKey}
                     onBlur={state.handleApiKeyChange}
@@ -133,6 +135,7 @@ export const CleanupModel: React.FC = () => {
         >
           <div className="flex items-center gap-2">
             <ModelSelect
+              label={t("settings.postProcessing.api.model.title")}
               value={state.model}
               options={state.modelOptions}
               disabled={state.isModelUpdating}

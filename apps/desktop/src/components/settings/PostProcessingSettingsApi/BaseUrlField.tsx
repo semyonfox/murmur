@@ -3,6 +3,7 @@ import { Input } from "../../ui/Input";
 
 interface BaseUrlFieldProps {
   value: string;
+  label: string;
   onBlur: (value: string) => void;
   disabled: boolean;
   placeholder?: string;
@@ -10,7 +11,7 @@ interface BaseUrlFieldProps {
 }
 
 export const BaseUrlField: React.FC<BaseUrlFieldProps> = React.memo(
-  ({ value, onBlur, disabled, placeholder, className = "" }) => {
+  ({ value, label, onBlur, disabled, placeholder, className = "" }) => {
     const [localValue, setLocalValue] = useState(value);
 
     // Sync with prop changes
@@ -25,6 +26,7 @@ export const BaseUrlField: React.FC<BaseUrlFieldProps> = React.memo(
     return (
       <Input
         type="text"
+        aria-label={label}
         value={localValue}
         onChange={(event) => setLocalValue(event.target.value)}
         onBlur={() => {
