@@ -22,6 +22,13 @@ internal object LectureAudio {
     private const val SEARCH_BYTES = BYTES_PER_SECOND * 10
     private const val MAX_SAMPLES = SAMPLE_RATE * 28_800L
 
+    fun removeTemporaryRecordings(lectureDirectory: File, cacheDirectory: File) {
+        val liveChunk = Regex("murmur-chunk-[A-Za-z0-9-]+\\.wav")
+        val cachedAudio = Regex("murmur-(capture|chunk|lecture-part|lecture-import)-[A-Za-z0-9-]+\\.wav")
+        lectureDirectory.listFiles()?.filter { it.isFile && it.name.matches(liveChunk) }?.forEach { it.delete() }
+        cacheDirectory.listFiles()?.filter { it.isFile && it.name.matches(cachedAudio) }?.forEach { it.delete() }
+    }
+
     fun durationMs(file: File): Long = ((file.length() - HEADER_BYTES).coerceAtLeast(0) * 1000L) / BYTES_PER_SECOND
 
     // interrupted captures can have a zero or stale header, but their PCM is usable

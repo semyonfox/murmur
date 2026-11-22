@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
+import java.util.UUID
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -143,25 +144,23 @@ internal class LectureService : Service() {
         runCatching {
             val endpoint = requireEndpoint()
             val cleanup = settings.cleanupEndpointOrNull()
-            lateinit var job: Job
-            // pieces of at least a minute, cut at the first pause after that and never
-            // longer than two, keep whisper's context and the timestamps useful
-            val capture = PcmRecorder.start(this, File(filesDir, "lectures"), settings.noiseSuppressionEnabled,
-                maxSeconds = 28_800, preserveOnFailure = true,
-                onChunk = { piece, offsetMs -> livePiece(job, piece, offsetMs) }, chunkMinSeconds = 60, chunkMaxSeconds = 120,
-                onLevel = ::onLevel, onComplete = { result -> recordingComplete(job, result) })
+            val file = history.lectureFile("lecture-${UUID.randomUUID()}.wav")
+            val title = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date())
+            val id = history.addLecture(file, title)
+            val job = Job(id, endpoint, cleanup)
             try {
-                val id = history.addLecture(capture.file,
-                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date()))
-                job = Job(id, endpoint, cleanup)
-                recordingJob = job
-                recorder = capture
-                mutable.update { it.copy(recordingId = id, recordedMs = 0L, paused = false, finishedRecordingId = 0L) }
-                notifyCurrent()
+                // pieces of at least a minute, cut at the first pause and never longer than two
+                recorder = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled,
+                    maxSeconds = 28_800, savedFile = file,
+                    onChunk = { piece, offsetMs -> livePiece(job, piece, offsetMs) }, chunkMinSeconds = 60, chunkMaxSeconds = 120,
+                    onLevel = ::onLevel, onComplete = { result -> recordingComplete(job, result) })
             } catch (error: Exception) {
-                capture.cancel()
+                history.deleteLecture(id)
                 throw error
             }
+            recordingJob = job
+            mutable.update { it.copy(recordingId = id, recordedMs = 0L, paused = false, finishedRecordingId = 0L) }
+            notifyCurrent()
         }.onFailure { error ->
             Diagnostics.error("lecture", "recording could not start", error)
             finishWith(error.message ?: "Could not start lecture recording.", failed = true)
@@ -243,6 +242,8 @@ internal class LectureService : Service() {
                 mainHandler.post {
                     try {
                         if (!destroyed) queueImport(file, title, endpoint, cleanup)
+                    } catch (error: Exception) {
+                        if (!destroyed) reportImportFailure(error)
                     } finally {
                         file.delete()
                         if (!destroyed) finishImport()
@@ -262,20 +263,14 @@ internal class LectureService : Service() {
     }
 
     private fun queueImport(staged: File, title: String, endpoint: TranscriptionEndpoint, cleanup: CleanupEndpoint?) {
-        var untracked: File? = null
-        try {
-            val directory = File(filesDir, "lectures").apply { mkdirs() }
-            val file = File(directory, "lecture-${java.util.UUID.randomUUID()}.wav")
-            check(staged.renameTo(file)) { "Could not save the imported audio." }
-            untracked = file
-            val id = history.addLecture(file, title, "processing")
-            untracked = null
-            val job = Job(id, endpoint, cleanup).apply { durationMs = LectureAudio.durationMs(file) }
-            enqueue(id) { transcribeWhole(job, file) }
-        } catch (error: Exception) {
-            untracked?.delete()
-            reportImportFailure(error)
+        val file = history.lectureFile("lecture-${UUID.randomUUID()}.wav")
+        val id = history.addLecture(file, title, "processing")
+        if (!staged.renameTo(file)) {
+            history.deleteLecture(id)
+            error("Could not save the imported audio.")
         }
+        val job = Job(id, endpoint, cleanup).apply { durationMs = LectureAudio.durationMs(file) }
+        enqueue(id) { transcribeWhole(job, file) }
     }
 
     private fun reportImportFailure(error: Throwable) {

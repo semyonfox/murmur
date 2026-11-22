@@ -45,6 +45,25 @@ class LectureAudioTest {
         }
     }
 
+    @Test fun startupSweepLeavesSavedAudioIntact() {
+        val directory = Files.createTempDirectory("lecture-sweep-test").toFile()
+        try {
+            val recordings = File(directory, "lectures").apply { mkdir() }
+            val cache = File(directory, "cache").apply { mkdir() }
+            val saved = File(recordings, "lecture-recoverable.wav").apply { writeText("saved audio") }
+            val part = File(recordings, "murmur-chunk-1.wav").apply { createNewFile() }
+            val staged = File(cache, "murmur-lecture-import-1.wav").apply { createNewFile() }
+
+            LectureAudio.removeTemporaryRecordings(recordings, cache)
+
+            assertEquals("saved audio", saved.readText())
+            assertFalse(part.exists())
+            assertFalse(staged.exists())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
     @Test fun rejectsIncompleteRecording() {
         val source = File.createTempFile("lecture-broken-", ".wav")
         try {

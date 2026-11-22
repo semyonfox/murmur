@@ -188,7 +188,7 @@ internal class PcmRecorder private constructor(
             cacheDir: File,
             suppressNoise: Boolean,
             maxSeconds: Int = DEFAULT_MAX_SECONDS,
-            preserveOnFailure: Boolean = false,
+            savedFile: File? = null,
             // called on the main thread with each piece that holds speech and where it starts
             onChunk: ((piece: File, offsetMs: Long) -> Unit)? = null,
             chunkMinSeconds: Int = 3,
@@ -211,7 +211,7 @@ internal class PcmRecorder private constructor(
             require(minimum > 0) { "This device cannot record 16 kHz mono audio." }
             val bufferSize = max(minimum * 2, 4096)
             cacheDir.mkdirs()
-            val file = File.createTempFile(if (preserveOnFailure) "lecture-" else "murmur-capture-", ".wav", cacheDir)
+            val file = savedFile ?: File.createTempFile("murmur-capture-", ".wav", cacheDir)
             val recorder = try {
                 AudioRecord.Builder()
                     .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
@@ -252,7 +252,7 @@ internal class PcmRecorder private constructor(
                 file.delete()
                 error("Microphone did not start recording.")
             }
-            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, context.cacheDir, onChunk, chunkMinSeconds, chunkMaxSeconds, onLevel, onPcm, onComplete).also { capture ->
+            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, savedFile != null, context.cacheDir, onChunk, chunkMinSeconds, chunkMaxSeconds, onLevel, onPcm, onComplete).also { capture ->
                 Thread({ capture.runCapture(bufferSize) }, "murmur-audio").start()
             }
         }

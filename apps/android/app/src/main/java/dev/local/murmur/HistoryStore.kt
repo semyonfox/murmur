@@ -146,17 +146,6 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
             "id = ?", arrayOf(id.toString()))
     }
 
-    fun removeOrphanedRecordings() {
-        val tracked = readableDatabase.query("lectures", arrayOf("file_name"), null, null, null, null, null)
-            .use { cursor -> buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) } }
-        val orphanName = Regex("(lecture|murmur-chunk)-[A-Za-z0-9-]+\\.wav")
-        lectureDirectory.listFiles()?.filter { it.name.matches(orphanName) && it.name !in tracked }?.forEach { file ->
-            if (!file.delete() && file.exists()) Diagnostics.warn("history", "could not remove an orphaned recording")
-        }
-        val temporaryName = Regex("murmur-(capture|chunk|lecture-part|lecture-import)-[A-Za-z0-9-]+\\.wav")
-        context.cacheDir.listFiles()?.filter { it.name.matches(temporaryName) }?.forEach { it.delete() }
-    }
-
     fun deleteLecture(id: Long) {
         val record = lecture(id) ?: return
         val audio = lectureFile(record.fileName)
