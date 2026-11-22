@@ -149,15 +149,19 @@ test.describe("Murmur settings", () => {
       name: "Dictation stat cards",
     });
     const bounds = await carousel.boundingBox();
+    const card = await stats
+      .getByText("Retained words")
+      .locator("..")
+      .boundingBox();
     expect(bounds).not.toBeNull();
-    if (!bounds) return;
-    await page.mouse.move(
-      bounds.x + bounds.width * 0.8,
-      bounds.y + bounds.height / 2,
-    );
+    expect(card).not.toBeNull();
+    if (!bounds || !card) return;
+    // cards narrow as the window widens, so drag by about one card
+    const startX = bounds.x + bounds.width * 0.8;
+    await page.mouse.move(startX, bounds.y + bounds.height / 2);
     await page.mouse.down();
     await page.mouse.move(
-      bounds.x + bounds.width * 0.1,
+      startX - card.width * 0.9,
       bounds.y + bounds.height / 2,
       { steps: 10 },
     );

@@ -109,7 +109,7 @@ export default function LecturesSettings() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div className="rounded-xl border border-line/12 bg-mid-gray/5 p-6">
         <h2 className="text-lg font-semibold text-text">
           {t("murmur.lectures.recordTitle", {

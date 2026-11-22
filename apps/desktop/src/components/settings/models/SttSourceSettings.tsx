@@ -258,7 +258,7 @@ export const SttSourceSettings: React.FC<SttSourceSettingsProps> = ({
           <legend className="mb-2 text-sm font-medium text-text">
             {t("murmur.stt.source", { defaultValue: "Transcription source" })}
           </legend>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 lg:grid-cols-2">
             <label
               className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition-colors focus-within:ring-2 focus-within:ring-logo-primary/40 ${
                 source === "local"

@@ -422,7 +422,7 @@ function App() {
               ref={settingsScrollRef}
               className="flex-1 overflow-y-auto"
             >
-              <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 pt-5 pb-8">
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 pt-5 pb-8 xl:max-w-5xl">
                 <header>
                   <h1
                     id="page-heading"

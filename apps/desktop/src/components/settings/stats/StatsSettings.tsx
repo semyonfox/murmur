@@ -207,21 +207,19 @@ export const StatsSettings: React.FC = () => {
   const syncMetric = () => {
     const track = metricTrackRef.current;
     if (!track) return;
-    const center = track.getBoundingClientRect().left + track.clientWidth / 2;
+    // cards snap to the start edge and several can be visible on a wide
+    // window, so the active card is the one nearest that edge
+    const start =
+      track.getBoundingClientRect().left +
+      Number.parseFloat(getComputedStyle(track).paddingLeft);
     const cards = Array.from(track.children).filter(
       (child): child is HTMLElement => child instanceof HTMLElement,
     );
     if (cards.length === 0) return;
     const closest = cards.reduce(
       (best, card, index) =>
-        Math.abs(
-          card.getBoundingClientRect().left + card.clientWidth / 2 - center,
-        ) <
-        Math.abs(
-          cards[best].getBoundingClientRect().left +
-            cards[best].clientWidth / 2 -
-            center,
-        )
+        Math.abs(card.getBoundingClientRect().left - start) <
+        Math.abs(cards[best].getBoundingClientRect().left - start)
           ? index
           : best,
       0,
@@ -545,7 +543,7 @@ const StatCard: React.FC<StatCardProps> = ({
   unavailable,
   unavailableLabel,
 }) => (
-  <div className="flex min-h-36 w-[78%] shrink-0 snap-start flex-col rounded-2xl border border-line/12 bg-mid-gray/5 px-5 py-4">
+  <div className="flex min-h-36 w-[78%] shrink-0 snap-start md:w-[46%] xl:w-[31%] flex-col rounded-2xl border border-line/12 bg-mid-gray/5 px-5 py-4">
     <p className="text-xs font-semibold text-logo-primary">{label}</p>
     <p className="mt-3 font-serif text-3xl tracking-tight tabular-nums text-text">
       {value}
