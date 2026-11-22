@@ -173,6 +173,9 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
             .onFailure { Diagnostics.warn("history", "could not remove expired history", it) }
     }
 
+    fun lectureRetentionRemainingMs(timestamp: Long): Long? =
+        retentionCutoff().takeUnless { it == Long.MIN_VALUE }?.let { timestamp - it + 1 }
+
     fun pruneExpired() = pruneBefore(retentionCutoff())
 
     fun pruneOlderThan(days: Int) = pruneBefore(retentionCutoff(days))

@@ -87,10 +87,22 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
     val context = LocalContext.current
     val snackbar = LocalSnackbar.current
     val state by LectureService.state.collectAsState()
-    val record = remember(model.revision, id, state.transcribingId, state.part, state.queuedIds, state.message) {
-        runCatching { model.history.lecture(id) }.getOrNull()
+    var expired by remember(id) { mutableStateOf(false) }
+    val record = remember(model.revision, id, state.transcribingId, state.part, state.queuedIds, state.message, expired) {
+        if (expired) null else runCatching { model.history.lecture(id) }.getOrNull()
     }
-    LaunchedEffect(record == null) { if (record == null) onBack() }
+    LaunchedEffect(id, record?.timestamp, model.revision) {
+        val timestamp = record?.timestamp ?: return@LaunchedEffect
+        while (true) {
+            val remaining = model.history.lectureRetentionRemainingMs(timestamp) ?: break
+            if (remaining <= 0) {
+                expired = true
+                break
+            }
+            delay(remaining.coerceAtMost(60_000))
+        }
+    }
+    LaunchedEffect(id, record == null) { if (record == null) onBack() }
     if (record == null) return
 
     val active = state.isActive(id)
