@@ -162,7 +162,10 @@ internal class AppSettings(context: Context) {
         }
 
     fun removeExpiredLatestTranscript(cutoff: Long) = synchronized(preferences) {
-        if ((latestTranscriptTime ?: 0L) < cutoff) latestTranscript = null
+        val timestamp = latestTranscriptTime
+        if (timestamp?.let { it < cutoff } ?: (latestTranscript != null || latestRawTranscript != null || latestHistoryId != null)) {
+            latestTranscript = null
+        }
     }
 
     fun saveRawTranscript(raw: String, historyId: Long?) = synchronized(preferences) {
