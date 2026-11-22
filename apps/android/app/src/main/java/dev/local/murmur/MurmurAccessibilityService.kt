@@ -438,7 +438,6 @@ class MurmurAccessibilityService : AccessibilityService() {
     ) {
         val client = chunks.client
         val endpoint = chunks.endpoint
-        chunked = null
         request = client
         requestFile = file
         mode = Mode.TRANSCRIBING
@@ -460,6 +459,7 @@ class MurmurAccessibilityService : AccessibilityService() {
                 file.delete()
                 mainHandler.post {
                     if (request === client) {
+                        chunked = null
                         request = null
                         cleanupRequest = null
                         requestTask = null
