@@ -100,12 +100,23 @@ class AudioChunksTest {
     }
 
     @Test
-    fun retriesTheWholeTakeAfterBlankPartsOrADroppedConnection() {
-        for (firstReply in listOf(200 to """{"text":" "}""", 0 to "")) {
-            withSpeechReplies(firstReply, 200 to """{"text":"Recovered"}""") { finish, posts ->
-                assertEquals("Recovered", finish())
-                assertEquals(2, posts.get())
-            }
+    fun retriesASingleUploadAfterADroppedConnection() {
+        withSpeechReplies(0 to "", 200 to """{"text":"Recovered"}""", partCount = 0) { transcribe, posts ->
+            assertEquals("Recovered", transcribe())
+            assertEquals(2, posts.get())
+        }
+    }
+
+    @Test
+    fun retriesTheWholeTakeAfterBlankPartsOrRepeatedDrops() {
+        val recovered = 200 to """{"text":"Recovered"}"""
+        withSpeechReplies(200 to """{"text":" "}""", recovered) { finish, posts ->
+            assertEquals("Recovered", finish())
+            assertEquals(2, posts.get())
+        }
+        withSpeechReplies(0 to "", 0 to "", recovered) { finish, posts ->
+            assertEquals("Recovered", finish())
+            assertEquals(3, posts.get())
         }
     }
 
@@ -121,9 +132,9 @@ class AudioChunksTest {
             assertThrows(IOException::class.java) { finish() }
             assertEquals(2, posts.get())
         }
-        withSpeechReplies(0 to "", 402 to "", partCount = 2) { finish, posts ->
+        withSpeechReplies(0 to "", 0 to "", 402 to "", partCount = 2) { finish, posts ->
             assertThrows(HttpStatusException::class.java) { finish() }
-            assertEquals(2, posts.get())
+            assertEquals(3, posts.get())
         }
     }
 
@@ -163,7 +174,9 @@ class AudioChunksTest {
             val full = pcmToWav(ByteArray(2 * (partCount + 1)), temp.root)
             check({
                 try {
-                    worker.submit<String> { chunks.finish(full) }.get(5, TimeUnit.SECONDS)
+                    worker.submit<String> {
+                        if (chunks.started) chunks.finish(full) else chunks.client.transcribe(endpoint, full)
+                    }.get(5, TimeUnit.SECONDS)
                 } catch (error: ExecutionException) {
                     throw error.cause ?: error
                 }

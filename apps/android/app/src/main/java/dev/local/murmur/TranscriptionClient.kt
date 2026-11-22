@@ -94,8 +94,16 @@ internal class TranscriptionClient {
             cancellation.await(delayMs, TimeUnit.MILLISECONDS)
             send(request, deadline)
         } catch (error: IOException) {
-            if (retryHttp && !cancelled && connectionDropped(error)) throw SpeechConnectionDropped(error)
-            throw error
+            if (!retryHttp || cancelled || !connectionDropped(error)) throw error
+            if (deadline - System.nanoTime() <= TimeUnit.MILLISECONDS.toNanos(300)) throw SpeechConnectionDropped(error)
+            Diagnostics.warn("speech", "retrying ${endpoint.uri.host} after a dropped connection", error)
+            if (cancellation.await(300, TimeUnit.MILLISECONDS)) throw error
+            try {
+                send(request, deadline)
+            } catch (retryError: IOException) {
+                if (!cancelled && connectionDropped(retryError)) throw SpeechConnectionDropped(retryError)
+                throw retryError
+            }
         }
     }
 
