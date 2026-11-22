@@ -146,6 +146,54 @@ struct ChatCompletionRequest {
     response_format: Option<ResponseFormat>,
     #[serde(flatten)]
     reasoning: ReasoningParams,
+    #[serde(flatten)]
+    output_cap: OutputCap,
+}
+
+/// Upper bound on generated tokens. A provider that ignores the reasoning-off
+/// flag once ran single cleanups to its 262k output limit, so every request
+/// carries a cap. OpenAI's newer models reject `max_tokens` and want
+/// `max_completion_tokens`; everyone else takes `max_tokens`.
+#[derive(Debug, Serialize, Clone, Default, PartialEq)]
+struct OutputCap {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_completion_tokens: Option<u32>,
+}
+
+impl OutputCap {
+    fn for_provider(provider: &PostProcessProvider, content_chars: usize) -> Self {
+        let cap = Some(cleanup_output_cap(content_chars));
+        if provider.id == "openai" {
+            Self {
+                max_completion_tokens: cap,
+                ..Default::default()
+            }
+        } else {
+            Self {
+                max_tokens: cap,
+                ..Default::default()
+            }
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.max_tokens.is_none() && self.max_completion_tokens.is_none()
+    }
+}
+
+/// Cleanup returns about as much text as it was given. At roughly four
+/// characters a token, three times the input plus a floor leaves room for the
+/// JSON wrapper and a little leaked reasoning. Hitting the cap ends in
+/// `finish_reason: length`, which is rejected and falls back to the raw
+/// transcript.
+fn cleanup_output_cap(content_chars: usize) -> u32 {
+    let input_tokens = content_chars.div_ceil(4);
+    input_tokens
+        .saturating_mul(3)
+        .saturating_add(512)
+        .min(32_768) as u32
 }
 
 #[derive(Debug, Deserialize)]
@@ -416,7 +464,8 @@ pub async fn send_chat_completion_with_schema(
     );
 
     let (client, headers) = client_and_headers(provider, &api_key)?;
-    let timeout = cleanup_timeout(user_content.chars().count());
+    let content_chars = user_content.chars().count();
+    let timeout = cleanup_timeout(content_chars);
 
     // Build messages vector
     let mut messages = Vec::new();
@@ -462,6 +511,11 @@ pub async fn send_chat_completion_with_schema(
         temperature: (!plain).then_some(0.0),
         response_format,
         reasoning,
+        output_cap: if plain {
+            OutputCap::default()
+        } else {
+            OutputCap::for_provider(provider, content_chars)
+        },
     };
 
     let mut response = client
@@ -489,12 +543,14 @@ pub async fn send_chat_completion_with_schema(
         ));
     }
 
-    // Unknown OpenAI-compatible endpoints may reject the disable field, and
-    // some models only accept their default temperature. Retry without both
-    // there, but never on SiliconFlow or OpenRouter.
+    // Unknown OpenAI-compatible endpoints may reject the disable field or the
+    // output cap, and some models only accept their default temperature. Retry
+    // without all three there, but never on SiliconFlow or OpenRouter.
     if !status.is_success()
         && matches!(status.as_u16(), 400 | 422)
-        && (!request_body.reasoning.is_empty() || request_body.temperature.is_some())
+        && (!request_body.reasoning.is_empty()
+            || request_body.temperature.is_some()
+            || !request_body.output_cap.is_empty())
     {
         let error_text = response.text().await.unwrap_or_else(|e| {
             report_reqwest_error("Failed to read reasoning rejection response", &e)
@@ -506,6 +562,7 @@ pub async fn send_chat_completion_with_schema(
 
         request_body.reasoning = ReasoningParams::default();
         request_body.temperature = None;
+        request_body.output_cap = OutputCap::default();
         response = client
             .post(&url)
             .headers(headers)
@@ -666,6 +723,7 @@ mod tests {
             temperature: Some(0.0),
             response_format: None,
             reasoning,
+            output_cap: OutputCap::default(),
         };
         serde_json::to_value(&request).unwrap()
     }
@@ -756,6 +814,71 @@ mod tests {
         .unwrap();
 
         assert_eq!(result.as_deref(), Some("Keep this."));
+    }
+
+    /// Answers one request and hands back the JSON body it was sent.
+    async fn capture_one_request() -> (String, tokio::task::JoinHandle<Value>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let handle = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut received = Vec::new();
+            let mut buffer = [0_u8; 4096];
+            let body = loop {
+                let read = stream.read(&mut buffer).await.unwrap();
+                received.extend_from_slice(&buffer[..read]);
+                let text = String::from_utf8_lossy(&received).into_owned();
+                if let Some((head, body)) = text.split_once("\r\n\r\n") {
+                    let length = head
+                        .lines()
+                        .find_map(|line| {
+                            let (name, value) = line.split_once(':')?;
+                            name.eq_ignore_ascii_case("content-length")
+                                .then(|| value.trim().parse::<usize>().ok())?
+                        })
+                        .unwrap_or(0);
+                    if body.len() >= length {
+                        break body.to_string();
+                    }
+                }
+                assert!(read > 0, "connection closed before the body arrived");
+            };
+            let reply = r#"{"choices":[{"message":{"content":"ok"},"finish_reason":"stop"}]}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}",
+                reply.len()
+            );
+            stream.write_all(response.as_bytes()).await.unwrap();
+            serde_json::from_str(&body).unwrap()
+        });
+        (format!("http://{address}"), handle)
+    }
+
+    #[tokio::test]
+    async fn cleanup_requests_cap_output_in_the_field_each_provider_reads() {
+        let transcript = "word ".repeat(400);
+        for (id, field, other) in [
+            ("openrouter", "max_tokens", "max_completion_tokens"),
+            ("openai", "max_completion_tokens", "max_tokens"),
+        ] {
+            let (base_url, server) = capture_one_request().await;
+            send_chat_completion(
+                &provider(id, &base_url),
+                String::new(),
+                "test-model",
+                transcript.clone(),
+                true,
+            )
+            .await
+            .unwrap();
+            let body = server.await.unwrap();
+            let cap = body[field].as_u64().expect("output cap missing");
+            assert!(
+                (500..=2_048).contains(&cap),
+                "{id}: cap {cap} is not sized to a 2000 character transcript"
+            );
+            assert!(body.get(other).is_none(), "{id}: sent both cap fields");
+        }
     }
 
     #[tokio::test]
