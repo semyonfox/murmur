@@ -27,6 +27,7 @@ internal object LectureAudio {
     private const val FRAME_BYTES = 640
     private const val SEARCH_BYTES = BYTES_PER_SECOND * 10
     private const val MAX_SAMPLES = SAMPLE_RATE * 28_800L
+    private const val MAX_IMPORT_BYTES = 1024L * 1024 * 1024
     private val importOpenTimeoutNs = TimeUnit.MINUTES.toNanos(10)
     private const val IMPORT_STALL_NS = 30_000_000_000L
 
@@ -132,13 +133,17 @@ internal object LectureAudio {
                     deadline.set(System.nanoTime() + IMPORT_STALL_NS)
                     signal.setOnCancelListener { runCatching { asset.close() } }
                     signal.throwIfCanceled()
+                    requireImportSize(asset.length)
                     asset.createInputStream().use { input ->
                         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        var stagedBytes = 0L
                         while (true) {
                             signal.throwIfCanceled()
                             val count = input.read(buffer)
                             if (count < 0) break
                             if (count == 0) continue
+                            stagedBytes += count
+                            requireImportSize(stagedBytes)
                             output.write(buffer, 0, count)
                             deadline.set(System.nanoTime() + IMPORT_STALL_NS)
                         }
@@ -166,6 +171,10 @@ internal object LectureAudio {
                 }
             }
         }
+    }
+
+    private fun requireImportSize(bytes: Long) {
+        require(bytes <= MAX_IMPORT_BYTES) { "Audio files over 1 GiB cannot be imported." }
     }
 
     private fun decodeImport(source: File, destination: File, signal: CancellationSignal) {
