@@ -74,20 +74,20 @@ export const CleanupModel: React.FC = () => {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <ApiKeyField
-                    key={`${state.selectedProviderId}-${state.apiKeyInputVersion}`}
+                    key={`${state.selectedProviderId}-${state.baseUrl}-${state.apiKeyInputVersion}`}
                     value={state.apiKey}
                     onBlur={state.handleApiKeyChange}
                     placeholder={t(
                       "settings.postProcessing.api.apiKey.placeholder",
                     )}
-                    disabled={state.isApiKeyUpdating}
+                    disabled={state.isApiKeyUpdating || state.isBaseUrlUpdating}
                     className="min-w-0 flex-1"
                   />
                   {state.apiKeyConfigured && (
                     <Button
                       variant="secondary"
                       size="md"
-                      disabled={state.isApiKeyUpdating}
+                      disabled={state.isApiKeyUpdating || state.isBaseUrlUpdating}
                       onClick={state.handleApiKeyRemove}
                     >
                       {t("murmur.cleanup.removeKey", {

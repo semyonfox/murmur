@@ -390,8 +390,9 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
         String::new()
     } else {
         let provider_id_for_key = provider.id.clone();
+        let origin = crate::secrets::cleanup_key_scope(settings, &provider).ok()?;
         match tokio::task::spawn_blocking(move || {
-            crate::secrets::get_cleanup_key(&provider_id_for_key)
+            crate::secrets::get_cleanup_key(&provider_id_for_key, origin.as_deref())
         })
         .await
         {

@@ -1066,12 +1066,15 @@ pub async fn change_post_process_api_key_setting(
     api_key: String,
 ) -> Result<(), String> {
     let settings = settings::get_settings(&app);
-    validate_provider_exists(&settings, &provider_id)?;
+    let provider = settings
+        .post_process_provider(&provider_id)
+        .ok_or("Unknown provider")?;
+    let origin = crate::secrets::cleanup_key_scope(&settings, provider)?;
     tauri::async_runtime::spawn_blocking(move || {
         if api_key.trim().is_empty() {
-            crate::secrets::delete_cleanup_key(&provider_id)
+            crate::secrets::delete_cleanup_key(&provider_id, origin.as_deref())
         } else {
-            crate::secrets::set_cleanup_key(&provider_id, &api_key)
+            crate::secrets::set_cleanup_key(&provider_id, origin.as_deref(), &api_key)
         }
     })
     .await
@@ -1080,9 +1083,17 @@ pub async fn change_post_process_api_key_setting(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn is_post_process_api_key_configured(provider_id: String) -> Result<bool, String> {
+pub async fn is_post_process_api_key_configured(
+    app: AppHandle,
+    provider_id: String,
+) -> Result<bool, String> {
+    let settings = settings::get_settings(&app);
+    let provider = settings
+        .post_process_provider(&provider_id)
+        .ok_or("Unknown provider")?;
+    let origin = crate::secrets::cleanup_key_scope(&settings, provider)?;
     tauri::async_runtime::spawn_blocking(move || {
-        crate::secrets::get_cleanup_key(&provider_id).map(|key| key.is_some())
+        crate::secrets::get_cleanup_key(&provider_id, origin.as_deref()).map(|key| key.is_some())
     })
     .await
     .map_err(|_| "Could not access the system credential store".to_string())?
@@ -1215,9 +1226,9 @@ pub async fn fetch_post_process_models(
         }
     }
 
-    let provider_id_for_key = provider_id.clone();
+    let origin = crate::secrets::cleanup_key_scope(&settings, provider)?;
     let stored_key = tauri::async_runtime::spawn_blocking(move || {
-        crate::secrets::get_cleanup_key(&provider_id_for_key)
+        crate::secrets::get_cleanup_key(&provider_id, origin.as_deref())
     })
     .await
     .map_err(|_| "Could not access the system credential store".to_string())?;

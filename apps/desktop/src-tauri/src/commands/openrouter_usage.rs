@@ -88,7 +88,7 @@ pub async fn get_openrouter_key_usage(app: AppHandle) -> Result<OpenRouterKeyUsa
 }
 
 fn configured_openrouter_keys(stt_base_url: Option<&str>) -> Result<Vec<String>, String> {
-    let cleanup_key = crate::secrets::get_cleanup_key("openrouter")?;
+    let cleanup_key = crate::secrets::get_cleanup_key("openrouter", None)?;
 
     let stt_key = match stt_base_url {
         Some(base_url) => match crate::secrets::get_stt_key(base_url)? {

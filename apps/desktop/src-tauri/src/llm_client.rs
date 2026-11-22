@@ -259,6 +259,10 @@ fn build_headers(provider: &PostProcessProvider, api_key: &str) -> Result<Header
 }
 
 pub(crate) fn validate_provider_url(base_url: &str) -> Result<(), String> {
+    parse_provider_url(base_url).map(|_| ())
+}
+
+pub(crate) fn parse_provider_url(base_url: &str) -> Result<reqwest::Url, String> {
     let url = reqwest::Url::parse(base_url.trim())
         .map_err(|_| "Invalid cleanup provider URL".to_string())?;
     let is_loopback = url.host_str().is_some_and(|host| {
@@ -282,7 +286,7 @@ pub(crate) fn validate_provider_url(base_url: &str) -> Result<(), String> {
         );
     }
 
-    Ok(())
+    Ok(url)
 }
 
 /// The shared client and this provider's headers. The headers go on each

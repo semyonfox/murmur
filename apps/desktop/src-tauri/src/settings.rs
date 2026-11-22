@@ -472,6 +472,8 @@ pub struct AppSettings {
     pub post_process_provider_id: String,
     #[serde(default = "default_post_process_providers")]
     pub post_process_providers: Vec<PostProcessProvider>,
+    #[specta(skip)]
+    pub(crate) legacy_custom_cleanup_origin: Option<String>,
     // Credentials live in the OS credential store and must never enter the
     // settings JSON or the settings snapshot sent to the webview.
     #[serde(skip, default = "default_post_process_api_keys")]
@@ -1051,6 +1053,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_formality: default_post_process_formality(),
         post_process_provider_id: default_post_process_provider_id(),
         post_process_providers: default_post_process_providers(),
+        legacy_custom_cleanup_origin: None,
         post_process_api_keys: default_post_process_api_keys(),
         post_process_models: default_post_process_models(),
         post_process_prompts: default_post_process_prompts(),
@@ -1209,6 +1212,13 @@ fn apply_settings_migrations(
     settings_value: &serde_json::Value,
 ) -> bool {
     let mut updated = false;
+
+    if settings_value.get("legacy_custom_cleanup_origin").is_none() {
+        settings.legacy_custom_cleanup_origin = settings
+            .post_process_provider("custom")
+            .and_then(|provider| crate::secrets::cleanup_origin(&provider.base_url).ok());
+        updated |= settings.legacy_custom_cleanup_origin.is_some();
+    }
 
     // One-time onboarding migration: users with an explicit selected model have
     // already made it through model selection. Users who merely have compatible
@@ -2077,6 +2087,7 @@ mod tests {
             "onboarding_completed": false,
             "whats_new_last_seen_version": default_whats_new_last_seen_version(),
             "overlay_style": "live",
+            "legacy_custom_cleanup_origin": null,
             "transcribe_accelerator": "gpu",
             "transcribe_gpu_device": settings.transcribe_gpu_device
         });
