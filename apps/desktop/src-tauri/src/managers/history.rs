@@ -6,10 +6,11 @@ use rusqlite::{params, Connection, OptionalExtension};
 use rusqlite_migration::{Migrations, M};
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::io::{ErrorKind, Read, Seek, Write};
 use std::path::{Component, Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
 use tauri_specta::Event;
 
@@ -133,6 +134,18 @@ pub struct HistoryManager {
     app_handle: AppHandle,
     recordings_dir: PathBuf,
     db_path: PathBuf,
+    active_entries: Arc<Mutex<HashSet<i64>>>,
+}
+
+pub struct HistoryWork {
+    id: i64,
+    active_entries: Arc<Mutex<HashSet<i64>>>,
+}
+
+impl Drop for HistoryWork {
+    fn drop(&mut self) {
+        self.active_entries.lock().unwrap().remove(&self.id);
+    }
 }
 
 impl HistoryManager {
@@ -152,11 +165,12 @@ impl HistoryManager {
             app_handle: app_handle.clone(),
             recordings_dir,
             db_path,
+            active_entries: Arc::default(),
         };
 
         // Initialize database and run migrations synchronously
         manager.init_database()?;
-
+        manager.prune_after_work();
         Ok(manager)
     }
 
@@ -553,8 +567,29 @@ impl HistoryManager {
         Ok(entry)
     }
 
-    pub fn save_long_entry(&self, file_name: String, title: String) -> Result<HistoryEntry> {
-        let timestamp = Utc::now().timestamp();
+    pub fn begin_entry_work(&self, id: i64) -> Result<HistoryWork> {
+        if !self.active_entries.lock().unwrap().insert(id) {
+            return Err(anyhow!("This recording is already in use"));
+        }
+        Ok(HistoryWork {
+            id,
+            active_entries: Arc::clone(&self.active_entries),
+        })
+    }
+
+    pub fn prune_after_work(&self) {
+        if let Err(error) = self.cleanup_old_entries() {
+            error!("Could not prune history: {error}");
+        }
+    }
+
+    pub fn save_long_entry(
+        &self,
+        file_name: String,
+        title: String,
+        timestamp: i64,
+    ) -> Result<(HistoryEntry, HistoryWork)> {
+        let mut active = self.active_entries.lock().unwrap();
         let conn = self.get_connection()?;
         conn.execute(
             "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text, post_process_requested) VALUES (?1, ?2, 0, ?3, '', 0)",
@@ -571,6 +606,12 @@ impl HistoryManager {
             post_process_prompt: None,
             post_process_requested: false,
         };
+        active.insert(entry.id);
+        drop(active);
+        let work = HistoryWork {
+            id: entry.id,
+            active_entries: Arc::clone(&self.active_entries),
+        };
         if let Err(error) = (HistoryUpdatePayload::Added {
             entry: entry.clone(),
         })
@@ -578,7 +619,7 @@ impl HistoryManager {
         {
             log::error!("Failed to emit history event: {error}");
         }
-        Ok(entry)
+        Ok((entry, work))
     }
 
     /// Update an existing history entry with new transcription results (used by retry).
@@ -656,8 +697,12 @@ impl HistoryManager {
 
         let conn = self.get_connection()?;
         let mut deleted_count = 0;
+        let active = self.active_entries.lock().unwrap();
 
         for (id, file_name) in entries {
+            if active.contains(id) {
+                continue;
+            }
             let deleted = conn.execute(
                 "DELETE FROM transcription_history WHERE id = ?1 AND saved = 0",
                 params![id],
@@ -687,9 +732,11 @@ impl HistoryManager {
     fn cleanup_by_count(&self, limit: usize) -> Result<()> {
         let conn = self.get_connection()?;
 
-        // Get all entries that are not saved, ordered by timestamp desc
+        // lecture recordings and imports have always used the lecture filename prefix
         let mut stmt = conn.prepare(
-            "SELECT id, file_name FROM transcription_history WHERE saved = 0 ORDER BY timestamp DESC"
+            "SELECT id, file_name FROM transcription_history
+             WHERE saved = 0 AND file_name NOT GLOB 'lecture-*'
+             ORDER BY timestamp DESC, id DESC",
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -893,7 +940,7 @@ impl HistoryManager {
         self.recordings_dir.join(file_name)
     }
 
-    pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
+    pub fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
             "SELECT
@@ -916,10 +963,14 @@ impl HistoryManager {
     }
 
     pub async fn delete_entry(&self, id: i64) -> Result<()> {
+        let active = self.active_entries.lock().unwrap();
+        if active.contains(&id) {
+            return Err(anyhow!("This recording is in use"));
+        }
         let conn = self.get_connection()?;
 
         // Get the entry to find the file name
-        if let Some(entry) = self.get_entry_by_id(id).await? {
+        if let Some(entry) = self.get_entry_by_id(id)? {
             // Delete the audio file first
             let file_path = self.get_audio_file_path(&entry.file_name);
             if file_path.exists() {

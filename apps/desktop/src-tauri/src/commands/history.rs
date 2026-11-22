@@ -98,20 +98,23 @@ pub async fn retry_history_entry_transcription(
     transcription_manager: State<'_, Arc<TranscriptionManager>>,
     id: i64,
 ) -> Result<(), String> {
+    let work = history_manager
+        .begin_entry_work(id)
+        .map_err(|error| error.to_string())?;
     let entry = history_manager
         .get_entry_by_id(id)
-        .await
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("History entry {} not found", id))?;
 
     let audio_path = history_manager.get_audio_file_path(&entry.file_name);
-    if entry.title.starts_with("Lecture · ") || entry.title.starts_with("Import · ") {
-        return super::lectures::transcribe_long_audio(
+    if entry.file_name.starts_with("lecture-") {
+        return super::lectures::retry_lecture_transcription(
             &app,
             &history_manager,
             &transcription_manager,
             id,
-            audio_path,
+            &audio_path,
+            work,
         )
         .await;
     }
@@ -159,7 +162,7 @@ pub async fn retry_history_entry_transcription(
 
     let processed =
         process_transcription_output(&app, &transcription, entry.post_process_requested).await;
-    history_manager
+    let result = history_manager
         .update_transcription(
             id,
             transcription,
@@ -167,7 +170,10 @@ pub async fn retry_history_entry_transcription(
             processed.post_process_prompt,
         )
         .map(|_| ())
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string());
+    drop(work);
+    history_manager.prune_after_work();
+    result
 }
 
 #[tauri::command]

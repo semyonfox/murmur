@@ -1,5 +1,10 @@
 import type { Page } from "@playwright/test";
-import type { AppSettings, HistoryEntry, ModelInfo } from "../src/bindings";
+import type {
+  AppSettings,
+  HistoryEntry,
+  LectureStatus,
+  ModelInfo,
+} from "../src/bindings";
 
 declare global {
   interface Window {
@@ -58,6 +63,7 @@ interface FixtureOptions {
   permissionPollingFailure?: boolean;
   recordingFailure?: boolean;
   credentialFailure?: boolean;
+  lectureStatus?: LectureStatus;
 }
 
 export async function installFixture(page: Page, options: FixtureOptions = {}) {
@@ -181,6 +187,8 @@ export async function installFixture(page: Page, options: FixtureOptions = {}) {
             case "open_microphone_privacy_settings":
               openedPrivacySettings = true;
               return null;
+            case "get_active_lecture":
+              return fixture.lectureStatus ?? { state: "idle" };
             case "get_history_entries":
               if (fixture.historyDelayMs)
                 await new Promise((resolve) =>

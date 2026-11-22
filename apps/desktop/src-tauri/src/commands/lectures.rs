@@ -1,7 +1,9 @@
 use crate::actions::process_transcription_output;
 use crate::audio_toolkit::quietest_cut;
 use crate::managers::{
-    audio::AudioRecordingManager, history::HistoryManager, transcription::TranscriptionManager,
+    audio::AudioRecordingManager,
+    history::{HistoryManager, HistoryWork},
+    transcription::TranscriptionManager,
 };
 use crate::settings::SttSource;
 use chrono::Local;
@@ -11,27 +13,85 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicU64, Ordering},
-        Arc, Mutex, OnceLock,
+        Arc, Mutex,
     },
 };
 use tauri::{AppHandle, Emitter, State};
 
-#[derive(Clone, serde::Serialize)]
-struct LectureProgress {
-    id: i64,
+#[derive(Clone, serde::Serialize, specta::Type)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum LectureStatus {
+    Idle,
+    Recording { started_at: i64 },
+    Working { progress: Option<LectureProgress> },
+}
+
+#[derive(Clone, serde::Serialize, specta::Type)]
+pub struct LectureProgress {
     completed: usize,
     total: usize,
+}
+
+struct LectureRecording {
+    id: i64,
+    path: PathBuf,
+    started_at: i64,
+    work: HistoryWork,
+}
+
+enum LectureSession {
+    Idle,
+    Recording(LectureRecording),
+    Working(Option<LectureProgress>),
+}
+
+impl LectureSession {
+    fn status(&self) -> LectureStatus {
+        match self {
+            Self::Idle => LectureStatus::Idle,
+            Self::Recording(recording) => LectureStatus::Recording {
+                started_at: recording.started_at,
+            },
+            Self::Working(progress) => LectureStatus::Working {
+                progress: progress.clone(),
+            },
+        }
+    }
 }
 
 pub(crate) const BINDING: &str = "lecture";
 const CHUNK_SAMPLES: usize = 16_000 * 120;
 // each part ends at the quietest moment of its last ten seconds
 const CUT_SEARCH_SAMPLES: usize = 16_000 * 10;
-static SESSION: OnceLock<Mutex<Option<(i64, PathBuf)>>> = OnceLock::new();
+static SESSION: Mutex<LectureSession> = Mutex::new(LectureSession::Idle);
 static FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
-fn session() -> &'static Mutex<Option<(i64, PathBuf)>> {
-    SESSION.get_or_init(|| Mutex::new(None))
+struct LectureJob(AppHandle);
+
+impl LectureJob {
+    fn begin(app: &AppHandle) -> Result<Self, String> {
+        let mut session = SESSION.lock().unwrap();
+        if !matches!(*session, LectureSession::Idle) {
+            return Err("A lecture operation is already in progress".into());
+        }
+        *session = LectureSession::Working(None);
+        let _ = app.emit("lecture-status", session.status());
+        Ok(Self(app.clone()))
+    }
+}
+
+impl Drop for LectureJob {
+    fn drop(&mut self) {
+        let mut session = SESSION.lock().unwrap();
+        *session = LectureSession::Idle;
+        let _ = self.0.emit("lecture-status", session.status());
+    }
+}
+
+fn report_progress(app: &AppHandle, completed: usize, total: usize) {
+    let mut session = SESSION.lock().unwrap();
+    *session = LectureSession::Working(Some(LectureProgress { completed, total }));
+    let _ = app.emit("lecture-status", session.status());
 }
 
 fn new_file_name() -> String {
@@ -48,20 +108,28 @@ fn new_file_name() -> String {
 #[tauri::command]
 #[specta::specta]
 pub fn start_lecture_recording(
+    app: AppHandle,
     recording_manager: State<'_, Arc<AudioRecordingManager>>,
     history_manager: State<'_, Arc<HistoryManager>>,
 ) -> Result<i64, String> {
-    let mut active = session().lock().map_err(|_| "Recorder unavailable")?;
-    if active.is_some() {
-        return Err("A lecture is already recording".into());
+    let mut session = SESSION.lock().unwrap();
+    if !matches!(*session, LectureSession::Idle) {
+        return Err("A lecture operation is already in progress".into());
     }
     let name = new_file_name();
     let path = history_manager.get_audio_file_path(&name);
     recording_manager.try_start_recording_to_file(BINDING, &path)?;
-    let title = format!("Lecture · {}", Local::now().format("%e %b %Y, %H:%M"));
-    match history_manager.save_long_entry(name, title) {
-        Ok(entry) => {
-            *active = Some((entry.id, path));
+    let started = Local::now();
+    let title = format!("Lecture · {}", started.format("%e %b %Y, %H:%M"));
+    match history_manager.save_long_entry(name, title, started.timestamp()) {
+        Ok((entry, work)) => {
+            *session = LectureSession::Recording(LectureRecording {
+                id: entry.id,
+                path,
+                started_at: started.timestamp_millis(),
+                work,
+            });
+            let _ = app.emit("lecture-status", session.status());
             Ok(entry.id)
         }
         Err(error) => {
@@ -74,12 +142,8 @@ pub fn start_lecture_recording(
 
 #[tauri::command]
 #[specta::specta]
-pub fn get_active_lecture() -> Result<Option<i64>, String> {
-    Ok(session()
-        .lock()
-        .map_err(|_| "Recorder unavailable")?
-        .as_ref()
-        .map(|value| value.0))
+pub fn get_active_lecture() -> Result<LectureStatus, String> {
+    Ok(SESSION.lock().unwrap().status())
 }
 
 #[tauri::command]
@@ -90,17 +154,33 @@ pub async fn finish_lecture_recording(
     history_manager: State<'_, Arc<HistoryManager>>,
     transcription_manager: State<'_, Arc<TranscriptionManager>>,
 ) -> Result<i64, String> {
-    let (id, path) = session()
-        .lock()
-        .map_err(|_| "Recorder unavailable")?
-        .take()
-        .ok_or("No lecture is recording")?;
-    let samples = recording_manager.stop_recording_file(BINDING)?;
-    if samples == 0 {
-        return Err("The recording contains no audio".into());
+    let LectureRecording { id, path, work, .. } = {
+        let mut session = SESSION.lock().unwrap();
+        if !matches!(*session, LectureSession::Recording(_)) {
+            return Err("No lecture is recording".into());
+        }
+        let LectureSession::Recording(recording) =
+            std::mem::replace(&mut *session, LectureSession::Working(None))
+        else {
+            unreachable!();
+        };
+        let _ = app.emit("lecture-status", session.status());
+        recording
+    };
+    let _job = LectureJob(app.clone());
+    let result = match recording_manager.stop_recording_file(BINDING) {
+        Ok(samples) if samples > 0 => {
+            transcribe_long_audio(&app, &history_manager, &transcription_manager, id, &path).await
+        }
+        Ok(_) => Err("The recording contains no audio".into()),
+        Err(error) => Err(error),
+    };
+    drop(work);
+    history_manager.prune_after_work();
+    match result {
+        Ok(()) => Ok(id),
+        Err(error) => Err(error_with_recovery(&history_manager, id, &path, error)),
     }
-    transcribe_long_audio(&app, &history_manager, &transcription_manager, id, path).await?;
-    Ok(id)
 }
 
 #[tauri::command]
@@ -111,6 +191,7 @@ pub async fn import_lecture_audio(
     transcription_manager: State<'_, Arc<TranscriptionManager>>,
     source: String,
 ) -> Result<i64, String> {
+    let _job = LectureJob::begin(&app)?;
     let source = PathBuf::from(source);
     if !source.is_absolute() || !source.is_file() {
         return Err("Choose an audio file".into());
@@ -121,7 +202,8 @@ pub async fn import_lecture_audio(
     let output = destination.clone();
     let conversion = tauri::async_runtime::spawn_blocking(move || convert_audio(&input, &output))
         .await
-        .map_err(|error| format!("Could not import audio: {error}"))?;
+        .map_err(|error| format!("Could not import audio: {error}"))
+        .and_then(|result| result);
     if let Err(error) = conversion {
         let _ = std::fs::remove_file(&destination);
         return Err(error);
@@ -131,18 +213,54 @@ pub async fn import_lecture_audio(
         .and_then(|stem| stem.to_str())
         .unwrap_or("Imported audio");
     let title = format!("Import · {}", title.chars().take(80).collect::<String>());
-    let entry = history_manager
-        .save_long_entry(name, title)
-        .map_err(|error| format!("Could not save imported audio: {error}"))?;
-    transcribe_long_audio(
+    let (entry, work) = match history_manager.save_long_entry(name, title, Local::now().timestamp())
+    {
+        Ok(saved) => saved,
+        Err(error) => {
+            let _ = std::fs::remove_file(&destination);
+            return Err(format!("Could not save imported audio: {error}"));
+        }
+    };
+    let result = transcribe_long_audio(
         &app,
         &history_manager,
         &transcription_manager,
         entry.id,
-        destination,
+        &destination,
     )
-    .await?;
-    Ok(entry.id)
+    .await;
+    drop(work);
+    history_manager.prune_after_work();
+    result
+        .map(|()| entry.id)
+        .map_err(|error| error_with_recovery(&history_manager, entry.id, &destination, error))
+}
+
+fn error_with_recovery(history: &HistoryManager, id: i64, path: &Path, error: String) -> String {
+    if hound::WavReader::open(path).is_ok_and(|reader| reader.duration() > 0)
+        && history
+            .get_entry_by_id(id)
+            .is_ok_and(|entry| entry.is_some())
+    {
+        format!("Recording saved. Retry transcription from History. {error}")
+    } else {
+        error
+    }
+}
+
+pub async fn retry_lecture_transcription(
+    app: &AppHandle,
+    history: &HistoryManager,
+    transcription: &Arc<TranscriptionManager>,
+    id: i64,
+    path: &Path,
+    work: HistoryWork,
+) -> Result<(), String> {
+    let _job = LectureJob::begin(app)?;
+    let result = transcribe_long_audio(app, history, transcription, id, path).await;
+    drop(work);
+    history.prune_after_work();
+    result
 }
 
 fn convert_audio(source: &Path, destination: &Path) -> Result<(), String> {
@@ -214,15 +332,15 @@ fn convert_audio(source: &Path, destination: &Path) -> Result<(), String> {
     Ok(())
 }
 
-pub async fn transcribe_long_audio(
+async fn transcribe_long_audio(
     app: &AppHandle,
     history: &HistoryManager,
     transcription: &Arc<TranscriptionManager>,
     id: i64,
-    path: PathBuf,
+    path: &Path,
 ) -> Result<(), String> {
     let settings = crate::settings::get_settings(app);
-    let mut reader = hound::WavReader::open(&path)
+    let mut reader = hound::WavReader::open(path)
         .map_err(|error| format!("Could not open recording: {error}"))?;
     let spec = reader.spec();
     if spec.channels != 1 || spec.sample_rate != 16_000 || spec.bits_per_sample != 16 {
@@ -230,14 +348,7 @@ pub async fn transcribe_long_audio(
     }
     let total = (reader.duration() as usize).div_ceil(CHUNK_SAMPLES);
     let mut samples_iter = reader.samples::<i16>();
-    let _ = app.emit(
-        "lecture-progress",
-        LectureProgress {
-            id,
-            completed: 0,
-            total,
-        },
-    );
+    report_progress(app, 0, total);
     let mut raw = String::new();
     let mut cleaned = String::new();
     let key = if settings.stt_source == SttSource::Endpoint {
@@ -292,14 +403,7 @@ pub async fn transcribe_long_audio(
                 .map_err(|error| error.to_string())?
         };
         if text.trim().is_empty() {
-            let _ = app.emit(
-                "lecture-progress",
-                LectureProgress {
-                    id,
-                    completed: index + 1,
-                    total,
-                },
-            );
+            report_progress(app, index + 1, total);
             continue;
         }
         let timestamp = part_timestamp(part_offset);
@@ -321,14 +425,7 @@ pub async fn transcribe_long_audio(
                 output.post_process_prompt,
             )
             .map_err(|error| error.to_string())?;
-        let _ = app.emit(
-            "lecture-progress",
-            LectureProgress {
-                id,
-                completed: index + 1,
-                total,
-            },
-        );
+        report_progress(app, index + 1, total);
     }
     Ok(())
 }
