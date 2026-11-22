@@ -57,7 +57,7 @@ export const CleanupModel: React.FC = () => {
                     "settings.postProcessing.api.baseUrl.placeholder",
                   )}
                   disabled={state.isBaseUrlUpdating}
-                  className="min-w-[380px]"
+                  className="min-w-0 flex-1"
                 />
               </div>
             </SettingContainer>
@@ -81,7 +81,7 @@ export const CleanupModel: React.FC = () => {
                       "settings.postProcessing.api.apiKey.placeholder",
                     )}
                     disabled={state.isApiKeyUpdating}
-                    className="min-w-[320px]"
+                    className="min-w-0 flex-1"
                   />
                   {state.apiKeyConfigured && (
                     <Button
@@ -144,7 +144,7 @@ export const CleanupModel: React.FC = () => {
               onSelect={state.handleModelSelect}
               onCreate={state.handleModelCreate}
               onBlur={() => {}}
-              className="flex-1 min-w-[380px]"
+              className="min-w-0 flex-1"
             />
             <ResetButton
               onClick={state.handleRefreshModels}

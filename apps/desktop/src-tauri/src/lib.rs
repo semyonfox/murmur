@@ -971,7 +971,9 @@ pub fn run(cli_args: CliArgs) {
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
                     .title("Murmur")
                     .inner_size(680.0, 570.0)
-                    .min_inner_size(680.0, 570.0)
+                    // the ui has a narrow layout below 640px. a larger minimum made
+                    // tiling compositors squash the window instead of using it
+                    .min_inner_size(360.0, 480.0)
                     .resizable(true)
                     .maximizable(true)
                     .visible(false);

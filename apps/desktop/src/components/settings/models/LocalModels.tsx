@@ -255,7 +255,7 @@ export const LocalModels: React.FC = () => {
       <div className="space-y-6">
         {/* Downloaded Models Section — header always visible so filter stays accessible */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-medium text-text/60">
               {t("settings.models.yourModels")}
             </h2>
