@@ -37,8 +37,7 @@ export type SidebarSection = keyof typeof SECTIONS_CONFIG;
 
 interface SectionConfig {
   labelKey: string;
-  label: string;
-  description: string;
+  descriptionKey: string;
   icon: LucideIcon;
   component: React.ComponentType;
   // sections sharing a group sit together; a gap separates groups
@@ -46,14 +45,10 @@ interface SectionConfig {
   enabled: (settings: AppSettings | null) => boolean;
 }
 
-// english defaults live here so page titles, descriptions and the sidebar
-// can't drift apart
 export const SECTIONS_CONFIG = {
   dictation: {
     labelKey: "murmur.nav.dictation",
-    label: "Dictation",
-    description:
-      "Your shortcut, microphone and spoken language, plus what you see and hear while recording.",
+    descriptionKey: "murmur.pages.dictation.description",
     icon: Mic,
     component: DictationSettings,
     group: "setup",
@@ -61,9 +56,7 @@ export const SECTIONS_CONFIG = {
   },
   lectures: {
     labelKey: "murmur.nav.lectures",
-    label: "Lectures",
-    description:
-      "Record a lecture or import audio, then transcribe it into History.",
+    descriptionKey: "murmur.pages.lectures.description",
     icon: NotebookPen,
     component: LecturesSettings,
     group: "setup",
@@ -71,9 +64,7 @@ export const SECTIONS_CONFIG = {
   },
   models: {
     labelKey: "sidebar.models",
-    label: "Models",
-    description:
-      "Choose what turns your speech into text. Every saved API key is listed here too.",
+    descriptionKey: "murmur.pages.models.description",
     icon: Cpu,
     component: ModelsSettings,
     group: "setup",
@@ -81,9 +72,7 @@ export const SECTIONS_CONFIG = {
   },
   cleanup: {
     labelKey: "sidebar.postProcessing",
-    label: "Cleanup",
-    description:
-      "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions.",
+    descriptionKey: "murmur.pages.cleanup.description",
     icon: Sparkles,
     component: CleanupSettings,
     group: "setup",
@@ -91,8 +80,7 @@ export const SECTIONS_CONFIG = {
   },
   dictionary: {
     labelKey: "murmur.nav.dictionary",
-    label: "Dictionary",
-    description: "Names and terms Murmur should spell your way.",
+    descriptionKey: "murmur.pages.dictionary.description",
     icon: BookA,
     component: DictionarySettings,
     group: "setup",
@@ -100,9 +88,7 @@ export const SECTIONS_CONFIG = {
   },
   insertion: {
     labelKey: "murmur.nav.insertion",
-    label: "Text insertion",
-    description:
-      "How finished text reaches the app you are typing in, and what happens after.",
+    descriptionKey: "murmur.pages.insertion.description",
     icon: TextCursorInput,
     component: TextInsertionSettings,
     group: "setup",
@@ -110,9 +96,7 @@ export const SECTIONS_CONFIG = {
   },
   stats: {
     labelKey: "murmur.nav.stats",
-    label: "Stats",
-    description:
-      "Words, recorded speaking pace, dictation time and provider cost.",
+    descriptionKey: "murmur.pages.stats.description",
     icon: ChartNoAxesCombined,
     component: StatsSettings,
     group: "records",
@@ -120,8 +104,7 @@ export const SECTIONS_CONFIG = {
   },
   history: {
     labelKey: "sidebar.history",
-    label: "History",
-    description: "Past dictations, retention and compressed export.",
+    descriptionKey: "murmur.pages.history.description",
     icon: History,
     component: HistorySettings,
     group: "records",
@@ -129,9 +112,7 @@ export const SECTIONS_CONFIG = {
   },
   privacy: {
     labelKey: "murmur.nav.privacy",
-    label: "Privacy",
-    description:
-      "What leaves this computer, what stays on it, and for how long.",
+    descriptionKey: "murmur.pages.privacy.description",
     icon: ShieldCheck,
     component: PrivacySettings,
     group: "records",
@@ -139,8 +120,7 @@ export const SECTIONS_CONFIG = {
   },
   app: {
     labelKey: "murmur.nav.app",
-    label: "App",
-    description: "Appearance, interface language, startup and performance.",
+    descriptionKey: "murmur.pages.app.description",
     icon: SlidersHorizontal,
     component: AppPreferences,
     group: "app",
@@ -148,8 +128,7 @@ export const SECTIONS_CONFIG = {
   },
   about: {
     labelKey: "sidebar.about",
-    label: "About",
-    description: "Version, credits and where Murmur keeps its files.",
+    descriptionKey: "murmur.pages.about.description",
     icon: Info,
     component: AboutSettings,
     group: "app",
@@ -157,8 +136,7 @@ export const SECTIONS_CONFIG = {
   },
   debug: {
     labelKey: "sidebar.debug",
-    label: "Debug",
-    description: "Diagnostics for troubleshooting.",
+    descriptionKey: "murmur.pages.debug.description",
     icon: FlaskConical,
     component: DebugSettings,
     group: "app",
@@ -197,7 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           const startsGroup =
             previous !== undefined &&
             SECTIONS_CONFIG[previous].group !== section.group;
-          const label = t(section.labelKey, { defaultValue: section.label });
+          const label = t(section.labelKey);
 
           return (
             <li

@@ -463,14 +463,10 @@ function App() {
                     tabIndex={-1}
                     className="text-lg font-semibold tracking-tight text-text"
                   >
-                    {t(SECTIONS_CONFIG[currentSection].labelKey, {
-                      defaultValue: SECTIONS_CONFIG[currentSection].label,
-                    })}
+                    {t(SECTIONS_CONFIG[currentSection].labelKey)}
                   </h1>
                   <p className="mt-0.5 text-sm text-mid-gray">
-                    {t(`murmur.pages.${currentSection}.description`, {
-                      defaultValue: SECTIONS_CONFIG[currentSection].description,
-                    })}
+                    {t(SECTIONS_CONFIG[currentSection].descriptionKey)}
                   </p>
                 </header>
                 <AccessibilityPermissions />
