@@ -53,7 +53,7 @@ test("capture status failure offers retry and saved hidden indicator can be enab
           .map((x) => x.args),
       ),
     )
-    .toContainEqual({ style: "minimal" });
+    .toContainEqual({ style: "live" });
 });
 
 test("credential failure offers retry and never claims zero keys", async ({

@@ -31,6 +31,11 @@ export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(
     const selectedPosition: OverlayPosition =
       getSetting("overlay_position") === "top" ? "top" : "bottom";
 
+    const visibleStyle =
+      getSetting("overlay_style_when_visible") === "minimal"
+        ? "minimal"
+        : "live";
+
     return (
       <>
         <SettingContainer
@@ -54,7 +59,7 @@ export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(
             onChange={(event) =>
               updateSetting(
                 "overlay_style",
-                event.target.checked ? "minimal" : "none",
+                event.target.checked ? visibleStyle : "none",
               )
             }
             className="size-6 accent-logo-primary"
@@ -71,7 +76,10 @@ export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(
             options={positionOptions}
             selectedValue={selectedPosition}
             onSelect={(value) =>
-              updateSetting("overlay_position", value as OverlayPosition)
+              updateSetting(
+                "overlay_position",
+                value === "top" ? "top" : "bottom",
+              )
             }
             disabled={isUpdating("overlay_position")}
           />

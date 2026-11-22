@@ -543,6 +543,8 @@ pub struct AppSettings {
     /// `overlay_position` (position `none` → style `None`).
     #[serde(default = "default_overlay_style")]
     pub overlay_style: OverlayStyle,
+    #[serde(default = "default_overlay_style")]
+    pub overlay_style_when_visible: OverlayStyle,
 }
 
 fn default_model() -> String {
@@ -1080,6 +1082,7 @@ pub fn get_default_settings() -> AppSettings {
         vad_enabled: default_vad_enabled(),
         vad_backend: VadBackend::default(),
         overlay_style: default_overlay_style(),
+        overlay_style_when_visible: default_overlay_style(),
     }
 }
 

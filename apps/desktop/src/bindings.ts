@@ -310,6 +310,7 @@ export type AppSettings = {
 	 *  `overlay_position` (position `none` → style `None`).
 	 */
 	overlay_style?: OverlayStyle,
+	overlay_style_when_visible?: OverlayStyle,
 };
 
 export type ArchiveExportSummary = {

@@ -682,6 +682,11 @@ pub fn change_overlay_style_setting(app: AppHandle, style: String) -> Result<(),
             OverlayStyle::Minimal
         }
     };
+    if parsed != OverlayStyle::None {
+        settings.overlay_style_when_visible = parsed;
+    } else if settings.overlay_style != OverlayStyle::None {
+        settings.overlay_style_when_visible = settings.overlay_style;
+    }
     settings.overlay_style = parsed;
     settings::write_settings(&app, settings);
 
