@@ -120,8 +120,7 @@ pub async fn retry_history_entry_transcription(
     }
     let settings = crate::settings::get_settings(&app);
     let transcription = if settings.stt_source == SttSource::Endpoint {
-        let wav = tokio::fs::read(&audio_path)
-            .await
+        let samples = crate::audio_toolkit::read_wav_samples(&audio_path)
             .map_err(|_| "Could not read the saved recording".to_string())?;
         let key_url = settings.stt_base_url.clone();
         let stored_key =
@@ -133,11 +132,11 @@ pub async fn retry_history_entry_transcription(
         };
         let language =
             (settings.selected_language != "auto").then_some(settings.selected_language.as_str());
-        crate::cloud_stt::transcribe_wav(
+        crate::cloud_stt::transcribe_samples(
             &settings.stt_base_url,
             &settings.stt_model,
             &key,
-            wav,
+            &samples,
             language,
         )
         .await

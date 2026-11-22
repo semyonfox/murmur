@@ -41,6 +41,47 @@ fn request_timeout(audio: Duration) -> Duration {
     (Duration::from_secs(15) + audio).clamp(Duration::from_secs(20), Duration::from_secs(120))
 }
 
+pub async fn transcribe_samples(
+    base_url: &str,
+    model: &str,
+    api_key: &str,
+    samples: &[f32],
+    language: Option<&str>,
+) -> Result<String> {
+    const WAV_HEADER_BYTES: usize = 44;
+    const MAX_SAMPLES: usize = (MAX_AUDIO_BYTES - WAV_HEADER_BYTES) / 2;
+    const CHUNK_SAMPLES: usize = 16_000 * 120;
+    const CUT_SEARCH_SAMPLES: usize = 16_000 * 10;
+
+    if samples.len() <= MAX_SAMPLES {
+        return transcribe_wav(base_url, model, api_key, encode_wav(samples)?, language).await;
+    }
+
+    let mut text = String::new();
+    let mut remaining = samples;
+    while !remaining.is_empty() {
+        let end = if remaining.len() > CHUNK_SAMPLES {
+            crate::audio_toolkit::quietest_cut(&remaining[..CHUNK_SAMPLES], CUT_SEARCH_SAMPLES)
+        } else {
+            remaining.len()
+        };
+        let (part, rest) = remaining.split_at(end);
+        remaining = rest;
+        let part =
+            transcribe_wav_piece(base_url, model, api_key, encode_wav(part)?, language).await?;
+        if !part.is_empty() {
+            if !text.is_empty() {
+                text.push(' ');
+            }
+            text.push_str(&part);
+        }
+    }
+    if text.is_empty() {
+        return Err(anyhow!("Speech server returned an empty transcript"));
+    }
+    Ok(text)
+}
+
 /// Transcribe WAV audio through an OpenAI-compatible audio transcription endpoint.
 ///
 /// `base_url` may be a `/v1` API base or the full `/audio/transcriptions` URL.

@@ -1013,7 +1013,7 @@ impl ShortcutAction for TranscribeAction {
             let live_take = crate::live_stt::live().finish();
             // other audio resumes as soon as capture ends, not after transcription
             rm.restore_other_audio();
-            if let Some(samples) = samples {
+            if let Some(mut samples) = samples {
                 debug!(
                     "Recording stopped and samples retrieved in {:?}, sample count: {}",
                     stop_recording_time.elapsed(),
@@ -1061,7 +1061,6 @@ impl ShortcutAction for TranscribeAction {
                         NEXT_RECORDING_FILE_ID.fetch_add(1, Ordering::Relaxed)
                     );
                     let wav_path = hm.recordings_dir().join(&file_name);
-                    let wav_path_for_upload = wav_path.clone();
                     let samples_for_wav = samples.clone();
                     let wav_handle = tauri::async_runtime::spawn_blocking(move || {
                         let pending = tempfile::TempPath::try_from_path(wav_path)?;
@@ -1085,30 +1084,13 @@ impl ShortcutAction for TranscribeAction {
                             // surfaced instead — the worker may still hold the engine,
                             // so a batch fallback would contend with it.
                             Ok(Some(text)) if !text.trim().is_empty() => Ok(text),
-                            Ok(_) => tm.transcribe(samples),
+                            Ok(_) => tm.transcribe(std::mem::take(&mut samples)),
                             Err(err) => Err(err),
                         })
                     };
 
-                    let mut pending_wav = match wav_handle.await {
-                        Ok(Ok(pending)) => Some(pending),
-                        Ok(Err(error)) => {
-                            error!("Could not save recording: {error}");
-                            None
-                        }
-                        Err(error) => {
-                            error!("Recording save task failed: {error}");
-                            None
-                        }
-                    };
-                    let wav_saved = pending_wav.is_some();
-
                     let transcription_result = if let Some(result) = local_result {
                         result
-                    } else if !wav_saved {
-                        Err(anyhow::anyhow!(
-                            "Could not prepare audio for the selected speech endpoint"
-                        ))
                     } else {
                         let language = (session_settings.selected_language != "auto")
                             .then_some(session_settings.selected_language.as_str());
@@ -1119,13 +1101,6 @@ impl ShortcutAction for TranscribeAction {
                                         return Ok(text);
                                     }
                                 }
-                                let wav =
-                                    tokio::fs::read(&wav_path_for_upload).await.map_err(|_| {
-                                        anyhow::anyhow!("Could not read the recorded audio")
-                                    })?;
-                                if rm.was_cancelled_since(cancel_generation) {
-                                    return Err(anyhow::anyhow!("Transcription cancelled"));
-                                }
                                 let api_key = crate::cloud_stt::stored_api_key(
                                     &session_settings.stt_base_url,
                                 )
@@ -1133,11 +1108,11 @@ impl ShortcutAction for TranscribeAction {
                                 if rm.was_cancelled_since(cancel_generation) {
                                     return Err(anyhow::anyhow!("Transcription cancelled"));
                                 }
-                                crate::cloud_stt::transcribe_wav(
+                                crate::cloud_stt::transcribe_samples(
                                     &session_settings.stt_base_url,
                                     &session_settings.stt_model,
                                     &api_key,
-                                    wav,
+                                    &samples,
                                     language,
                                 )
                                 .await
@@ -1156,6 +1131,23 @@ impl ShortcutAction for TranscribeAction {
 
                     if rm.was_cancelled_since(cancel_generation) {
                         debug!("Transcription operation cancelled before output handling");
+                        utils::hide_recording_overlay(&ah);
+                        set_tray_state(&ah, TrayIconState::Idle);
+                        return;
+                    }
+
+                    let mut pending_wav = match wav_handle.await {
+                        Ok(Ok(pending)) => Some(pending),
+                        Ok(Err(error)) => {
+                            error!("Could not save recording: {error}");
+                            None
+                        }
+                        Err(error) => {
+                            error!("Recording save task failed: {error}");
+                            None
+                        }
+                    };
+                    if rm.was_cancelled_since(cancel_generation) {
                         utils::hide_recording_overlay(&ah);
                         set_tray_state(&ah, TrayIconState::Idle);
                         return;
@@ -1200,19 +1192,16 @@ impl ShortcutAction for TranscribeAction {
                                 return;
                             }
 
-                            // Save to history if WAV was saved
-                            if wav_saved {
-                                if let Err(err) = hm.save_entry(
-                                    file_name,
-                                    transcription,
-                                    post_process,
-                                    processed.post_processed_text.clone(),
-                                    processed.post_process_prompt.clone(),
-                                ) {
-                                    error!("Failed to save history entry: {}", err);
-                                } else if let Some(wav) = pending_wav.as_mut() {
-                                    wav.disable_cleanup(true);
-                                }
+                            if let Err(err) = hm.save_entry(
+                                file_name,
+                                transcription,
+                                post_process,
+                                processed.post_processed_text.clone(),
+                                processed.post_process_prompt.clone(),
+                            ) {
+                                error!("Failed to save history entry: {}", err);
+                            } else if let Some(wav) = pending_wav.as_mut() {
+                                wav.disable_cleanup(true);
                             }
 
                             if processed.final_text.is_empty() {
@@ -1309,7 +1298,7 @@ impl ShortcutAction for TranscribeAction {
                             // message is also in murmur.log via the line above.
                             let _ = ah.emit("transcription-error", err.to_string());
                             // Save entry with empty text so user can retry
-                            if wav_saved {
+                            if let Some(wav) = pending_wav.as_mut() {
                                 if let Err(save_err) = hm.save_entry(
                                     file_name,
                                     String::new(),
@@ -1318,7 +1307,7 @@ impl ShortcutAction for TranscribeAction {
                                     None,
                                 ) {
                                     error!("Failed to save failed history entry: {}", save_err);
-                                } else if let Some(wav) = pending_wav.as_mut() {
+                                } else {
                                     wav.disable_cleanup(true);
                                 }
                             }
