@@ -97,8 +97,9 @@ internal class PauseChunker(
     // the remainder after the last cut, or null when it holds no speech
     fun finish(): AudioPiece? {
         val partialOffset = frameLevels.size * FRAME_BYTES
-        val partialLevel = frameLevel(partialOffset, size - partialOffset)
-        if (partialLevel < QUIET_LEVEL && frameLevels.none { it >= QUIET_LEVEL }) return null
+        val partialBytes = size - partialOffset
+        val partialLevel = if (partialBytes >= 2) frameLevel(partialOffset, partialBytes) else null
+        if (!hasSpeech(frameLevels, partialLevel)) return null
         return AudioPiece(data.copyOf(size), cutBytes)
     }
 
@@ -152,8 +153,11 @@ internal class PauseChunker(
 
 // a short word lasts about a fifth of a second, so anything with less sound
 // than that above the pause level is silence or a click
-private fun hasSpeech(levels: List<Int>): Boolean =
-    levels.count { it >= QUIET_LEVEL } >= minOf(SPEECH_FRAMES, maxOf(1, levels.size / 4))
+private fun hasSpeech(levels: List<Int>, partialLevel: Int? = null): Boolean {
+    val frames = levels.size + if (partialLevel != null) 1 else 0
+    val voiced = levels.count { it >= QUIET_LEVEL } + if (partialLevel != null && partialLevel >= QUIET_LEVEL) 1 else 0
+    return voiced >= minOf(SPEECH_FRAMES, maxOf(1, frames / 4))
+}
 
 private fun bucketOf(level: Int): Int =
     if (level <= 0) 0 else minOf(LEVEL_BUCKETS - 1, 1 + (4 * ln(level.toDouble()) / ln(2.0)).toInt())

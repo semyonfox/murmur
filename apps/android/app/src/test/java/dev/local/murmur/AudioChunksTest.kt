@@ -89,14 +89,24 @@ class AudioChunksTest {
     }
 
     @Test
-    fun keepsTheFinalFortyMillisecondsOfSpeech() {
+    fun keepsAVoicedTailEvenWhenItIsShorterThanAFrame() {
+        for (tailMs in listOf(10L, 40L)) {
+            val chunker = PauseChunker(minSeconds = 3, pauseFrames = 2)
+            assertEquals(1, feed(chunker, pcm(speech to 3.5, pause to 0.04)).size)
+            feed(chunker, pcm(speech to tailMs / 1_000.0))
+
+            val tail = chunker.finish()!!
+            assertEquals(20L + tailMs, tail.pcm.size / 32L)
+        }
+    }
+
+    @Test
+    fun dropsATailWithOnlyAClickInSilence() {
         val chunker = PauseChunker(minSeconds = 3)
         assertEquals(1, feed(chunker, pcm(speech to 3.5, pause to 0.4)).size)
-        feed(chunker, pcm(pause to 1.0, speech to 0.04))
+        feed(chunker, pcm(pause to 1.0, speech to 0.01))
 
-        val tail = chunker.finish()!!
-        assertTrue(seconds(tail) > 1.0)
-        assertEquals(4_940L, (tail.offsetBytes + tail.pcm.size) / 32)
+        assertNull(chunker.finish())
     }
 
     @Test
