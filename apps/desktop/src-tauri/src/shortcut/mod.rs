@@ -1068,7 +1068,11 @@ pub async fn change_post_process_base_url_setting(
                 .is_some_and(|origin| origin != new_origin)
             {
                 let old_scope = crate::secrets::cleanup_key_scope(&settings, provider)?;
-                crate::secrets::delete_cleanup_key(&provider_id, old_scope.as_deref())?;
+                if let Err(error) =
+                    crate::secrets::delete_cleanup_key(&provider_id, old_scope.as_deref())
+                {
+                    warn!("Could not remove the previous Custom cleanup key: {error}");
+                }
                 // the credential store may have blocked while other settings changed
                 settings = settings::get_settings(&app);
                 if old_scope.is_none() {
