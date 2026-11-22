@@ -275,7 +275,7 @@ pub async fn transcribe_long_audio(
                 crate::cloud_stt::encode_wav(&samples).map_err(|error| error.to_string())?;
             let language = (settings.selected_language != "auto")
                 .then_some(settings.selected_language.as_str());
-            crate::cloud_stt::transcribe_wav(
+            crate::cloud_stt::transcribe_wav_piece(
                 &settings.stt_base_url,
                 &settings.stt_model,
                 &key,
