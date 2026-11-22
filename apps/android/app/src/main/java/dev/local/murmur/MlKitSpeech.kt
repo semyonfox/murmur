@@ -21,7 +21,6 @@ import com.google.mlkit.genai.speechrecognition.speechRecognizerRequest
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
@@ -31,7 +30,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.io.IOException
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
@@ -120,6 +119,14 @@ internal object MlKitSpeech {
         Diagnostics.info("mlkit", "no on-device mode for ${locale.toLanguageTag()}, keeping the phone speech service")
     }
 
+    private fun invalidate(ready: Ready) {
+        synchronized(this) {
+            if (client?.recognizer !== ready.recognizer) return
+            client = null
+        }
+        scope.launch { ready.recognizer.close() }
+    }
+
     class Ready internal constructor(internal val recognizer: SpeechRecognizer, val mode: Int) {
         val label get() = if (mode == SpeechRecognizerOptions.Mode.MODE_ADVANCED) "ml kit advanced" else "ml kit basic"
     }
@@ -127,26 +134,39 @@ internal object MlKitSpeech {
     // one dictation. feed() is called from the capture thread and never blocks it
     @RequiresApi(MIN_SDK)
     class LiveSession(private val ready: Ready) {
-        private val audio = Channel<ByteArray>(Channel.UNLIMITED)
+        private val audio = Channel<ByteArray>(256)
+        private val failed = AtomicBoolean(false)
         private val pipe = ParcelFileDescriptor.createPipe()
         private val sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + logFailures)
         // non-blocking so a recogniser that stops reading cannot wedge this coroutine
         private val writer = sessionScope.launch {
-            val fd = pipe[1].fileDescriptor
-            Os.fcntlInt(fd, OsConstants.F_SETFL, OsConstants.O_NONBLOCK)
             try {
+                val fd = pipe[1].fileDescriptor
+                Os.fcntlInt(fd, OsConstants.F_SETFL, OsConstants.O_NONBLOCK)
                 for (chunk in audio) {
                     var offset = 0
+                    var lastWrite = SystemClock.elapsedRealtime()
                     while (offset < chunk.size) {
                         ensureActive()
                         try {
-                            offset += Os.write(fd, chunk, offset, chunk.size - offset)
+                            val written = Os.write(fd, chunk, offset, chunk.size - offset)
+                            if (written > 0) {
+                                offset += written
+                                lastWrite = SystemClock.elapsedRealtime()
+                            }
                         } catch (error: ErrnoException) {
                             if (error.errno != OsConstants.EAGAIN) throw error
                             delay(10)
                         }
+                        if (SystemClock.elapsedRealtime() - lastWrite >= SPEECH_TIMEOUT_MS) {
+                            throw IOException("On-device recognition stopped reading audio.")
+                        }
                     }
                 }
+            } catch (error: Exception) {
+                ensureActive()
+                fail()
+                throw error
             } finally {
                 // end of stream is what makes the recogniser flush its last words
                 runCatching { pipe[1].close() }
@@ -159,24 +179,35 @@ internal object MlKitSpeech {
             try {
                 collect(ready.recognizer, request)
             } finally {
-                withContext(NonCancellable) { runCatching { ready.recognizer.stopRecognition() } }
+                runCatching { ready.recognizer.stopRecognition() }
             }
         }
 
         fun feed(buffer: ByteArray, count: Int) {
-            audio.trySend(buffer.copyOf(count))
+            val result = audio.trySend(buffer.copyOf(count))
+            if (result.isFailure && !result.isClosed) fail()
         }
 
-        // closes the stream and waits for the recogniser to flush. call off the main thread
+        // a full pipe during start and missing EOF acknowledgement during finish
+        // both indicate that the cached recogniser can no longer serve this take
         fun finish(): String = try {
             audio.close()
-            runBlocking { transcript.await() }
+            runBlocking { withTimeout(SPEECH_TIMEOUT_MS) { transcript.await() } }
+        } catch (error: Exception) {
+            fail()
+            throw error
         } finally {
             cancel()
         }
 
+        private fun fail() {
+            if (!failed.compareAndSet(false, true)) return
+            invalidate(ready)
+            cancel()
+        }
+
         fun cancel() {
-            audio.close()
+            audio.cancel()
             sessionScope.cancel()
             runCatching { pipe[0].close() }
             runCatching { pipe[1].close() }
@@ -207,6 +238,7 @@ internal object MlKitSpeech {
 
     // the pipe needs fcntl (api 30), and the phone speech service this replaces needs 31
     const val MIN_SDK = 31
+    private const val SPEECH_TIMEOUT_MS = 10_000L
 
     private val PCM_16K_MONO: AudioFormat = AudioFormat.Builder()
         .setSampleRate(16_000)
