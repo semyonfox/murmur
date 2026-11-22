@@ -61,7 +61,9 @@ internal class TranscriptionClient {
     }
 
     private fun upload(endpoint: TranscriptionEndpoint, audioFile: File, audioMs: Long, retryHttp: Boolean): String {
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos((15_000 + audioMs).coerceIn(20_000, 120_000))
+        val responseMs = (15_000 + audioMs).coerceIn(20_000, 120_000)
+        val uploadMs = audioFile.length() * 1_000 / UPLOAD_BYTES_PER_SECOND
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(responseMs + uploadMs)
         val multipart = MultipartBody.Builder().setType(MultipartBody.FORM)
             .addFormDataPart("model", endpoint.model)
             .apply {
@@ -131,6 +133,7 @@ internal class TranscriptionClient {
     }
 
     companion object {
+        private const val UPLOAD_BYTES_PER_SECOND = 16_000
         private const val MAX_RESPONSE_BYTES = 1024L * 1024
         private val http = OkHttpClient.Builder()
             .followRedirects(false)
