@@ -748,12 +748,13 @@ impl HistoryManager {
             deleted_count += deleted;
 
             // Delete WAV file
-            let file_path = self.recordings_dir.join(file_name);
-            if file_path.exists() {
-                if let Err(e) = fs::remove_file(&file_path) {
-                    error!("Failed to delete WAV file {}: {}", file_name, e);
-                } else {
-                    debug!("Deleted old WAV file: {}", file_name);
+            if let Ok(file_path) = self.get_audio_file_path(file_name) {
+                if file_path.exists() {
+                    if let Err(e) = fs::remove_file(&file_path) {
+                        error!("Failed to delete WAV file {}: {}", file_name, e);
+                    } else {
+                        debug!("Deleted old WAV file: {}", file_name);
+                    }
                 }
             }
             if let Err(error) = (HistoryUpdatePayload::Deleted { id: *id }).emit(&self.app_handle) {
@@ -971,8 +972,19 @@ impl HistoryManager {
         Ok(())
     }
 
-    pub fn get_audio_file_path(&self, file_name: &str) -> PathBuf {
-        self.recordings_dir.join(file_name)
+    pub fn get_audio_file_path(&self, file_name: &str) -> Result<PathBuf> {
+        if !is_recording_basename(file_name) {
+            return Err(anyhow!("Recording filename is not a safe WAV basename"));
+        }
+        let path = self.recordings_dir.join(file_name);
+        match fs::symlink_metadata(&path) {
+            Ok(metadata) if !metadata.file_type().is_file() => {
+                Err(anyhow!("Recording must be a regular file"))
+            }
+            Ok(_) => Ok(path),
+            Err(error) if error.kind() == ErrorKind::NotFound => Ok(path),
+            Err(error) => Err(error.into()),
+        }
     }
 
     pub fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
@@ -1007,7 +1019,7 @@ impl HistoryManager {
         // Get the entry to find the file name
         if let Some(entry) = self.get_entry_by_id(id)? {
             // Delete the audio file first
-            let file_path = self.get_audio_file_path(&entry.file_name);
+            let file_path = self.get_audio_file_path(&entry.file_name)?;
             if file_path.exists() {
                 if let Err(e) = fs::remove_file(&file_path) {
                     error!("Failed to delete audio file {}: {}", entry.file_name, e);
@@ -1094,19 +1106,22 @@ fn move_history_database_aside(directory: &Path) -> std::io::Result<PathBuf> {
     Ok(backup)
 }
 
-fn open_archive_audio(recordings_dir: &Path, file_name: &str) -> Result<Option<fs::File>> {
-    let mut components = Path::new(file_name).components();
-    if !matches!(
+fn is_recording_basename(file_name: &str) -> bool {
+    let path = Path::new(file_name);
+    let mut components = path.components();
+    matches!(
         (components.next(), components.next()),
         (Some(Component::Normal(_)), None)
-    ) || file_name
+    ) && !file_name
         .chars()
         .any(|character| character.is_control() || "/\\:<>\"|?*".contains(character))
-        || !Path::new(file_name)
+        && path
             .extension()
-            .and_then(|extension| extension.to_str())
             .is_some_and(|extension| extension.eq_ignore_ascii_case("wav"))
-    {
+}
+
+fn open_archive_audio(recordings_dir: &Path, file_name: &str) -> Result<Option<fs::File>> {
+    if !is_recording_basename(file_name) {
         return Err(anyhow!("Recording filename is not a safe WAV basename"));
     }
 
@@ -1162,11 +1177,7 @@ fn count_words(text: &str) -> u64 {
 }
 
 fn recording_duration_seconds(recordings_dir: &Path, file_name: &str) -> Option<f64> {
-    let mut components = Path::new(file_name).components();
-    if !matches!(
-        (components.next(), components.next()),
-        (Some(Component::Normal(_)), None)
-    ) {
+    if !is_recording_basename(file_name) {
         return None;
     }
 

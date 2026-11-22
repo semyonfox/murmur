@@ -117,7 +117,9 @@ pub fn start_lecture_recording(
         return Err("A lecture operation is already in progress".into());
     }
     let name = new_file_name();
-    let path = history_manager.get_audio_file_path(&name);
+    let path = history_manager
+        .get_audio_file_path(&name)
+        .map_err(|e| e.to_string())?;
     recording_manager.try_start_recording_to_file(BINDING, &path)?;
     let started = Local::now();
     let title = format!("Lecture · {}", started.format("%e %b %Y, %H:%M"));
@@ -197,7 +199,9 @@ pub async fn import_lecture_audio(
         return Err("Choose an audio file".into());
     }
     let name = new_file_name();
-    let destination = history_manager.get_audio_file_path(&name);
+    let destination = history_manager
+        .get_audio_file_path(&name)
+        .map_err(|e| e.to_string())?;
     let input = source.clone();
     let output = destination.clone();
     let conversion = tauri::async_runtime::spawn_blocking(move || convert_audio(&input, &output))

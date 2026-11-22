@@ -557,7 +557,10 @@ pub fn change_audio_feedback_setting(app: AppHandle, enabled: bool) -> Result<()
 #[specta::specta]
 pub fn change_audio_feedback_volume_setting(app: AppHandle, volume: f32) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.audio_feedback_volume = volume;
+    if !volume.is_finite() {
+        return Err("Audio feedback volume must be finite".into());
+    }
+    settings.audio_feedback_volume = volume.clamp(0.0, 1.0);
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -638,6 +641,16 @@ pub fn change_translate_to_english_setting(app: AppHandle, enabled: bool) -> Res
 #[tauri::command]
 #[specta::specta]
 pub fn change_selected_language_setting(app: AppHandle, language: String) -> Result<(), String> {
+    let valid = match language.as_str() {
+        // jw is Whisper's published code for Javanese
+        "auto" | "zh-Hans" | "zh-Hant" | "jw" => true,
+        code if code.len() == 2 => isolang::Language::from_639_1(code).is_some(),
+        code if code.len() == 3 => isolang::Language::from_639_3(code).is_some(),
+        _ => false,
+    };
+    if !valid {
+        return Err("Unknown transcription language".into());
+    }
     let mut settings = settings::get_settings(&app);
     settings.selected_language = language;
     settings::write_settings(&app, settings);
@@ -845,7 +858,10 @@ pub fn change_word_correction_threshold_setting(
     threshold: f64,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.word_correction_threshold = threshold;
+    if !threshold.is_finite() {
+        return Err("Word correction threshold must be finite".into());
+    }
+    settings.word_correction_threshold = threshold.clamp(0.0, 1.0);
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -897,10 +913,7 @@ pub fn change_paste_method_setting(app: AppHandle, method: String) -> Result<(),
         "shift_insert" => PasteMethod::ShiftInsert,
         "ctrl_shift_v" => PasteMethod::CtrlShiftV,
         "external_script" => PasteMethod::ExternalScript,
-        other => {
-            warn!("Invalid paste method '{}', defaulting to ctrl_v", other);
-            PasteMethod::CtrlV
-        }
+        _ => return Err("Unknown paste method".into()),
     };
     settings.paste_method = parsed;
     settings::write_settings(&app, settings);
@@ -931,10 +944,7 @@ pub fn change_typing_tool_setting(app: AppHandle, tool: String) -> Result<(), St
         "dotool" => TypingTool::Dotool,
         "ydotool" => TypingTool::Ydotool,
         "xdotool" => TypingTool::Xdotool,
-        other => {
-            warn!("Invalid typing tool '{}', defaulting to auto", other);
-            TypingTool::Auto
-        }
+        _ => return Err("Unknown typing tool".into()),
     };
     settings.typing_tool = parsed;
     settings::write_settings(&app, settings);

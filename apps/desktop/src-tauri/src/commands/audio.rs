@@ -217,10 +217,19 @@ pub async fn get_available_microphones() -> Result<Vec<AudioDevice>, String> {
 pub async fn set_selected_microphone(app: AppHandle, device_name: String) -> Result<(), String> {
     let device = (device_name != "default").then_some(device_name);
     let rm = app.state::<Arc<AudioRecordingManager>>().inner().clone();
-    tokio::task::spawn_blocking(move || rm.update_selected_device(device))
-        .await
-        .map_err(|e| format!("audio task join failed: {}", e))?
-        .map_err(|e| format!("Failed to update selected device: {}", e))
+    tokio::task::spawn_blocking(move || {
+        if let Some(name) = device.as_ref() {
+            let devices =
+                list_input_devices().map_err(|e| format!("Failed to list input devices: {e}"))?;
+            if !devices.iter().any(|candidate| &candidate.name == name) {
+                return Err("Unknown microphone".to_string());
+            }
+        }
+        rm.update_selected_device(device)
+            .map_err(|e| format!("Failed to update selected device: {e}"))
+    })
+    .await
+    .map_err(|e| format!("audio task join failed: {e}"))?
 }
 
 #[tauri::command]
