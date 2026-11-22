@@ -11,6 +11,12 @@ import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.FutureTask
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 internal object LectureAudio {
@@ -21,10 +27,11 @@ internal object LectureAudio {
     private const val FRAME_BYTES = 640
     private const val SEARCH_BYTES = BYTES_PER_SECOND * 10
     private const val MAX_SAMPLES = SAMPLE_RATE * 28_800L
+    private const val IMPORT_STALL_NS = 30_000_000_000L
 
     fun removeTemporaryRecordings(lectureDirectory: File, cacheDirectory: File) {
         val liveChunk = Regex("murmur-chunk-[A-Za-z0-9-]+\\.wav")
-        val cachedAudio = Regex("murmur-(capture|chunk|lecture-part|lecture-import)-[A-Za-z0-9-]+\\.wav")
+        val cachedAudio = Regex("murmur-((capture|chunk|lecture-part|lecture-import)-[A-Za-z0-9-]+\\.wav|lecture-source-[A-Za-z0-9-]+\\.audio)")
         lectureDirectory.listFiles()?.filter { it.isFile && it.name.matches(liveChunk) }?.forEach { it.delete() }
         cacheDirectory.listFiles()?.filter { it.isFile && it.name.matches(cachedAudio) }?.forEach { it.delete() }
     }
@@ -102,12 +109,67 @@ internal object LectureAudio {
     }
 
     fun import(context: Context, uri: Uri, destination: File, signal: CancellationSignal) {
+        val source = File.createTempFile("murmur-lecture-source-", ".audio", context.cacheDir)
+        try {
+            stageImport(context, uri, source)
+            signal.throwIfCanceled()
+            decodeImport(source, destination, signal)
+        } finally {
+            source.delete()
+        }
+    }
+
+    private fun stageImport(context: Context, uri: Uri, source: File) {
+        val signal = CancellationSignal()
+        val lastProgress = AtomicLong(System.nanoTime())
+        source.outputStream().use { output ->
+            // the import queue can move on even if a provider ignores cancellation
+            val copy = FutureTask {
+                val asset = context.contentResolver.openAssetFileDescriptor(uri, "r", signal)
+                    ?: error("Could not open the selected audio file.")
+                asset.use {
+                    signal.setOnCancelListener { runCatching { asset.close() } }
+                    signal.throwIfCanceled()
+                    asset.createInputStream().use { input ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        while (true) {
+                            signal.throwIfCanceled()
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            if (count == 0) continue
+                            output.write(buffer, 0, count)
+                            lastProgress.set(System.nanoTime())
+                        }
+                    }
+                }
+            }
+            thread(isDaemon = true, name = "murmur-import-source") { copy.run() }
+            try {
+                while (true) {
+                    val remaining = IMPORT_STALL_NS - (System.nanoTime() - lastProgress.get())
+                    check(remaining > 0 || copy.isDone) { "The audio provider stopped responding." }
+                    try {
+                        copy.get(remaining.coerceAtLeast(0), TimeUnit.NANOSECONDS)
+                        break
+                    } catch (_: TimeoutException) {
+                        // a read may have made progress while we were waiting
+                    } catch (error: ExecutionException) {
+                        throw error.cause ?: error
+                    }
+                }
+            } finally {
+                if (copy.cancel(true)) {
+                    thread(isDaemon = true, name = "murmur-import-cancel") { signal.cancel() }
+                }
+            }
+        }
+    }
+
+    private fun decodeImport(source: File, destination: File, signal: CancellationSignal) {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         try {
-            val asset = context.contentResolver.openAssetFileDescriptor(uri, "r", signal)
-                ?: error("Could not open the selected audio file.")
-            asset.use { extractor.setDataSource(it) }
+            source.inputStream().use { extractor.setDataSource(it.fd) }
             val track = (0 until extractor.trackCount).firstOrNull { index ->
                 extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
             } ?: error("Choose a supported audio file.")
@@ -127,7 +189,7 @@ internal object LectureAudio {
                 var lastOutput = System.nanoTime()
                 while (!outputEnded) {
                     signal.throwIfCanceled()
-                    check(System.nanoTime() - lastOutput < 30_000_000_000L) { "Audio decoder stopped producing output." }
+                    check(System.nanoTime() - lastOutput < IMPORT_STALL_NS) { "Audio decoder stopped producing output." }
                     check(!Thread.currentThread().isInterrupted) { "Audio import stopped." }
                     if (!inputEnded) {
                         val inputIndex = codec.dequeueInputBuffer(10_000)

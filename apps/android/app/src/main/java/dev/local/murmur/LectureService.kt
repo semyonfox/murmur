@@ -64,7 +64,7 @@ internal class LectureService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val worker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture") }
     private val importWorker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture-import") }
-    private var importCancellation: CancellationSignal? = null
+    private val imports = mutableSetOf<CancellationSignal>()
     private val cleanupWorker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture-cleanup") }
     // lecture id to the number of its tasks still queued or running
     private val pending = LinkedHashMap<Long, Int>()
@@ -217,10 +217,6 @@ internal class LectureService : Service() {
     }
 
     private fun startImport(intent: Intent) {
-        if (importCancellation != null) {
-            finishWith("Another audio file is being imported.", failed = true)
-            return
-        }
         if (!enterForeground(workType())) return
         val source = intent.data ?: run {
             finishWith("No audio file selected.", failed = true)
@@ -228,12 +224,13 @@ internal class LectureService : Service() {
         }
         val title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "Imported audio" }
         val signal = CancellationSignal()
-        importCancellation = signal
+        imports += signal
         mutable.update { it.copy(preparing = true) }
         notifyCurrent()
         importWorker.execute {
             var staged: File? = null
             val result = runCatching {
+                signal.throwIfCanceled()
                 val endpoint = requireEndpoint()
                 val cleanup = settings.cleanupEndpointOrNull()
                 val file = File.createTempFile("murmur-lecture-import-", ".wav", cacheDir)
@@ -246,7 +243,7 @@ internal class LectureService : Service() {
                         if (!destroyed) reportImportFailure(error)
                     } finally {
                         file.delete()
-                        if (!destroyed) finishImport()
+                        if (!destroyed) finishImport(signal)
                     }
                 }
             }
@@ -255,7 +252,7 @@ internal class LectureService : Service() {
                 mainHandler.post {
                     if (!destroyed) {
                         reportImportFailure(error)
-                        finishImport()
+                        finishImport(signal)
                     }
                 }
             }
@@ -278,9 +275,9 @@ internal class LectureService : Service() {
         mutable.update { it.copy(failed = true, message = describeFailure(error, "Audio could not be imported")) }
     }
 
-    private fun finishImport() {
-        importCancellation = null
-        mutable.update { it.copy(preparing = false) }
+    private fun finishImport(signal: CancellationSignal) {
+        imports.remove(signal)
+        mutable.update { it.copy(preparing = imports.isNotEmpty()) }
         stopIfIdle()
     }
 
@@ -588,7 +585,8 @@ internal class LectureService : Service() {
     private fun stopWorkers() {
         destroyed = true
         speechClient.cancel()
-        importCancellation?.cancel()
+        imports.forEach { it.cancel() }
+        imports.clear()
         importWorker.shutdownNow()
         synchronized(pending) {
             worker.shutdownNow()
