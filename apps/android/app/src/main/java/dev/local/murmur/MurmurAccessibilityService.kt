@@ -246,7 +246,7 @@ class MurmurAccessibilityService : AccessibilityService() {
             settings.activeEndpointOrNull()
         } catch (error: Exception) {
             Diagnostics.warn("bubble", "recognition settings are invalid", error)
-            showMessage("Check Murmur settings")
+            showMessage(describeFailure(error, "Check Murmur settings"))
             return
         }
         if (endpoint == null) {

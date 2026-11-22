@@ -77,6 +77,11 @@ internal object LocalSpeechModels {
     fun file(context: Context, model: DownloadableSpeechModel): File =
         File(File(context.filesDir, "speech-models"), "ggml-${model.id}.bin")
 
+    fun delete(context: Context, model: DownloadableSpeechModel) {
+        val installed = file(context, model)
+        check(installed.delete() || !installed.exists()) { "Could not delete the downloaded model." }
+    }
+
     fun isInstalled(context: Context, model: DownloadableSpeechModel): Boolean = file(context, model).length() == model.bytes
 
     fun canRun(context: Context, model: DownloadableSpeechModel): Boolean {

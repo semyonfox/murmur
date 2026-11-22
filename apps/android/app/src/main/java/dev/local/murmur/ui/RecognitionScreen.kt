@@ -59,6 +59,7 @@ private val SPEECH_PRESETS = listOf(
 @Composable
 internal fun RecognitionScreen(model: AppModel, onBack: () -> Unit) {
     val context = LocalContext.current
+    val snackbar = LocalSnackbar.current
     val settings = model.settings
     var poll by remember { mutableIntStateOf(0) }
     val revision = model.revision + poll
@@ -128,8 +129,8 @@ internal fun RecognitionScreen(model: AppModel, onBack: () -> Unit) {
             text = "The model will need to be downloaded again before it can transcribe audio.",
             confirm = "Delete",
             onConfirm = {
-                if (settings.localModelId == speechModel.id) settings.localModelId = null
-                LocalSpeechModels.file(context, speechModel).delete()
+                runCatching { LocalSpeechModels.delete(context, speechModel) }
+                    .onFailure { snackbar.showLater(it.message ?: "Could not delete the downloaded model.") }
                 model.refresh()
             },
             onDismiss = { deleting = null },
@@ -161,6 +162,7 @@ private fun ModelRow(
             !supported -> "Needs ${speechModel.minimumRamGb} GB RAM"
             installed -> "On this phone · $size"
             resumable -> "Partly downloaded · $size"
+            selected -> "Not downloaded · $size"
             else -> "Download · $size"
         },
         leading = { RadioButton(selected = selected, onClick = null, enabled = installed && supported) },
