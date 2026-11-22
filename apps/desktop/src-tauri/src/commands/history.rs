@@ -123,17 +123,13 @@ pub async fn retry_history_entry_transcription(
         .await;
     }
     let settings = crate::settings::get_settings(&app);
+    let samples = crate::audio_toolkit::read_wav_samples(&audio_path)
+        .map_err(|error| format!("Could not read the saved recording: {error}"))?;
+    if samples.is_empty() {
+        return Err("Recording has no audio samples".into());
+    }
     let transcription = if settings.stt_source == SttSource::Endpoint {
-        let samples = crate::audio_toolkit::read_wav_samples(&audio_path)
-            .map_err(|_| "Could not read the saved recording".to_string())?;
-        let key_url = settings.stt_base_url.clone();
-        let stored_key =
-            tauri::async_runtime::spawn_blocking(move || crate::secrets::get_stt_key(&key_url))
-                .await;
-        let key = match stored_key {
-            Ok(Ok(Some(key))) if !key.trim().is_empty() => key,
-            _ => crate::secrets::stt_env_key(&settings.stt_base_url).unwrap_or_default(),
-        };
+        let key = crate::cloud_stt::stored_api_key(&settings.stt_base_url).await;
         let language =
             (settings.selected_language != "auto").then_some(settings.selected_language.as_str());
         crate::cloud_stt::transcribe_samples(
@@ -147,11 +143,6 @@ pub async fn retry_history_entry_transcription(
         .map(crate::managers::transcription::Recognition::from)
         .map_err(|error| error.to_string())?
     } else {
-        let samples = crate::audio_toolkit::read_wav_samples(&audio_path)
-            .map_err(|e| format!("Failed to load audio: {}", e))?;
-        if samples.is_empty() {
-            return Err("Recording has no audio samples".to_string());
-        }
         transcription_manager.initiate_model_load();
         let tm = Arc::clone(&transcription_manager);
         tauri::async_runtime::spawn_blocking(move || tm.transcribe(samples))
@@ -166,27 +157,14 @@ pub async fn retry_history_entry_transcription(
 
     let processed =
         process_transcription_output(&app, &transcription, entry.post_process_requested).await;
-    let keep_cleaned = processed.cleanup_succeeded == Some(false)
-        && entry.post_processed_text.is_some()
-        && entry
-            .cleanup_succeeded
-            .unwrap_or(entry.post_process_requested);
-    let (text, prompt, cleanup_succeeded) = if keep_cleaned {
-        (
-            entry.post_processed_text,
-            entry.post_process_prompt,
-            entry.cleanup_succeeded,
-        )
-    } else {
-        (
+    let result = history_manager
+        .update_after_retry(
+            entry,
+            transcription.raw,
             processed.post_processed_text,
             processed.post_process_prompt,
             processed.cleanup_succeeded,
         )
-    };
-    let result = history_manager
-        .update_transcription(id, transcription.raw, text, prompt, cleanup_succeeded)
-        .map(|_| ())
         .map_err(|e| e.to_string());
     drop(work);
     history_manager.prune_after_work();

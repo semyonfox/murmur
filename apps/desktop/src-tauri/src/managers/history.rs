@@ -677,7 +677,34 @@ impl HistoryManager {
         Ok((entry, work))
     }
 
-    /// Update an existing history entry with new transcription results (used by retry).
+    pub fn update_after_retry(
+        &self,
+        previous: HistoryEntry,
+        raw: String,
+        processed: Option<String>,
+        prompt: Option<String>,
+        cleanup_succeeded: Option<bool>,
+    ) -> Result<()> {
+        let keep_previous = cleanup_succeeded == Some(false)
+            && (previous.post_process_prompt.is_some()
+                || previous
+                    .cleanup_succeeded
+                    .unwrap_or(previous.post_process_requested))
+            && previous.post_processed_text.as_deref().is_some_and(|text| {
+                !text.trim().is_empty() && text.trim() != previous.transcription_text.trim()
+            });
+        let (processed, prompt, cleanup_succeeded) = if keep_previous {
+            (
+                previous.post_processed_text,
+                previous.post_process_prompt,
+                previous.cleanup_succeeded,
+            )
+        } else {
+            (processed, prompt, cleanup_succeeded)
+        };
+        self.update_transcription(previous.id, raw, processed, prompt, cleanup_succeeded)
+    }
+
     pub fn update_transcription(
         &self,
         id: i64,
@@ -685,15 +712,17 @@ impl HistoryManager {
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
         cleanup_succeeded: Option<bool>,
-    ) -> Result<HistoryEntry> {
+    ) -> Result<()> {
         let conn = self.get_connection()?;
-        let updated = conn.execute(
+        let entry = conn.query_row(
             "UPDATE transcription_history
              SET transcription_text = ?1,
                  post_processed_text = ?2,
                  post_process_prompt = ?3,
                  cleanup_succeeded = ?4
-             WHERE id = ?5",
+             WHERE id = ?5
+             RETURNING id, file_name, timestamp, saved, title, transcription_text,
+                       post_processed_text, post_process_prompt, post_process_requested, cleanup_succeeded",
             params![
                 transcription_text,
                 post_processed_text,
@@ -701,31 +730,13 @@ impl HistoryManager {
                 cleanup_succeeded,
                 id
             ],
-        )?;
+            Self::map_history_entry,
+        ).optional()?.ok_or_else(|| anyhow!("History entry {id} not found"))?;
 
-        if updated == 0 {
-            return Err(anyhow!("History entry {} not found", id));
+        if let Err(error) = (HistoryUpdatePayload::Updated { entry }).emit(&self.app_handle) {
+            error!("Failed to emit history update: {error}");
         }
-
-        let entry = conn
-            .query_row(
-                "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, cleanup_succeeded
-                 FROM transcription_history WHERE id = ?1",
-                params![id],
-                Self::map_history_entry,
-            )?;
-
-        debug!("Updated transcription for history entry {}", id);
-
-        if let Err(e) = (HistoryUpdatePayload::Updated {
-            entry: entry.clone(),
-        })
-        .emit(&self.app_handle)
-        {
-            error!("Failed to emit history-updated event: {}", e);
-        }
-
-        Ok(entry)
+        Ok(())
     }
 
     pub fn cleanup_old_entries(&self) -> Result<()> {

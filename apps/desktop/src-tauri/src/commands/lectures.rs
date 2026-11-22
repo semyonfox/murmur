@@ -474,26 +474,9 @@ async fn transcribe_long_audio(
         return Err("The recording contains no speech".into());
     }
     if let Some(previous) = previous {
-        let keep_previous = cleanup_succeeded == Some(false)
-            && previous.post_processed_text.is_some()
-            && previous
-                .cleanup_succeeded
-                .unwrap_or(previous.post_process_prompt.is_some());
-        let (processed, prompt, succeeded) = if keep_previous {
-            (
-                previous.post_processed_text,
-                previous.post_process_prompt,
-                previous.cleanup_succeeded,
-            )
-        } else {
-            (
-                (cleaned != raw).then_some(cleaned),
-                prompt,
-                cleanup_succeeded,
-            )
-        };
+        let processed = (cleaned != raw).then_some(cleaned);
         history
-            .update_transcription(id, raw, processed, prompt, succeeded)
+            .update_after_retry(previous, raw, processed, prompt, cleanup_succeeded)
             .map_err(|error| error.to_string())?;
     }
     Ok(())
