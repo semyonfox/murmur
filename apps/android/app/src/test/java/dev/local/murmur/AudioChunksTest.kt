@@ -76,6 +76,17 @@ class AudioChunksTest {
     }
 
     @Test
+    fun keepsTheFinalFortyMillisecondsOfSpeech() {
+        val chunker = PauseChunker(minSeconds = 3)
+        assertEquals(1, feed(chunker, pcm(speech to 3.5, pause to 0.4)).size)
+        feed(chunker, pcm(pause to 1.0, speech to 0.04))
+
+        val tail = chunker.finish()!!
+        assertTrue(seconds(tail) > 1.0)
+        assertEquals(4_940L, (tail.offsetBytes + tail.pcm.size) / 32)
+    }
+
+    @Test
     fun dropsASilentTailSoWhisperDoesNotInventWords() {
         val chunker = PauseChunker(minSeconds = 3)
         feed(chunker, pcm(speech to 5.0, pause to 3.0))

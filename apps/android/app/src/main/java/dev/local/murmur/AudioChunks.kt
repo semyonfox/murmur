@@ -53,7 +53,6 @@ private const val SPEECH_FRAMES = 10
 // bumped phone does not make ordinary speech look like a pause
 private const val SUSTAINED_FRAMES = 25
 private const val LEVEL_BUCKETS = 64
-private const val MIN_TAIL_BYTES = BYTES_PER_SECOND / 5
 
 // cuts live 16 kHz mono PCM into pieces at natural pauses while recording continues.
 // a pause is a run of frames well below the speech level of the piece, which adapts
@@ -97,7 +96,9 @@ internal class PauseChunker(
 
     // the remainder after the last cut, or null when it holds no speech
     fun finish(): AudioPiece? {
-        if (size < MIN_TAIL_BYTES || !hasSpeech(frameLevels)) return null
+        val partialOffset = frameLevels.size * FRAME_BYTES
+        val partialLevel = frameLevel(partialOffset, size - partialOffset)
+        if (partialLevel < QUIET_LEVEL && frameLevels.none { it >= QUIET_LEVEL }) return null
         return AudioPiece(data.copyOf(size), cutBytes)
     }
 
@@ -136,15 +137,16 @@ internal class PauseChunker(
         return piece
     }
 
-    private fun frameLevel(offset: Int): Int {
+    private fun frameLevel(offset: Int, bytes: Int = FRAME_BYTES): Int {
+        if (bytes < 2) return 0
         var sum = 0.0
         var index = offset
-        while (index < offset + FRAME_BYTES) {
+        while (index + 1 < offset + bytes) {
             val sample = (data[index].toInt() and 0xff) or (data[index + 1].toInt() shl 8)
             sum += sample.toDouble() * sample
             index += 2
         }
-        return sqrt(sum / FRAME_SAMPLES).toInt()
+        return sqrt(sum / (bytes / 2)).toInt()
     }
 }
 
