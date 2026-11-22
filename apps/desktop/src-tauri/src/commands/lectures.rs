@@ -2,7 +2,7 @@ use crate::actions::process_transcription_output;
 use crate::audio_toolkit::quietest_cut;
 use crate::managers::{
     audio::AudioRecordingManager,
-    history::{HistoryManager, HistoryWork},
+    history::{HistoryEntry, HistoryManager, HistoryWork},
     transcription::TranscriptionManager,
 };
 use crate::settings::SttSource;
@@ -172,7 +172,15 @@ pub async fn finish_lecture_recording(
     let _job = LectureJob(app.clone());
     let result = match recording_manager.stop_recording_file(BINDING) {
         Ok(samples) if samples > 0 => {
-            transcribe_long_audio(&app, &history_manager, &transcription_manager, id, &path).await
+            transcribe_long_audio(
+                &app,
+                &history_manager,
+                &transcription_manager,
+                id,
+                &path,
+                None,
+            )
+            .await
         }
         Ok(_) => Err("The recording contains no audio".into()),
         Err(error) => Err(error),
@@ -231,6 +239,7 @@ pub async fn import_lecture_audio(
         &transcription_manager,
         entry.id,
         &destination,
+        None,
     )
     .await;
     drop(work);
@@ -256,12 +265,13 @@ pub async fn retry_lecture_transcription(
     app: &AppHandle,
     history: &HistoryManager,
     transcription: &Arc<TranscriptionManager>,
-    id: i64,
+    entry: HistoryEntry,
     path: &Path,
     work: HistoryWork,
 ) -> Result<(), String> {
     let _job = LectureJob::begin(app)?;
-    let result = transcribe_long_audio(app, history, transcription, id, path).await;
+    let result =
+        transcribe_long_audio(app, history, transcription, entry.id, path, Some(entry)).await;
     drop(work);
     history.prune_after_work();
     result
@@ -342,6 +352,7 @@ async fn transcribe_long_audio(
     transcription: &Arc<TranscriptionManager>,
     id: i64,
     path: &Path,
+    previous: Option<HistoryEntry>,
 ) -> Result<(), String> {
     let settings = crate::settings::get_settings(app);
     let mut reader = hound::WavReader::open(path)
@@ -355,6 +366,8 @@ async fn transcribe_long_audio(
     report_progress(app, 0, total);
     let mut raw = String::new();
     let mut cleaned = String::new();
+    let mut cleanup_succeeded = None;
+    let mut prompt = None;
     let key = if settings.stt_source == SttSource::Endpoint {
         crate::cloud_stt::stored_api_key(&settings.stt_base_url).await
     } else {
@@ -415,22 +428,54 @@ async fn transcribe_long_audio(
         raw.push_str(&timestamp);
         raw.push_str(&text.raw);
         raw.push_str("\n\n");
-        history
-            .update_transcription(id, raw.clone(), None, None)
-            .map_err(|error| error.to_string())?;
         let output = process_transcription_output(app, &text, settings.post_process_enabled).await;
         cleaned.push_str(&timestamp);
         cleaned.push_str(&output.final_text);
         cleaned.push_str("\n\n");
-        history
-            .update_transcription(
-                id,
-                raw.clone(),
-                (cleaned != raw).then(|| cleaned.clone()),
-                output.post_process_prompt,
-            )
-            .map_err(|error| error.to_string())?;
+        if let Some(succeeded) = output.cleanup_succeeded {
+            cleanup_succeeded = Some(cleanup_succeeded.unwrap_or(true) && succeeded);
+        }
+        if output.post_process_prompt.is_some() {
+            prompt = output.post_process_prompt;
+        }
+        if previous.is_none() {
+            history
+                .update_transcription(
+                    id,
+                    raw.clone(),
+                    (cleaned != raw).then(|| cleaned.clone()),
+                    prompt.clone(),
+                    cleanup_succeeded,
+                )
+                .map_err(|error| error.to_string())?;
+        }
         report_progress(app, index + 1, total);
+    }
+    if raw.is_empty() {
+        return Err("The recording contains no speech".into());
+    }
+    if let Some(previous) = previous {
+        let keep_previous = cleanup_succeeded == Some(false)
+            && previous.post_processed_text.is_some()
+            && previous
+                .cleanup_succeeded
+                .unwrap_or(previous.post_process_prompt.is_some());
+        let (processed, prompt, succeeded) = if keep_previous {
+            (
+                previous.post_processed_text,
+                previous.post_process_prompt,
+                previous.cleanup_succeeded,
+            )
+        } else {
+            (
+                (cleaned != raw).then_some(cleaned),
+                prompt,
+                cleanup_succeeded,
+            )
+        };
+        history
+            .update_transcription(id, raw, processed, prompt, succeeded)
+            .map_err(|error| error.to_string())?;
     }
     Ok(())
 }

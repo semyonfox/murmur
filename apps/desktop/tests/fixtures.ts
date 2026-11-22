@@ -25,6 +25,7 @@ export const sampleHistory: HistoryEntry = {
   transcription_text: "um send the sample agenda to Alex tomorrow",
   post_processed_text: "Send the sample agenda to Alex tomorrow.",
   post_process_prompt: null,
+  cleanup_succeeded: true,
   post_process_requested: true,
 };
 

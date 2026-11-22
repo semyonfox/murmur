@@ -4,6 +4,7 @@ use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_bounded, So
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error, VadPolicy};
 #[cfg(target_os = "linux")]
 use crate::linux_modifier_guard::ModifierReadiness;
+use crate::llm_client::CleanupFailure;
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
@@ -223,12 +224,22 @@ fn cleanup_dropped_too_much(prepared: &str, cleaned: &str) -> bool {
     prepared >= 600 && cleaned.chars().count() * 2 < prepared
 }
 
-fn guard_cleanup(cleaned: String, prepared: &str, spellings: &[String]) -> String {
-    if cleanup_dropped_too_much(prepared, &cleaned) {
-        warn!("Cleanup returned under half of a long transcript; using the prepared transcript");
-        return prepared.to_string();
+fn guard_cleanup(
+    cleaned: String,
+    prepared: &str,
+    spellings: &[String],
+) -> Result<(String, bool), CleanupFailure> {
+    let input_chars = prepared.chars().count();
+    if is_blank_transcription(&cleaned)
+        || cleanup_dropped_too_much(prepared, &cleaned)
+        || cleaned.chars().count() > input_chars.saturating_mul(3).saturating_add(256)
+    {
+        return Err(CleanupFailure::InvalidOutput);
     }
-    preserve_explicit_spellings(cleaned, prepared, spellings)
+    let unchanged = cleaned == prepared;
+    let result = preserve_explicit_spellings(cleaned, prepared, spellings);
+    let accepted = unchanged || result != prepared;
+    Ok((result, accepted))
 }
 
 // transcript and vocabulary stay in the user payload, even without structured output
@@ -324,149 +335,76 @@ fn should_use_streaming_overlay(style: OverlayStyle, is_streaming: bool) -> bool
     style == OverlayStyle::Live && is_streaming
 }
 
-async fn post_process_transcription(settings: &AppSettings, transcription: &str) -> Option<String> {
-    if is_blank_transcription(transcription) {
-        debug!("Post-processing skipped because the transcription is empty");
-        return None;
-    }
-
-    let provider = match settings.active_post_process_provider().cloned() {
-        Some(provider) => provider,
-        None => {
-            debug!("Post-processing enabled but no provider is selected");
-            return None;
-        }
-    };
-
+async fn post_process_transcription(
+    settings: &AppSettings,
+    transcription: &str,
+) -> Result<(String, Option<String>), CleanupFailure> {
+    let provider = settings
+        .active_post_process_provider()
+        .ok_or(CleanupFailure::Configuration)?;
     let model = settings
         .post_process_models
         .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
+        .filter(|model| !model.trim().is_empty())
+        .ok_or(CleanupFailure::Configuration)?;
+    let prompt = settings
+        .post_process_selected_prompt_id
+        .as_ref()
+        .and_then(|id| {
+            settings
+                .post_process_prompts
+                .iter()
+                .find(|prompt| &prompt.id == id)
+        })
+        .map(|prompt| &prompt.prompt)
+        .filter(|prompt| !prompt.trim().is_empty())
+        .ok_or(CleanupFailure::Configuration)?;
+    let system_prompt = build_system_prompt(prompt, settings.post_process_formality);
+    let (prepared, spellings) = prepare_explicit_spellings(transcription);
+    let user_content = build_cleanup_user_content(&prepared, &settings.custom_words);
 
-    if model.trim().is_empty() {
-        debug!(
-            "Post-processing skipped because provider '{}' has no model configured",
-            provider.id
-        );
-        return None;
+    if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        {
+            if !apple_intelligence::check_apple_intelligence_availability() {
+                return Err(CleanupFailure::Configuration);
+            }
+            let token_limit = model.trim().parse::<i32>().unwrap_or(0);
+            let result = apple_intelligence::process_text_with_system_prompt(
+                &system_prompt,
+                &user_content,
+                token_limit,
+            )
+            .map_err(|_| CleanupFailure::Server)?;
+            let (result, accepted) =
+                guard_cleanup(strip_invisible_chars(&result), &prepared, &spellings)?;
+            return Ok((result, accepted.then(|| prompt.clone())));
+        }
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        return Err(CleanupFailure::Configuration);
     }
 
-    let selected_prompt_id = match &settings.post_process_selected_prompt_id {
-        Some(id) => id.clone(),
-        None => {
-            debug!("Post-processing skipped because no prompt is selected");
-            return None;
-        }
-    };
-
-    let prompt = match settings
-        .post_process_prompts
-        .iter()
-        .find(|prompt| prompt.id == selected_prompt_id)
-    {
-        Some(prompt) => prompt.prompt.clone(),
-        None => {
-            debug!(
-                "Post-processing skipped because prompt '{}' was not found",
-                selected_prompt_id
-            );
-            return None;
-        }
-    };
-
-    if prompt.trim().is_empty() {
-        debug!("Post-processing skipped because the selected prompt is empty");
-        return None;
-    }
-
-    debug!(
-        "Starting LLM post-processing with provider '{}' (model: {})",
-        provider.id, model
-    );
-
-    let api_key = if provider.id == "ollama" || provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
+    let api_key = if provider.id == "ollama" {
         String::new()
     } else {
-        let provider_id_for_key = provider.id.clone();
-        let origin = crate::secrets::cleanup_key_scope(settings, &provider).ok()?;
-        match tokio::task::spawn_blocking(move || {
-            crate::secrets::get_cleanup_key(&provider_id_for_key, origin.as_deref())
+        let provider_id = provider.id.clone();
+        let origin = crate::secrets::cleanup_key_scope(settings, provider)
+            .map_err(|_| CleanupFailure::Configuration)?;
+        tokio::task::spawn_blocking(move || {
+            crate::secrets::get_cleanup_key(&provider_id, origin.as_deref())
         })
         .await
-        {
-            Ok(Ok(key)) => key.unwrap_or_default(),
-            Ok(Err(error)) => {
-                error!("Cleanup credential store unavailable: {error}");
-                return None;
-            }
-            Err(_) => {
-                error!("Cleanup credential store task failed");
-                return None;
-            }
-        }
+        .map_err(|_| CleanupFailure::Configuration)?
+        .map_err(|_| CleanupFailure::Authentication)?
+        .unwrap_or_default()
     };
 
-    // Ask these providers to skip reasoning/thinking — post-processing rarely
-    // benefits from it and it adds seconds of latency. llm_client picks the
-    // field the endpoint understands and retries without it if rejected.
     let disable_reasoning = matches!(
         provider.id.as_str(),
         "custom" | "openrouter" | "siliconflow"
     );
-    let system_prompt = build_system_prompt(&prompt, settings.post_process_formality);
-    let (prepared, spellings) = prepare_explicit_spellings(transcription);
-    let user_content = build_cleanup_user_content(&prepared, &settings.custom_words);
-
-    if provider.supports_structured_output {
-        debug!("Using structured outputs for provider '{}'", provider.id);
-
-        // Handle Apple Intelligence separately since it uses native Swift APIs
-        if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
-            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-            {
-                if !apple_intelligence::check_apple_intelligence_availability() {
-                    debug!(
-                        "Apple Intelligence selected but not currently available on this device"
-                    );
-                    return None;
-                }
-
-                let token_limit = model.trim().parse::<i32>().unwrap_or(0);
-                return match apple_intelligence::process_text_with_system_prompt(
-                    &system_prompt,
-                    &user_content,
-                    token_limit,
-                ) {
-                    Ok(result) => {
-                        if result.trim().is_empty() {
-                            debug!("Apple Intelligence returned an empty response");
-                            None
-                        } else {
-                            let result = strip_invisible_chars(&result);
-                            debug!(
-                                "Apple Intelligence post-processing succeeded. Output length: {} chars",
-                                result.len()
-                            );
-                            Some(guard_cleanup(result, &prepared, &spellings))
-                        }
-                    }
-                    Err(err) => {
-                        error!("Apple Intelligence post-processing failed: {}", err);
-                        None
-                    }
-                };
-            }
-
-            #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-            {
-                debug!("Apple Intelligence provider selected on unsupported platform");
-                return None;
-            }
-        }
-
-        // Define JSON schema for transcription output
-        let json_schema = serde_json::json!({
+    let json_schema = provider.supports_structured_output.then(|| {
+        serde_json::json!({
             "type": "object",
             "properties": {
                 (TRANSCRIPTION_FIELD): {
@@ -476,92 +414,37 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
             },
             "required": [TRANSCRIPTION_FIELD],
             "additionalProperties": false
-        });
+        })
+    });
 
-        match crate::llm_client::send_chat_completion_with_schema(
-            &provider,
-            api_key.clone(),
-            &model,
-            user_content.clone(),
-            Some(system_prompt.clone()),
-            Some(json_schema),
-            disable_reasoning,
-        )
-        .await
-        {
-            Ok(Some(content)) => {
-                // Parse the JSON response to extract the transcription field
-                let content = strip_think_block(&content);
-                match serde_json::from_str::<serde_json::Value>(content) {
-                    Ok(json) => {
-                        if let Some(transcription_value) =
-                            json.get(TRANSCRIPTION_FIELD).and_then(|t| t.as_str())
-                        {
-                            let result = strip_invisible_chars(transcription_value);
-                            debug!(
-                                "Structured output post-processing succeeded for provider '{}'. Output length: {} chars",
-                                provider.id,
-                                result.len()
-                            );
-                            return Some(guard_cleanup(result, &prepared, &spellings));
-                        } else {
-                            error!("Structured output response missing 'transcription' field");
-                            return None;
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to parse structured output JSON: {}", e);
-                        return None;
-                    }
-                }
-            }
-            Ok(None) => {
-                error!("LLM API response has no content");
-                return None;
-            }
-            Err(e) => {
-                warn!(
-                    "Structured output failed for provider '{}': {}. Falling back to legacy mode.",
-                    provider.id, e
-                );
-                // Fall through to legacy mode below
-            }
-        }
-    }
-
-    match crate::llm_client::send_chat_completion_with_schema(
-        &provider,
+    let completion = crate::llm_client::send_chat_completion_with_schema(
+        provider,
         api_key,
-        &model,
+        model,
         user_content,
         Some(system_prompt),
-        None,
+        json_schema,
         disable_reasoning,
     )
-    .await
-    {
-        Ok(Some(content)) => {
-            let content = strip_invisible_chars(strip_think_block(&content));
-            debug!(
-                "LLM post-processing succeeded for provider '{}'. Output length: {} chars",
-                provider.id,
-                content.len()
-            );
-            Some(guard_cleanup(content, &prepared, &spellings))
-        }
-        Ok(None) => {
-            error!("LLM API response has no content");
-            None
-        }
-        Err(e) => {
-            error!(
-                "LLM post-processing failed for provider '{}': {}. Falling back to original transcription.",
-                provider.id,
-                e
-            );
-            None
-        }
-    }
+    .await?;
+    let content = completion
+        .text
+        .as_deref()
+        .ok_or(CleanupFailure::InvalidOutput)?;
+    let content = strip_think_block(content);
+    let result = if completion.structured {
+        let json: serde_json::Value =
+            serde_json::from_str(content).map_err(|_| CleanupFailure::InvalidOutput)?;
+        let text = json
+            .get(TRANSCRIPTION_FIELD)
+            .and_then(serde_json::Value::as_str)
+            .ok_or(CleanupFailure::InvalidOutput)?;
+        strip_invisible_chars(text)
+    } else {
+        strip_invisible_chars(content)
+    };
+    let (result, accepted) = guard_cleanup(result, &prepared, &spellings)?;
+    Ok((result, accepted.then(|| prompt.clone())))
 }
 
 async fn maybe_convert_chinese_variant(
@@ -616,6 +499,7 @@ pub(crate) struct ProcessedTranscription {
     pub final_text: String,
     pub post_processed_text: Option<String>,
     pub post_process_prompt: Option<String>,
+    pub cleanup_succeeded: Option<bool>,
 }
 
 /// Resolve the persisted language *intent* into the language the currently-loaded
@@ -658,8 +542,8 @@ async fn process_transcription_output_with_settings(
     post_process: bool,
 ) -> ProcessedTranscription {
     let mut final_text = transcription.text().to_string();
-    let mut post_processed_text: Option<String> = None;
-    let mut post_process_prompt: Option<String> = None;
+    let mut post_process_prompt = None;
+    let mut cleanup_succeeded = None;
 
     // Resolve the language the transcription actually ran in (the persisted
     // intent coerced against the loaded model's capabilities) so OpenCC keys off
@@ -671,36 +555,29 @@ async fn process_transcription_output_with_settings(
         final_text = converted_text;
     }
 
-    if post_process {
-        // an empty model result could erase a real dictation, so keep the raw text
-        if let Some(processed_text) = post_process_transcription(settings, &final_text)
-            .await
-            .filter(|text| !text.trim().is_empty())
-        {
-            post_processed_text = Some(processed_text.clone());
-            final_text = processed_text;
-
-            if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
-                if let Some(prompt) = settings
-                    .post_process_prompts
-                    .iter()
-                    .find(|prompt| &prompt.id == prompt_id)
-                {
-                    post_process_prompt = Some(prompt.prompt.clone());
-                }
+    if post_process && !is_blank_transcription(&final_text) {
+        let failure = match post_process_transcription(settings, &final_text).await {
+            Ok((text, prompt)) => {
+                final_text = text;
+                post_process_prompt = prompt;
+                post_process_prompt
+                    .is_none()
+                    .then_some(CleanupFailure::InvalidOutput)
             }
-        } else if !final_text.trim().is_empty() {
-            let _ = app.emit("cleanup-error", ());
+            Err(failure) => Some(failure),
+        };
+        cleanup_succeeded = Some(failure.is_none());
+        if let Some(failure) = failure {
+            warn!("{failure}");
+            let _ = app.emit("cleanup-error", failure);
         }
-    }
-    if post_processed_text.is_none() && final_text != transcription.raw {
-        post_processed_text = Some(final_text.clone());
     }
 
     ProcessedTranscription {
+        post_processed_text: (final_text != transcription.raw).then(|| final_text.clone()),
         final_text,
-        post_processed_text,
         post_process_prompt,
+        cleanup_succeeded,
     }
 }
 
@@ -1198,6 +1075,7 @@ impl ShortcutAction for TranscribeAction {
                                 post_process,
                                 processed.post_processed_text.clone(),
                                 processed.post_process_prompt.clone(),
+                                processed.cleanup_succeeded,
                             ) {
                                 error!("Failed to save history entry: {}", err);
                             } else if let Some(wav) = pending_wav.as_mut() {
@@ -1303,6 +1181,7 @@ impl ShortcutAction for TranscribeAction {
                                     file_name,
                                     String::new(),
                                     post_process,
+                                    None,
                                     None,
                                     None,
                                 ) {

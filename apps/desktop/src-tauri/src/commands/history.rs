@@ -116,7 +116,7 @@ pub async fn retry_history_entry_transcription(
             &app,
             &history_manager,
             &transcription_manager,
-            id,
+            entry,
             &audio_path,
             work,
         )
@@ -166,13 +166,26 @@ pub async fn retry_history_entry_transcription(
 
     let processed =
         process_transcription_output(&app, &transcription, entry.post_process_requested).await;
-    let result = history_manager
-        .update_transcription(
-            id,
-            transcription.raw,
+    let keep_cleaned = processed.cleanup_succeeded == Some(false)
+        && entry.post_processed_text.is_some()
+        && entry
+            .cleanup_succeeded
+            .unwrap_or(entry.post_process_requested);
+    let (text, prompt, cleanup_succeeded) = if keep_cleaned {
+        (
+            entry.post_processed_text,
+            entry.post_process_prompt,
+            entry.cleanup_succeeded,
+        )
+    } else {
+        (
             processed.post_processed_text,
             processed.post_process_prompt,
+            processed.cleanup_succeeded,
         )
+    };
+    let result = history_manager
+        .update_transcription(id, transcription.raw, text, prompt, cleanup_succeeded)
         .map(|_| ())
         .map_err(|e| e.to_string());
     drop(work);

@@ -208,11 +208,44 @@ function App() {
   }, [t]);
 
   useEffect(() => {
-    const unlisten = listen("cleanup-error", () => {
-      toast.warning(
-        t("murmur.cleanup.failed", {
-          defaultValue: "Cleanup failed; using the raw transcript.",
+    const unlisten = listen<unknown>("cleanup-error", ({ payload }) => {
+      const messages = {
+        authentication: t("murmur.cleanup.errors.authentication", {
+          defaultValue: "Cleanup could not sign in. Check your API key.",
         }),
+        credit: t("murmur.cleanup.errors.credit", {
+          defaultValue:
+            "The cleanup provider is out of credit. Check its billing settings.",
+        }),
+        rate_limit: t("murmur.cleanup.errors.rateLimit", {
+          defaultValue:
+            "The cleanup provider is rate limiting requests. Try again later.",
+        }),
+        server: t("murmur.cleanup.errors.server", {
+          defaultValue: "The cleanup provider is unavailable. Try again later.",
+        }),
+        invalid_output: t("murmur.cleanup.errors.invalidOutput", {
+          defaultValue: "The cleanup provider returned an unusable transcript.",
+        }),
+        timeout: t("murmur.cleanup.errors.timeout", {
+          defaultValue: "The cleanup provider took too long to respond.",
+        }),
+        reasoning: t("murmur.cleanup.errors.reasoning", {
+          defaultValue:
+            "This cleanup model cannot run with reasoning disabled. Choose another model.",
+        }),
+        configuration: t("murmur.cleanup.errors.configuration", {
+          defaultValue:
+            "The cleanup request was rejected. Check the provider and model settings.",
+        }),
+      };
+      const descriptions = new Map(Object.entries(messages));
+      toast.warning(
+        t("murmur.cleanup.failed", { defaultValue: "AI cleanup failed" }),
+        {
+          description:
+            typeof payload === "string" ? descriptions.get(payload) : undefined,
+        },
       );
     });
     return () => {

@@ -373,6 +373,7 @@ export type HistoryEntry = {
 	post_processed_text: string | null,
 	post_process_prompt: string | null,
 	post_process_requested: boolean,
+	cleanup_succeeded: boolean | null,
 };
 
 export type HistoryStats = {
