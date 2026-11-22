@@ -13,7 +13,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicU64, Ordering},
-        Arc, Mutex,
+        Arc, Mutex, MutexGuard, PoisonError,
     },
 };
 use tauri::{AppHandle, Emitter, State};
@@ -66,30 +66,53 @@ const CUT_SEARCH_SAMPLES: usize = 16_000 * 10;
 static SESSION: Mutex<LectureSession> = Mutex::new(LectureSession::Idle);
 static FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
-struct LectureJob(AppHandle);
+fn lecture_session() -> MutexGuard<'static, LectureSession> {
+    SESSION.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+struct LectureJob {
+    app: AppHandle,
+    reset_on_drop: bool,
+}
 
 impl LectureJob {
     fn begin(app: &AppHandle) -> Result<Self, String> {
-        let mut session = SESSION.lock().unwrap();
+        let mut session = lecture_session();
         if !matches!(*session, LectureSession::Idle) {
             return Err("A lecture operation is already in progress".into());
         }
         *session = LectureSession::Working(None);
         let _ = app.emit("lecture-status", session.status());
-        Ok(Self(app.clone()))
+        Ok(Self::new(app))
+    }
+
+    fn new(app: &AppHandle) -> Self {
+        Self {
+            app: app.clone(),
+            reset_on_drop: true,
+        }
+    }
+
+    fn into_recording(mut self, recording: LectureRecording) {
+        self.reset_on_drop = false;
+        let mut session = lecture_session();
+        *session = LectureSession::Recording(recording);
+        let _ = self.app.emit("lecture-status", session.status());
     }
 }
 
 impl Drop for LectureJob {
     fn drop(&mut self) {
-        let mut session = SESSION.lock().unwrap();
-        *session = LectureSession::Idle;
-        let _ = self.0.emit("lecture-status", session.status());
+        if self.reset_on_drop {
+            let mut session = lecture_session();
+            *session = LectureSession::Idle;
+            let _ = self.app.emit("lecture-status", session.status());
+        }
     }
 }
 
 fn report_progress(app: &AppHandle, completed: usize, total: usize) {
-    let mut session = SESSION.lock().unwrap();
+    let mut session = lecture_session();
     *session = LectureSession::Working(Some(LectureProgress { completed, total }));
     let _ = app.emit("lecture-status", session.status());
 }
@@ -112,10 +135,7 @@ pub fn start_lecture_recording(
     recording_manager: State<'_, Arc<AudioRecordingManager>>,
     history_manager: State<'_, Arc<HistoryManager>>,
 ) -> Result<i64, String> {
-    let mut session = SESSION.lock().unwrap();
-    if !matches!(*session, LectureSession::Idle) {
-        return Err("A lecture operation is already in progress".into());
-    }
+    let job = LectureJob::begin(&app)?;
     let name = new_file_name();
     let path = history_manager
         .get_audio_file_path(&name)
@@ -125,13 +145,12 @@ pub fn start_lecture_recording(
     let title = format!("Lecture · {}", started.format("%e %b %Y, %H:%M"));
     match history_manager.save_long_entry(name, title, started.timestamp()) {
         Ok((entry, work)) => {
-            *session = LectureSession::Recording(LectureRecording {
+            job.into_recording(LectureRecording {
                 id: entry.id,
                 path,
                 started_at: started.timestamp_millis(),
                 work,
             });
-            let _ = app.emit("lecture-status", session.status());
             Ok(entry.id)
         }
         Err(error) => {
@@ -145,7 +164,7 @@ pub fn start_lecture_recording(
 #[tauri::command]
 #[specta::specta]
 pub fn get_active_lecture() -> Result<LectureStatus, String> {
-    Ok(SESSION.lock().unwrap().status())
+    Ok(lecture_session().status())
 }
 
 #[tauri::command]
@@ -157,19 +176,19 @@ pub async fn finish_lecture_recording(
     transcription_manager: State<'_, Arc<TranscriptionManager>>,
 ) -> Result<i64, String> {
     let LectureRecording { id, path, work, .. } = {
-        let mut session = SESSION.lock().unwrap();
-        if !matches!(*session, LectureSession::Recording(_)) {
-            return Err("No lecture is recording".into());
+        let mut session = lecture_session();
+        match std::mem::replace(&mut *session, LectureSession::Working(None)) {
+            LectureSession::Recording(recording) => {
+                let _ = app.emit("lecture-status", session.status());
+                recording
+            }
+            previous => {
+                *session = previous;
+                return Err("No lecture is recording".into());
+            }
         }
-        let LectureSession::Recording(recording) =
-            std::mem::replace(&mut *session, LectureSession::Working(None))
-        else {
-            unreachable!();
-        };
-        let _ = app.emit("lecture-status", session.status());
-        recording
     };
-    let _job = LectureJob(app.clone());
+    let _job = LectureJob::new(&app);
     let result = match recording_manager.stop_recording_file(BINDING) {
         Ok(samples) if samples > 0 => {
             transcribe_long_audio(

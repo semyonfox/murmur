@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::io::{ErrorKind, Read, Seek, Write};
 use std::path::{Component, Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, PoisonError};
 use tauri::AppHandle;
 use tauri_specta::Event;
 
@@ -161,7 +161,10 @@ pub struct HistoryWork {
 
 impl Drop for HistoryWork {
     fn drop(&mut self) {
-        self.active_entries.lock().unwrap().remove(&self.id);
+        self.active_entries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&self.id);
     }
 }
 
@@ -610,7 +613,12 @@ impl HistoryManager {
     }
 
     pub fn begin_entry_work(&self, id: i64) -> Result<HistoryWork> {
-        if !self.active_entries.lock().unwrap().insert(id) {
+        if !self
+            .active_entries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(id)
+        {
             return Err(anyhow!("This recording is already in use"));
         }
         Ok(HistoryWork {
@@ -631,8 +639,12 @@ impl HistoryManager {
         title: String,
         timestamp: i64,
     ) -> Result<(HistoryEntry, HistoryWork)> {
-        let mut active = self.active_entries.lock().unwrap();
         let conn = self.get_connection()?;
+        // retention must see the active id as soon as the row is visible
+        let mut active = self
+            .active_entries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         conn.execute(
             "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text, post_process_requested) VALUES (?1, ?2, 0, ?3, '', 0)",
             params![&file_name, timestamp, &title],
@@ -743,34 +755,26 @@ impl HistoryManager {
 
         let conn = self.get_connection()?;
         let mut deleted_count = 0;
-        let active = self.active_entries.lock().unwrap();
 
         for (id, file_name) in entries {
-            if active.contains(id) {
-                continue;
-            }
-            let deleted = conn.execute(
-                "DELETE FROM transcription_history WHERE id = ?1 AND saved = 0",
-                params![id],
-            )?;
-            if deleted == 0 {
-                continue;
-            }
-            deleted_count += deleted;
-
-            // Delete WAV file
-            if let Ok(file_path) = self.get_audio_file_path(file_name) {
-                if file_path.exists() {
-                    if let Err(e) = fs::remove_file(&file_path) {
-                        error!("Failed to delete WAV file {}: {}", file_name, e);
-                    } else {
-                        debug!("Deleted old WAV file: {}", file_name);
-                    }
+            {
+                let active = self
+                    .active_entries
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner);
+                if active.contains(id) {
+                    continue;
+                }
+                let deleted = conn.execute(
+                    "DELETE FROM transcription_history WHERE id = ?1 AND saved = 0",
+                    params![id],
+                )?;
+                if deleted == 0 {
+                    continue;
                 }
             }
-            if let Err(error) = (HistoryUpdatePayload::Deleted { id: *id }).emit(&self.app_handle) {
-                error!("Failed to emit history deletion: {error}");
-            }
+            deleted_count += 1;
+            self.finish_entry_deletion(*id, file_name);
         }
 
         Ok(deleted_count)
@@ -1024,38 +1028,39 @@ impl HistoryManager {
     }
 
     pub async fn delete_entry(&self, id: i64) -> Result<()> {
-        let active = self.active_entries.lock().unwrap();
-        if active.contains(&id) {
-            return Err(anyhow!("This recording is in use"));
-        }
         let conn = self.get_connection()?;
+        let file_name: Option<String> = {
+            let active = self
+                .active_entries
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            if active.contains(&id) {
+                return Err(anyhow!("This recording is in use"));
+            }
+            conn.query_row(
+                "DELETE FROM transcription_history WHERE id = ?1 RETURNING file_name",
+                [id],
+                |row| row.get(0),
+            )
+            .optional()?
+        };
+        if let Some(file_name) = file_name {
+            self.finish_entry_deletion(id, &file_name);
+        }
+        Ok(())
+    }
 
-        // Get the entry to find the file name
-        if let Some(entry) = self.get_entry_by_id(id)? {
-            // Delete the audio file first
-            let file_path = self.get_audio_file_path(&entry.file_name)?;
-            if file_path.exists() {
-                if let Err(e) = fs::remove_file(&file_path) {
-                    error!("Failed to delete audio file {}: {}", entry.file_name, e);
-                    // Continue with database deletion even if file deletion fails
+    fn finish_entry_deletion(&self, id: i64, file_name: &str) {
+        if let Ok(path) = self.get_audio_file_path(file_name) {
+            if let Err(error) = fs::remove_file(path) {
+                if error.kind() != ErrorKind::NotFound {
+                    error!("Could not delete recording {file_name}: {error}");
                 }
             }
         }
-
-        // Delete from database
-        conn.execute(
-            "DELETE FROM transcription_history WHERE id = ?1",
-            params![id],
-        )?;
-
-        debug!("Deleted history entry with id: {}", id);
-
-        // Emit history updated event
-        if let Err(e) = (HistoryUpdatePayload::Deleted { id }).emit(&self.app_handle) {
-            error!("Failed to emit history-updated event: {}", e);
+        if let Err(error) = (HistoryUpdatePayload::Deleted { id }).emit(&self.app_handle) {
+            error!("Failed to emit history deletion: {error}");
         }
-
-        Ok(())
     }
 
     fn format_timestamp_title(&self, timestamp: i64) -> String {
