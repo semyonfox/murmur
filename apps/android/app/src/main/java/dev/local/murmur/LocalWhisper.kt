@@ -77,6 +77,11 @@ internal object LocalSpeechModels {
     fun file(context: Context, model: DownloadableSpeechModel): File =
         File(File(context.filesDir, "speech-models"), "ggml-${model.id}.bin")
 
+    fun delete(context: Context, model: DownloadableSpeechModel) {
+        val installed = file(context, model)
+        check(installed.delete() || !installed.exists()) { "Could not delete the downloaded model." }
+    }
+
     fun isInstalled(context: Context, model: DownloadableSpeechModel): Boolean = file(context, model).length() == model.bytes
 
     fun canRun(context: Context, model: DownloadableSpeechModel): Boolean {
@@ -236,9 +241,13 @@ internal object LocalWhisper {
 
     // loading a model takes seconds, so dictation keeps it warm between takes
     // and only frees the memory after the user has been idle for a while
-    @Synchronized fun releaseWhenIdle() {
-        lastUsedAt = System.nanoTime()
-        idleReleaser.schedule({ releaseIfIdle() }, IDLE_RELEASE_MS, TimeUnit.MILLISECONDS)
+    fun releaseWhenIdle() {
+        idleReleaser.execute {
+            synchronized(this) {
+                lastUsedAt = System.nanoTime()
+                idleReleaser.schedule({ releaseIfIdle() }, IDLE_RELEASE_MS, TimeUnit.MILLISECONDS)
+            }
+        }
     }
 
     @Synchronized private fun releaseIfIdle() {
@@ -290,7 +299,9 @@ internal object LocalWhisper {
             header.getInt(24) != 16_000 || header.getShort(34).toInt() != 16) {
             throw IOException("Expected mono 16 kHz PCM audio.")
         }
-        val samples = FloatArray((bytes.size - 44) / 2) { index -> header.getShort(44 + index * 2) / 32768f }
+        val pcmBytes = bytes.size - 44
+        if (pcmBytes == 0 || pcmBytes % 2 != 0) throw IOException("Recording is empty or incomplete.")
+        val samples = FloatArray(pcmBytes / 2) { index -> header.getShort(44 + index * 2) / 32768f }
         load(model)
         return when (loadedEngine) {
             SpeechEngine.WHISPER -> (nativeTranscribe(context, samples, language.substringBefore('-'), translate, threads)

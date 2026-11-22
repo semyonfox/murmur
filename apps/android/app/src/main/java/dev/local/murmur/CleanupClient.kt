@@ -157,20 +157,22 @@ internal fun cleanupSystemPrompt(formality: Int, instructions: String?): String 
 }
 
 // transcript and vocabulary travel as data in the user message, never in the prompt
-internal fun cleanupUserContent(transcript: String, dictionary: List<String>): String {
-    val vocabulary = JSONArray()
+internal fun cleanupVocabulary(dictionary: List<String>): List<String> = buildList {
+    val sent = this
     var encodedBytes = 2
     for (entry in dictionary) {
         val word = entry.trim()
         if (word.isEmpty() || word.toByteArray(StandardCharsets.UTF_8).size > MAX_VOCABULARY_TERM_BYTES) continue
-        val entryBytes = JSONObject.quote(word).toByteArray(StandardCharsets.UTF_8).size + if (vocabulary.length() > 0) 1 else 0
+        val entryBytes = JSONObject.quote(word).toByteArray(StandardCharsets.UTF_8).size + if (sent.isNotEmpty()) 1 else 0
         if (encodedBytes + entryBytes > MAX_VOCABULARY_JSON_BYTES) continue
-        vocabulary.put(word)
+        sent.add(word)
         encodedBytes += entryBytes
-        if (vocabulary.length() == MAX_VOCABULARY_TERMS) break
+        if (sent.size == MAX_VOCABULARY_TERMS) break
     }
-    return JSONObject().put("transcript", transcript).put("vocabulary", vocabulary).toString()
 }
+
+internal fun cleanupUserContent(transcript: String, dictionary: List<String>): String =
+    JSONObject().put("transcript", transcript).put("vocabulary", JSONArray(cleanupVocabulary(dictionary))).toString()
 
 // corrections and spoken spelling can shrink a short dictation a lot. anything
 // longer that loses three quarters was cut off, and a long transcript that comes
@@ -270,6 +272,7 @@ internal class CleanupClient(
             .header("Accept", "application/json")
             .apply {
                 config.apiKey?.let { key ->
+                    requireValidApiKey(key)
                     if (anthropic) {
                         header("x-api-key", key)
                         header("anthropic-version", "2023-06-01")

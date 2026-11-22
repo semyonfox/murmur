@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URI
@@ -25,6 +26,12 @@ internal class CleanupEndpoint(
     val uri: URI, val model: String, val apiKey: String?, val formality: Int,
     val dictionary: List<String>, val customInstructions: String?,
 )
+
+private fun String.isValidApiKey(): Boolean = length <= 8192 && isNotBlank() && all { it in ' '..'~' }
+
+internal fun requireValidApiKey(key: String) {
+    require(key.isValidApiKey()) { "API key is invalid. Re-enter it in Murmur." }
+}
 
 internal class AppSettings(context: Context) {
     private val appContext = context.applicationContext
@@ -154,13 +161,26 @@ internal class AppSettings(context: Context) {
             }.apply()
         }
 
-    fun saveTranscript(raw: String, cleaned: String?, historyId: Long?) {
-        preferences.edit()
-            .putString(LATEST_RAW_TRANSCRIPT, raw)
-            .putString(LATEST_TRANSCRIPT, cleaned ?: raw)
-            .putLong(LATEST_TRANSCRIPT_TIME, System.currentTimeMillis())
-            .apply { if (historyId != null) putLong(LATEST_HISTORY_ID, historyId) else remove(LATEST_HISTORY_ID) }
-            .apply()
+    fun removeExpiredLatestTranscript(cutoff: Long) = synchronized(preferences) {
+        val timestamp = latestTranscriptTime
+        if (timestamp?.let { it < cutoff } ?: (latestTranscript != null || latestRawTranscript != null || latestHistoryId != null)) {
+            latestTranscript = null
+        }
+    }
+
+    fun saveRawTranscript(raw: String, historyId: Long?) = synchronized(preferences) {
+        preferences.edit {
+            putString(LATEST_RAW_TRANSCRIPT, raw)
+            putString(LATEST_TRANSCRIPT, raw)
+            putLong(LATEST_TRANSCRIPT_TIME, System.currentTimeMillis())
+            if (historyId != null) putLong(LATEST_HISTORY_ID, historyId) else remove(LATEST_HISTORY_ID)
+        }
+    }
+
+    fun updateLatestTranscript(historyId: Long?, raw: String, cleaned: String) = synchronized(preferences) {
+        if (latestHistoryId == historyId && latestRawTranscript == raw) {
+            preferences.edit { putString(LATEST_TRANSCRIPT, cleaned) }
+        }
     }
 
     fun saveEndpoint(url: String, modelId: String) {
@@ -239,7 +259,7 @@ internal class AppSettings(context: Context) {
     }
 
     private fun saveKey(name: String, key: String) {
-        require(key.isNotBlank() && key.length <= 8192 && key.none { Character.isISOControl(it) }) {
+        require(key.isValidApiKey()) {
             "Enter a valid API key."
         }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -384,6 +404,7 @@ internal class AppSettings(context: Context) {
             GCMParameterSpec(128, payload.copyOfRange(0, GCM_IV_BYTES)),
         )
         return String(cipher.doFinal(payload, GCM_IV_BYTES, payload.size - GCM_IV_BYTES), StandardCharsets.UTF_8)
+            .also(::requireValidApiKey)
     }
 
     private fun getOrCreateKey(): SecretKey {

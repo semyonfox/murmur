@@ -9,6 +9,7 @@ import android.media.MediaRecorder
 import android.media.audiofx.NoiseSuppressor
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
@@ -22,6 +23,7 @@ internal class PcmRecorder private constructor(
     private val noiseSuppressor: NoiseSuppressor?,
     private val maxPcmBytes: Int,
     private val preserveOnFailure: Boolean,
+    private val chunkDirectory: File,
     private val onChunk: ((piece: File, offsetMs: Long) -> Unit)?,
     private val chunkMinSeconds: Int,
     private val chunkMaxSeconds: Int,
@@ -64,7 +66,7 @@ internal class PcmRecorder private constructor(
             var chunks = 0
             RandomAccessFile(file, "rw").use { output ->
                 output.setLength(0)
-                output.write(ByteArray(WAV_HEADER_BYTES))
+                output.write(wavHeader(0))
                 val buffer = ByteArray(bufferSize)
                 // small reads give the level meter about 25 updates a second
                 val readSize = if (onLevel != null) minOf(bufferSize, LEVEL_READ_BYTES) else bufferSize
@@ -124,7 +126,7 @@ internal class PcmRecorder private constructor(
             // stop may have raced the user releasing the microphone button
         }
         recorder.release()
-        noiseSuppressor?.release()
+        runCatching { noiseSuppressor?.release() }
         mainHandler.post {
             if (discard.get()) file.delete()
             else {
@@ -135,7 +137,7 @@ internal class PcmRecorder private constructor(
     }
 
     private fun emitChunk(piece: AudioPiece) {
-        val chunk = pcmToWav(piece.pcm, file.parentFile ?: return)
+        val chunk = pcmToWav(piece.pcm, chunkDirectory)
         val offsetMs = piece.offsetBytes * 1000L / (SAMPLE_RATE * BYTES_PER_SAMPLE)
         mainHandler.post {
             if (discard.get()) chunk.delete() else onChunk?.invoke(chunk, offsetMs) ?: chunk.delete()
@@ -186,7 +188,7 @@ internal class PcmRecorder private constructor(
             cacheDir: File,
             suppressNoise: Boolean,
             maxSeconds: Int = DEFAULT_MAX_SECONDS,
-            preserveOnFailure: Boolean = false,
+            savedFile: File? = null,
             // called on the main thread with each piece that holds speech and where it starts
             onChunk: ((piece: File, offsetMs: Long) -> Unit)? = null,
             chunkMinSeconds: Int = 3,
@@ -209,7 +211,7 @@ internal class PcmRecorder private constructor(
             require(minimum > 0) { "This device cannot record 16 kHz mono audio." }
             val bufferSize = max(minimum * 2, 4096)
             cacheDir.mkdirs()
-            val file = File.createTempFile(if (preserveOnFailure) "lecture-" else "murmur-capture-", ".wav", cacheDir)
+            val file = savedFile ?: File.createTempFile("murmur-capture-", ".wav", cacheDir)
             val recorder = try {
                 AudioRecord.Builder()
                     .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
@@ -231,31 +233,41 @@ internal class PcmRecorder private constructor(
                 file.delete()
                 error("Microphone could not start.")
             }
-            val noiseSuppressor = try {
-                if (suppressNoise && NoiseSuppressor.isAvailable()) {
-                    NoiseSuppressor.create(recorder.audioSessionId)?.apply { enabled = true }
-                } else null
-            } catch (error: Exception) {
-                recorder.release()
-                file.delete()
-                throw error
-            }
+            val noiseSuppressor = if (suppressNoise) {
+                enableNoiseSuppressor(recorder.audioSessionId).also { effect ->
+                    if (effect == null) Toast.makeText(context, "Recording without noise suppression.", Toast.LENGTH_SHORT).show()
+                }
+            } else null
             try {
                 recorder.startRecording()
             } catch (error: Exception) {
-                noiseSuppressor?.release()
+                runCatching { noiseSuppressor?.release() }
                 recorder.release()
                 file.delete()
                 throw error
             }
             if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-                noiseSuppressor?.release()
+                runCatching { noiseSuppressor?.release() }
                 recorder.release()
                 file.delete()
                 error("Microphone did not start recording.")
             }
-            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, onChunk, chunkMinSeconds, chunkMaxSeconds, onLevel, onPcm, onComplete).also { capture ->
+            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, savedFile != null, context.cacheDir, onChunk, chunkMinSeconds, chunkMaxSeconds, onLevel, onPcm, onComplete).also { capture ->
                 Thread({ capture.runCapture(bufferSize) }, "murmur-audio").start()
+            }
+        }
+
+        private fun enableNoiseSuppressor(sessionId: Int): NoiseSuppressor? {
+            var effect: NoiseSuppressor? = null
+            return try {
+                if (NoiseSuppressor.isAvailable()) effect = NoiseSuppressor.create(sessionId)
+                if (effect == null) return null
+                check(effect.setEnabled(true) == android.media.audiofx.AudioEffect.SUCCESS && effect.enabled)
+                effect
+            } catch (error: RuntimeException) {
+                runCatching { effect?.release() }
+                Diagnostics.warn("audio", "noise suppression could not start", error)
+                null
             }
         }
 

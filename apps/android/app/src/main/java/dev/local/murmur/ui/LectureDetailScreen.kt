@@ -66,7 +66,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import dev.local.murmur.Diagnostics
+import dev.local.murmur.LectureAudio
 import dev.local.murmur.LectureExport
+import dev.local.murmur.LectureRecord
 import dev.local.murmur.LectureService
 import dev.local.murmur.LectureTranscript
 import dev.local.murmur.R
@@ -85,10 +87,22 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
     val context = LocalContext.current
     val snackbar = LocalSnackbar.current
     val state by LectureService.state.collectAsState()
-    val record = remember(model.revision, id, state.transcribingId, state.part, state.queuedIds, state.message) {
-        runCatching { model.history.lecture(id) }.getOrNull()
+    var expired by remember(id) { mutableStateOf(false) }
+    val record = remember(model.revision, id, state.transcribingId, state.part, state.queuedIds, state.message, expired) {
+        if (expired) null else runCatching { model.history.lecture(id) }.getOrNull()
     }
-    LaunchedEffect(record == null) { if (record == null) onBack() }
+    LaunchedEffect(id, record?.timestamp, model.revision) {
+        val timestamp = record?.timestamp ?: return@LaunchedEffect
+        while (true) {
+            val remaining = model.history.lectureRetentionRemainingMs(timestamp) ?: break
+            if (remaining <= 0) {
+                expired = true
+                break
+            }
+            delay(remaining.coerceAtMost(60_000))
+        }
+    }
+    LaunchedEffect(id, record == null) { if (record == null) onBack() }
     if (record == null) return
 
     val active = state.isActive(id)
@@ -98,11 +112,16 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
     val stamped = record.finalText.ifBlank { record.raw }.trim()
 
     // exports run off the main thread, one at a time, and report through the snackbar
-    fun export(done: String, work: suspend () -> Unit) {
+    fun export(done: String, work: suspend (LectureRecord) -> Unit) {
         if (exporting) return
         exporting = true
         scope.launch {
-            runCatching { withContext(Dispatchers.IO) { work() } }
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val current = model.history.lecture(id) ?: error("Lecture is no longer available.")
+                    work(current)
+                }
+            }
                 .onSuccess { if (done.isNotEmpty()) snackbar.showLater(done) }
                 .onFailure {
                     Diagnostics.error("lecture", "export failed", it)
@@ -111,17 +130,32 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
             exporting = false
         }
     }
+    val audioFile = file.takeUnless { state.recordingId == id }
+    val player = rememberPlayer(audioFile)
+    val durationMs = player?.duration?.toLong() ?: record.durationMs
     val saveAudio = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/mp4")) { uri: Uri? ->
-        val source = file ?: return@rememberLauncherForActivityResult
-        if (uri != null) export("Audio saved.") { copyToUri(context, encodedAudio(context, source, record.title), uri) }
+        if (uri != null) export("Audio saved.") { current ->
+            val source = model.history.lectureFile(current.fileName)
+            val encoded = encodedAudio(context, source, current.title)
+            try {
+                copyToUri(context, encoded, uri)
+            } finally {
+                encoded.delete()
+                encoded.parentFile?.delete()
+            }
+        }
     }
     val saveText = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri: Uri? ->
-        if (uri != null) export("Transcript saved.") { writeToUri(context, uri, stamped + "\n") }
+        if (uri != null) export("Transcript saved.") { current ->
+            writeToUri(context, uri, current.finalText.ifBlank { current.raw }.trim() + "\n")
+        }
     }
     val saveSubtitles = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/x-subrip")) { uri: Uri? ->
-        if (uri != null) export("Subtitles saved.") { writeToUri(context, uri, LectureExport.srt(stamped, record.durationMs)) }
+        if (uri != null) export("Subtitles saved.") { current ->
+            val transcript = current.finalText.ifBlank { current.raw }.trim()
+            writeToUri(context, uri, LectureExport.srt(transcript, durationMs))
+        }
     }
-    val player = rememberPlayer(file)
     var showRaw by rememberSaveable { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
@@ -144,13 +178,25 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
                     text = { Text("Copy text") },
                     leadingIcon = { Icon(painterResource(R.drawable.ic_copy), null) },
                     enabled = plain.isNotBlank(),
-                    onClick = { menu = false; copyText(context, "Murmur lecture", plain); snackbar.showLater("Transcript copied.") },
+                    onClick = {
+                        menu = false
+                        export("Transcript copied.") { current ->
+                            val text = LectureTranscript.plain(current.finalText.ifBlank { current.raw })
+                            withContext(Dispatchers.Main) { copyText(context, "Murmur lecture", text) }
+                        }
+                    },
                 )
                 DropdownMenuItem(
                     text = { Text("Share text") },
                     leadingIcon = { Icon(Icons.Filled.Share, null) },
                     enabled = plain.isNotBlank(),
-                    onClick = { menu = false; shareText(context, record.title, plain) },
+                    onClick = {
+                        menu = false
+                        export("") { current ->
+                            val text = LectureTranscript.plain(current.finalText.ifBlank { current.raw })
+                            withContext(Dispatchers.Main) { shareText(context, current.title, text) }
+                        }
+                    },
                 )
                 DropdownMenuItem(
                     text = { Text("Share audio") },
@@ -158,9 +204,9 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
                     enabled = file?.exists() == true && !exporting,
                     onClick = {
                         menu = false
-                        val source = file ?: return@DropdownMenuItem
-                        export("") {
-                            val m4a = encodedAudio(context, source, record.title)
+                        export("") { current ->
+                            val source = model.history.lectureFile(current.fileName)
+                            val m4a = encodedAudio(context, source, current.title)
                             withContext(Dispatchers.Main) { shareAudio(context, m4a) }
                         }
                     },
@@ -202,7 +248,7 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
             Text(
                 listOfNotNull(
                     DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT).format(Date(record.timestamp)),
-                    record.durationMs.takeIf { it > 0 }?.let(::durationLabel),
+                    durationMs.takeIf { it > 0 }?.let(::durationLabel),
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -289,10 +335,12 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
         text = "This removes the audio, raw transcript and cleaned transcript from this phone.",
         confirm = "Delete",
         onConfirm = {
-            player?.release()
-            model.history.deleteLecture(id)
-            model.refresh()
-            onBack()
+            runCatching { model.history.deleteLecture(id) }
+                .onSuccess {
+                    model.refresh()
+                    onBack()
+                }
+                .onFailure { snackbar.showLater(it.message ?: "Could not delete the lecture.") }
         },
         onDismiss = { confirmDelete = false },
     )
@@ -416,14 +464,19 @@ internal class LecturePlayer(private val media: MediaPlayer) {
 private fun rememberPlayer(file: File?): LecturePlayer? {
     val player = remember(file) {
         if (file == null || !file.exists() || file.length() <= 44) null else runCatching {
-            val media = MediaPlayer().apply {
-                setAudioAttributes(AudioAttributes.Builder()
+            LectureAudio.recoverRecording(file)
+            val media = MediaPlayer()
+            try {
+                media.setAudioAttributes(AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-                setDataSource(file.absolutePath)
-                prepare()
+                media.setDataSource(file.absolutePath)
+                media.prepare()
+                LecturePlayer(media).also { player -> media.setOnCompletionListener { player.tick() } }
+            } catch (error: Exception) {
+                media.release()
+                throw error
             }
-            LecturePlayer(media).also { player -> media.setOnCompletionListener { player.tick() } }
         }.getOrNull()
     }
     DisposableEffect(player) { onDispose { player?.release() } }
@@ -457,11 +510,19 @@ private fun shareText(context: Context, title: String, text: String) {
     }, "Share transcript"))
 }
 
-// one export at a time lives in the cache, so shared files do not pile up
 private fun encodedAudio(context: Context, wav: File, title: String): File {
     val directory = File(context.cacheDir, "exports").apply { mkdirs() }
-    directory.listFiles()?.forEach { it.delete() }
-    return File(directory, LectureExport.fileName(title, "m4a")).also { LectureExport.writeM4a(wav, it) }
+    val cutoff = System.currentTimeMillis() - java.util.concurrent.TimeUnit.DAYS.toMillis(1)
+    directory.listFiles()?.filter { it.lastModified() < cutoff }?.forEach { it.deleteRecursively() }
+    val export = java.nio.file.Files.createTempDirectory(directory.toPath(), "audio-").toFile()
+    return File(export, LectureExport.fileName(title, "m4a")).also { file ->
+        try {
+            LectureExport.writeM4a(wav, file)
+        } catch (error: Exception) {
+            export.deleteRecursively()
+            throw error
+        }
+    }
 }
 
 private fun copyToUri(context: Context, file: File, uri: Uri) {

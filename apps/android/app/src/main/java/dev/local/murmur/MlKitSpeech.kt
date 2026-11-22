@@ -18,6 +18,7 @@ import com.google.mlkit.genai.speechrecognition.SpeechRecognizerOptions
 import com.google.mlkit.genai.speechrecognition.SpeechRecognizerResponse
 import com.google.mlkit.genai.speechrecognition.speechRecognizerOptions
 import com.google.mlkit.genai.speechrecognition.speechRecognizerRequest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.io.IOException
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
@@ -53,7 +55,9 @@ internal object MlKitSpeech {
     // a locale with no usable mode, so fallback dictations do not probe again until restart
     @Volatile private var unsupported: Locale? = null
 
-    private class Client(val locale: Locale, val mode: Int, val recognizer: SpeechRecognizer)
+    private class Client(val locale: Locale, val mode: Int, val recognizer: SpeechRecognizer) {
+        var inUse = false
+    }
 
     // regional preference extensions such as en-IE-u-mu-celsius make every mode unavailable.
     // the phone's own language keeps its region, so en on an Irish phone asks for en-IE
@@ -62,11 +66,21 @@ internal object MlKitSpeech {
         return if (language == "auto" || language == device.language) device else Locale.forLanguageTag(language)
     }
 
-    // the warmed client for this language, or null so the caller keeps the older recogniser.
-    // never blocks, prewarm fills it
+    // reserve the warmed client until its session has stopped, including on cancellation
     @Synchronized
-    fun cached(language: String): Ready? =
-        if (Build.VERSION.SDK_INT < MIN_SDK) null else client?.takeIf { it.locale == localeFor(language) }?.let { Ready(it.recognizer, it.mode) }
+    @RequiresApi(MIN_SDK)
+    fun startLive(language: String): LiveSession? {
+        if (prewarming.get()) return null
+        val ready = client?.takeIf { !it.inUse && it.locale == localeFor(language) } ?: return null
+        ready.inUse = true
+        return try {
+            LiveSession(ready.recognizer, ready.mode)
+        } catch (error: Exception) {
+            ready.inUse = false
+            Diagnostics.warn("mlkit", "could not start a live session", error)
+            null
+        }
+    }
 
     // true once prewarm found no usable mode for this language
     fun isUnsupported(language: String) = unsupported == localeFor(language)
@@ -74,9 +88,12 @@ internal object MlKitSpeech {
     // finds a usable mode, downloads the system model if the phone offers one, then loads it
     // so the first dictation does not pay for it. the weights come from google play services,
     // no user audio is involved. call when the user has chosen phone recognition
+    @Synchronized
     fun prewarm(language: String) {
         val locale = localeFor(language)
-        if (Build.VERSION.SDK_INT < MIN_SDK || cached(language) != null || unsupported == locale || !prewarming.compareAndSet(false, true)) return
+        if (Build.VERSION.SDK_INT < MIN_SDK || client?.inUse == true || client?.locale == locale ||
+            unsupported == locale || !prewarming.compareAndSet(false, true)
+        ) return
         scope.launch {
             try { warm(locale) } finally { prewarming.set(false) }
         }
@@ -120,63 +137,105 @@ internal object MlKitSpeech {
         Diagnostics.info("mlkit", "no on-device mode for ${locale.toLanguageTag()}, keeping the phone speech service")
     }
 
-    class Ready internal constructor(internal val recognizer: SpeechRecognizer, val mode: Int) {
-        val label get() = if (mode == SpeechRecognizerOptions.Mode.MODE_ADVANCED) "ml kit advanced" else "ml kit basic"
+    private fun release(recognizer: SpeechRecognizer, reusable: Boolean) {
+        synchronized(this) {
+            val current = client ?: return
+            if (current.recognizer !== recognizer) return
+            if (reusable) {
+                current.inUse = false
+                return
+            }
+            client = null
+        }
+        scope.launch { recognizer.close() }
     }
 
     // one dictation. feed() is called from the capture thread and never blocks it
     @RequiresApi(MIN_SDK)
-    class LiveSession(private val ready: Ready) {
-        private val audio = Channel<ByteArray>(Channel.UNLIMITED)
+    class LiveSession(private val recognizer: SpeechRecognizer, mode: Int) {
+        val label = if (mode == SpeechRecognizerOptions.Mode.MODE_ADVANCED) "ml kit advanced" else "ml kit basic"
+        private val audio = Channel<ByteArray>(256)
+        private val failed = AtomicBoolean(false)
         private val pipe = ParcelFileDescriptor.createPipe()
         private val sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + logFailures)
         // non-blocking so a recogniser that stops reading cannot wedge this coroutine
         private val writer = sessionScope.launch {
-            val fd = pipe[1].fileDescriptor
-            Os.fcntlInt(fd, OsConstants.F_SETFL, OsConstants.O_NONBLOCK)
             try {
+                val fd = pipe[1].fileDescriptor
+                Os.fcntlInt(fd, OsConstants.F_SETFL, OsConstants.O_NONBLOCK)
                 for (chunk in audio) {
                     var offset = 0
+                    var lastWrite = SystemClock.elapsedRealtime()
                     while (offset < chunk.size) {
                         ensureActive()
                         try {
-                            offset += Os.write(fd, chunk, offset, chunk.size - offset)
+                            val written = Os.write(fd, chunk, offset, chunk.size - offset)
+                            if (written > 0) {
+                                offset += written
+                                lastWrite = SystemClock.elapsedRealtime()
+                            }
                         } catch (error: ErrnoException) {
                             if (error.errno != OsConstants.EAGAIN) throw error
                             delay(10)
                         }
+                        if (SystemClock.elapsedRealtime() - lastWrite >= SPEECH_TIMEOUT_MS) {
+                            throw IOException("On-device recognition stopped reading audio.")
+                        }
                     }
                 }
+            } catch (error: Exception) {
+                ensureActive()
+                fail()
+                throw error
             } finally {
                 // end of stream is what makes the recogniser flush its last words
                 runCatching { pipe[1].close() }
             }
         }
+        @Volatile private var stopped = false
         private val transcript = sessionScope.async {
-            val request = speechRecognizerRequest {
-                audioSource = AudioSource.fromPfd(pipe[0], AudioSource.Mode.STREAMING, PCM_16K_MONO)
-            }
             try {
-                collect(ready.recognizer, request)
+                val request = speechRecognizerRequest {
+                    audioSource = AudioSource.fromPfd(pipe[0], AudioSource.Mode.STREAMING, PCM_16K_MONO)
+                }
+                collect(recognizer, request)
             } finally {
-                withContext(NonCancellable) { runCatching { ready.recognizer.stopRecognition() } }
+                withContext(NonCancellable) {
+                    stopped = runCatching { withTimeout(2_000) { recognizer.stopRecognition() } }
+                        .onFailure { Diagnostics.warn("mlkit", "could not stop recognition", it) }
+                        .isSuccess
+                }
+            }
+        }.also { task ->
+            task.invokeOnCompletion { error ->
+                release(recognizer, stopped && !failed.get() && (error == null || error is CancellationException))
             }
         }
 
         fun feed(buffer: ByteArray, count: Int) {
-            audio.trySend(buffer.copyOf(count))
+            val result = audio.trySend(buffer.copyOf(count))
+            if (result.isFailure && !result.isClosed) fail()
         }
 
-        // closes the stream and waits for the recogniser to flush. call off the main thread
+        // a full pipe during start and missing EOF acknowledgement during finish
+        // both indicate that the cached recogniser can no longer serve this take
         fun finish(): String = try {
             audio.close()
-            runBlocking { transcript.await() }
+            runBlocking { withTimeout(SPEECH_TIMEOUT_MS) { transcript.await() } }
+        } catch (error: Exception) {
+            fail()
+            throw error
         } finally {
             cancel()
         }
 
+        private fun fail() {
+            if (!failed.compareAndSet(false, true)) return
+            cancel()
+        }
+
         fun cancel() {
-            audio.close()
+            audio.cancel()
             sessionScope.cancel()
             runCatching { pipe[0].close() }
             runCatching { pipe[1].close() }
@@ -207,6 +266,7 @@ internal object MlKitSpeech {
 
     // the pipe needs fcntl (api 30), and the phone speech service this replaces needs 31
     const val MIN_SDK = 31
+    private const val SPEECH_TIMEOUT_MS = 10_000L
 
     private val PCM_16K_MONO: AudioFormat = AudioFormat.Builder()
         .setSampleRate(16_000)

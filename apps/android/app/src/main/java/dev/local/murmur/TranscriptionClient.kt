@@ -1,160 +1,213 @@
 package dev.local.murmur
 
 import org.json.JSONObject
+import java.io.EOFException
 import java.io.File
-import java.io.FileInputStream
 import java.io.IOException
-import java.net.HttpURLConnection
+import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketException
+import java.net.SocketTimeoutException
 import java.net.URI
-import java.nio.charset.StandardCharsets
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicBoolean
+import java.net.UnknownHostException
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLException
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.Response
+import okhttp3.internal.http2.ErrorCode
+import okhttp3.internal.http2.StreamResetException
+import okio.BufferedSink
 
 internal class TranscriptionClient {
-    private val cancelled = AtomicBoolean(false)
-    @Volatile private var connection: HttpURLConnection? = null
+    private val cancellation = CountDownLatch(1)
+    private val cancelled get() = cancellation.count == 0L
+    @Volatile private var activeCall: Call? = null
 
     fun cancel() {
-        cancelled.set(true)
-        connection?.disconnect()
+        cancellation.countDown()
+        activeCall?.cancel()
     }
 
     // onLanguage only fires for on-phone whisper running with automatic detection
-    fun transcribe(endpoint: TranscriptionEndpoint, audioFile: File, allowEmpty: Boolean = false,
-                   onLanguage: ((String) -> Unit)? = null): String {
-        check(!cancelled.get()) { "Transcription cancelled." }
+    fun transcribe(
+        endpoint: TranscriptionEndpoint,
+        audioFile: File,
+        allowEmpty: Boolean = false,
+        retryHttp: Boolean = true,
+        onLanguage: ((String) -> Unit)? = null,
+    ): String {
+        check(!cancelled) { "Transcription cancelled." }
         val audioMs = (audioFile.length() - 44).coerceAtLeast(0) / 32
         val source = endpoint.localModel?.name?.removePrefix("ggml-")?.removeSuffix(".bin") ?: endpoint.uri.host
         val started = System.nanoTime()
         try {
             val text = endpoint.localModel?.let { model ->
                 LocalWhisper.transcribe(model, audioFile, endpoint.language, endpoint.translate, onLanguage)
-            } ?: upload(endpoint, audioFile, audioMs)
+            } ?: upload(endpoint, audioFile, audioMs, retryHttp)
             Diagnostics.info("speech", "$source: ${audioMs / 1000.0}s of audio in ${elapsedMs(started)} ms, ${text.length} chars")
             if (text.isEmpty() && !allowEmpty) throw IOException("No speech returned.")
             return text
         } catch (error: Exception) {
-            if (!cancelled.get()) Diagnostics.warn("speech", "$source failed after ${elapsedMs(started)} ms on ${audioMs / 1000.0}s of audio", error)
+            if (!cancelled) Diagnostics.warn("speech", "$source failed after ${elapsedMs(started)} ms on ${audioMs / 1000.0}s of audio", error)
             throw error
         }
     }
 
-    // one quick retry covers a dropped or stale pooled connection. a timeout is not
-    // retried because the server is busy and the user already waited for it
-    private fun upload(endpoint: TranscriptionEndpoint, audioFile: File, audioMs: Long): String {
-        val started = System.nanoTime()
-        return try {
-            send(endpoint, audioFile, audioMs)
-        } catch (error: IOException) {
-            val retryable = when (error) {
-                is HttpStatusException -> error.statusCode == 429 || error.statusCode in 500..599
-                is java.net.SocketTimeoutException, is java.net.UnknownHostException -> false
-                else -> true
+    fun retryLecturePart(canRetry: () -> Boolean = { true }, transcribe: () -> String): String = try {
+        transcribe()
+    } catch (error: IOException) {
+        when (error) {
+            is SpeechConnectionDropped, is ConnectException, is NoRouteToHostException, is UnknownHostException -> {
+                if (cancellation.await(5, TimeUnit.SECONDS) || !canRetry()) throw error
+                transcribe()
             }
-            if (!retryable || cancelled.get() || elapsedMs(started) > 10_000) throw error
-            Diagnostics.warn("speech", "retrying ${endpoint.uri.host} once", error)
-            Thread.sleep(if (error is HttpStatusException) 1_000 else 300)
-            check(!cancelled.get()) { "Transcription cancelled." }
-            send(endpoint, audioFile, audioMs)
+            else -> throw error
         }
     }
 
-    private fun send(endpoint: TranscriptionEndpoint, audioFile: File, audioMs: Long): String {
-        val boundary = "murmur-${UUID.randomUUID()}"
-        val languagePart = if (endpoint.language == "auto") "" else
-            "--$boundary\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\n${endpoint.language}\r\n"
-        val prefix = (
-            "--$boundary\r\n" +
-                "Content-Disposition: form-data; name=\"model\"\r\n\r\n" +
-                endpoint.model + "\r\n" +
-                languagePart +
-                "--$boundary\r\n" +
-                "Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n" +
-                "Content-Type: audio/wav\r\n\r\n"
-        ).toByteArray(StandardCharsets.UTF_8)
-        val suffix = "\r\n--$boundary--\r\n".toByteArray(StandardCharsets.UTF_8)
-        val request = (endpoint.uri.toURL().openConnection() as HttpURLConnection).also {
-            connection = it
+    private fun upload(endpoint: TranscriptionEndpoint, audioFile: File, audioMs: Long, retryHttp: Boolean): String {
+        val responseMs = (15_000 + audioMs).coerceIn(20_000, 120_000)
+        val uploadMs = audioFile.length() * 1_000 / UPLOAD_BYTES_PER_SECOND
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(responseMs + uploadMs)
+        val multipart = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("model", endpoint.model)
+            .apply {
+                if (endpoint.language != "auto") addFormDataPart("language", endpoint.language)
+            }
+            .addFormDataPart("file", "audio.wav", audioFile.asRequestBody("audio/wav".toMediaType()))
+            .build()
+        val oneShot = object : RequestBody() {
+            override fun contentType() = multipart.contentType()
+            override fun contentLength() = multipart.contentLength()
+            override fun writeTo(sink: BufferedSink) = multipart.writeTo(sink)
+            override fun isOneShot() = true
         }
-        var reusable = false
-        try {
-            request.instanceFollowRedirects = false
-            request.requestMethod = "POST"
-            request.connectTimeout = 10_000
-            // hosted servers answer a few seconds of speech in one or two seconds, so a
-            // short take should not sit on "Transcribing" for two minutes when one stalls
-            request.readTimeout = (15_000 + audioMs).coerceIn(20_000, 120_000).toInt()
-            request.doOutput = true
-            request.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-            request.setRequestProperty("Accept", "application/json")
-            endpoint.apiKey?.let { request.setRequestProperty("Authorization", "Bearer $it") }
-            request.setFixedLengthStreamingMode(prefix.size.toLong() + audioFile.length() + suffix.size)
-            check(!cancelled.get()) { "Transcription cancelled." }
+        val request = Request.Builder().url(endpoint.uri.toASCIIString()).post(oneShot)
+            .header("Accept", "application/json")
+            .apply {
+                endpoint.apiKey?.let { key ->
+                    requireValidApiKey(key)
+                    header("Authorization", "Bearer $key")
+                }
+            }.build()
+        return try {
+            send(request, deadline)
+        } catch (error: HttpStatusException) {
+            val retryable = error.statusCode in 500..599 || error.statusCode == 408 || error.statusCode == 429
+            if (!retryHttp || !retryable) throw error
+            val delayMs = error.retryAfterMs ?: 1_000
+            if (cancelled || delayMs >= TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime())) throw error
+            Diagnostics.warn("speech", "retrying ${endpoint.uri.host} once", error)
+            cancellation.await(delayMs, TimeUnit.MILLISECONDS)
+            send(request, deadline)
+        } catch (error: IOException) {
+            if (!retryHttp || cancelled || !connectionDropped(error)) throw error
+            if (deadline - System.nanoTime() <= TimeUnit.MILLISECONDS.toNanos(300)) throw SpeechConnectionDropped(error)
+            Diagnostics.warn("speech", "retrying ${endpoint.uri.host} after a dropped connection", error)
+            if (cancellation.await(300, TimeUnit.MILLISECONDS)) throw error
+            try {
+                send(request, deadline)
+            } catch (retryError: IOException) {
+                if (!cancelled && connectionDropped(retryError)) throw SpeechConnectionDropped(retryError)
+                throw retryError
+            }
+        }
+    }
 
-            request.outputStream.use { output ->
-                output.write(prefix)
-                FileInputStream(audioFile).use { input ->
-                    val buffer = ByteArray(16 * 1024)
-                    while (true) {
-                        check(!cancelled.get()) { "Transcription cancelled." }
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        output.write(buffer, 0, count)
-                    }
-                }
-                output.write(suffix)
+    private fun send(request: Request, deadline: Long): String {
+        if (deadline - System.nanoTime() <= 0) throw SocketTimeoutException("Transcription deadline expired.")
+        val call = http.newCall(request)
+        call.timeout().deadlineNanoTime(deadline)
+        activeCall = call
+        try {
+            check(!cancelled && !Thread.currentThread().isInterrupted) { "Transcription cancelled." }
+            return call.execute().use { response ->
+                if (!response.isSuccessful) throw HttpStatusException(response.code, retryAfterMs(response.header("Retry-After")))
+                val source = response.body?.source() ?: throw IOException("Missing transcription response.")
+                if (source.request(MAX_RESPONSE_BYTES + 1)) throw IOException("Transcription response was too large.")
+                parseSpeechResponse(source.readUtf8())
             }
-            check(!cancelled.get()) { "Transcription cancelled." }
-            val code = request.responseCode
-            if (code !in 200..299) throw HttpStatusException(code)
-            val response = request.inputStream.use { input ->
-                val output = ByteArray(1024 * 1024 + 1)
-                var used = 0
-                while (used < output.size) {
-                    val count = input.read(output, used, output.size - used)
-                    if (count < 0) break
-                    used += count
-                }
-                if (used == output.size) throw IOException("Transcription response was too large.")
-                String(output, 0, used, StandardCharsets.UTF_8)
+        } catch (error: InterruptedIOException) {
+            if (!cancelled && deadline - System.nanoTime() <= 0) {
+                throw SocketTimeoutException("Transcription deadline expired.").apply { initCause(error) }
             }
-            check(!cancelled.get()) { "Transcription cancelled." }
-            val text = JSONObject(response).optString("text").trim()
-            reusable = true
-            return text
+            throw error
         } finally {
-            connection = null
-            // disconnect closes the socket, so only do it when the exchange broke
-            if (!reusable) request.disconnect()
+            activeCall = null
+        }
+    }
+
+    companion object {
+        private const val UPLOAD_BYTES_PER_SECOND = 16_000
+        private const val MAX_RESPONSE_BYTES = 1024L * 1024
+        private val http = OkHttpClient.Builder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .retryOnConnectionFailure(false)
+            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .writeTimeout(0, TimeUnit.MILLISECONDS)
+            .build()
+
+        fun warmUp(uri: URI) {
+            if (uri.scheme != "https") return
+            val request = Request.Builder().url(uri.toASCIIString()).head().build()
+            val call = http.newCall(request)
+            call.timeout().timeout(5, TimeUnit.SECONDS)
+            call.enqueue(object : Callback {
+                override fun onResponse(call: Call, response: Response) = response.close()
+                override fun onFailure(call: Call, e: IOException) = Unit
+            })
         }
     }
 }
 
-// opens the TLS connection while the user is still speaking, so the upload and
-// cleanup requests reuse a warm socket instead of paying for a fresh handshake
-internal fun warmUpConnections(endpoints: List<URI>) {
-    val remote = endpoints.filter { it.scheme == "https" }.distinctBy { it.host to it.port }
-    if (remote.isEmpty()) return
-    Thread({
-        for (uri in remote) {
-            val request = uri.toURL().openConnection() as HttpURLConnection
-            try {
-                request.instanceFollowRedirects = false
-                request.requestMethod = "HEAD"
-                request.connectTimeout = 5_000
-                request.readTimeout = 5_000
-                // these endpoints answer HEAD with 404 or 405. closing that reply cleanly
-                // hands the socket back to the pool, disconnect would close it
-                val reply = if (request.responseCode >= 400) request.errorStream else request.inputStream
-                reply?.close()
-            } catch (_: IOException) {
-                // a real network failure will surface again on the actual request
-                request.disconnect()
-            }
-        }
-    }, "murmur-warm-up").apply { isDaemon = true }.start()
+internal class SpeechConnectionDropped(cause: IOException) : IOException(cause.message, cause)
+
+private fun connectionDropped(error: IOException): Boolean = when (error) {
+    is ConnectException, is NoRouteToHostException, is InterruptedIOException -> false
+    is SocketException, is EOFException -> true
+    // refused streams are safe to resend because the peer did not process them
+    is StreamResetException -> error.errorCode == ErrorCode.REFUSED_STREAM
+    is SSLException -> when (val cause = error.cause) {
+        is ConnectException, is NoRouteToHostException -> false
+        is SocketException, is EOFException -> true
+        else -> false
+    }
+    // okhttp wraps an eof before the response headers in an io exception
+    else -> error.cause is EOFException
+}
+
+internal fun retryAfterMs(value: String?): Long? {
+    val header = value?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    if (header.all { it in '0'..'9' }) {
+        return TimeUnit.SECONDS.toMillis(header.toLongOrNull() ?: Long.MAX_VALUE)
+    }
+    return runCatching {
+        val retryAt = ZonedDateTime.parse(header, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli()
+        (retryAt - System.currentTimeMillis()).coerceAtLeast(0)
+    }.getOrNull()
 }
 
 internal fun elapsedMs(startedNanos: Long): Long = (System.nanoTime() - startedNanos) / 1_000_000
 
-internal class HttpStatusException(val statusCode: Int) : IOException("Transcription server returned HTTP $statusCode.")
+internal class HttpStatusException(val statusCode: Int, val retryAfterMs: Long? = null) : IOException("Transcription server returned HTTP $statusCode.")
+
+internal fun parseSpeechResponse(response: String): String {
+    val text = try {
+        JSONObject(response).opt("text")
+    } catch (_: org.json.JSONException) {
+        null
+    }
+    return (text as? String)?.trim() ?: throw IOException("Invalid transcription server response.")
+}

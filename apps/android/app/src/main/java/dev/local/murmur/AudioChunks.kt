@@ -1,13 +1,11 @@
 package dev.local.murmur
 
 import java.io.File
-import java.net.ConnectException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
+import java.util.concurrent.RejectedExecutionException
 import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -55,7 +53,6 @@ private const val SPEECH_FRAMES = 10
 // bumped phone does not make ordinary speech look like a pause
 private const val SUSTAINED_FRAMES = 25
 private const val LEVEL_BUCKETS = 64
-private const val MIN_TAIL_BYTES = BYTES_PER_SECOND / 5
 
 // cuts live 16 kHz mono PCM into pieces at natural pauses while recording continues.
 // a pause is a run of frames well below the speech level of the piece, which adapts
@@ -99,7 +96,10 @@ internal class PauseChunker(
 
     // the remainder after the last cut, or null when it holds no speech
     fun finish(): AudioPiece? {
-        if (size < MIN_TAIL_BYTES || !hasSpeech(frameLevels)) return null
+        val partialOffset = frameLevels.size * FRAME_BYTES
+        val partialBytes = size - partialOffset
+        val partialLevel = if (partialBytes >= 2) frameLevel(partialOffset, partialBytes) else null
+        if (!hasSpeech(frameLevels, partialLevel)) return null
         return AudioPiece(data.copyOf(size), cutBytes)
     }
 
@@ -138,22 +138,26 @@ internal class PauseChunker(
         return piece
     }
 
-    private fun frameLevel(offset: Int): Int {
+    private fun frameLevel(offset: Int, bytes: Int = FRAME_BYTES): Int {
+        if (bytes < 2) return 0
         var sum = 0.0
         var index = offset
-        while (index < offset + FRAME_BYTES) {
+        while (index + 1 < offset + bytes) {
             val sample = (data[index].toInt() and 0xff) or (data[index + 1].toInt() shl 8)
             sum += sample.toDouble() * sample
             index += 2
         }
-        return sqrt(sum / FRAME_SAMPLES).toInt()
+        return sqrt(sum / (bytes / 2)).toInt()
     }
 }
 
 // a short word lasts about a fifth of a second, so anything with less sound
 // than that above the pause level is silence or a click
-private fun hasSpeech(levels: List<Int>): Boolean =
-    levels.count { it >= QUIET_LEVEL } >= minOf(SPEECH_FRAMES, maxOf(1, levels.size / 4))
+private fun hasSpeech(levels: List<Int>, partialLevel: Int? = null): Boolean {
+    val frames = levels.size + if (partialLevel != null) 1 else 0
+    val voiced = levels.count { it >= QUIET_LEVEL } + if (partialLevel != null && partialLevel >= QUIET_LEVEL) 1 else 0
+    return voiced >= minOf(SPEECH_FRAMES, maxOf(1, frames / 4))
+}
 
 private fun bucketOf(level: Int): Int =
     if (level <= 0) 0 else minOf(LEVEL_BUCKETS - 1, 1 + (4 * ln(level.toDouble()) / ln(2.0)).toInt())
@@ -167,7 +171,7 @@ internal class ChunkedTranscription(
     val client: TranscriptionClient,
     val endpoint: TranscriptionEndpoint,
 ) {
-    private val parts = mutableListOf<Future<String>>()
+    private val parts = mutableListOf<Pair<File, Future<String>>>()
     val started: Boolean get() = parts.isNotEmpty()
 
     // most takes are a few seconds, so pieces can be short. local whisper is the
@@ -177,39 +181,54 @@ internal class ChunkedTranscription(
         if (endpoint.localModel?.let(LocalSpeechModels::engineOf) == SpeechEngine.WHISPER) 12 else 3
 
     fun add(file: File) {
-        parts += worker.submit(Callable {
-            try { client.transcribe(endpoint, file, allowEmpty = true) } finally { file.delete() }
-        })
+        try {
+            val task = worker.submit(Callable {
+                try { client.transcribe(endpoint, file, allowEmpty = true) } finally { file.delete() }
+            })
+            parts += file to task
+        } catch (error: RejectedExecutionException) {
+            file.delete()
+            throw error
+        }
     }
 
-    // runs on the single worker thread after every queued part, so they are all done.
-    // a failed part falls back to the whole recording rather than losing the take,
-    // unless the server is unreachable or too slow, where sending more audio only
-    // makes the user wait twice for the same failure
+    // runs on the single worker after every queued part
     fun finish(fullRecording: File): String {
-        val joined = try {
-            parts.joinToString(" ") { it.get().trim() }.replace(Regex(" {2,}"), " ").trim()
-        } catch (error: ExecutionException) {
-            val cause = error.cause ?: error
-            if (cause is SocketTimeoutException || cause is UnknownHostException || cause is ConnectException) throw cause
-            Diagnostics.warn("speech", "a live part failed, sending the whole take instead", cause)
-            null
+        val replies = parts.map { (_, task) ->
+            try {
+                task.get()
+            } catch (error: ExecutionException) {
+                val cause = error.cause ?: error
+                if (endpoint.localModel == null && cause !is SpeechConnectionDropped) throw cause
+                null
+            }
         }
-        if (joined != null && joined.isNotEmpty()) return joined
-        return client.transcribe(endpoint, fullRecording)
+        if (replies.none { it == null }) {
+            val joined = replies.filterNotNull().filter(String::isNotEmpty).joinToString(" ")
+            if (joined.isNotEmpty()) return joined
+        }
+        return client.transcribe(endpoint, fullRecording, retryHttp = false)
     }
 
     fun cancel() {
         client.cancel()
-        parts.forEach { it.cancel(true) }
+        parts.forEach { (file, task) ->
+            task.cancel(true)
+            file.delete()
+        }
     }
 }
 
 internal fun pcmToWav(pcm: ByteArray, directory: File): File {
     val file = File.createTempFile("murmur-chunk-", ".wav", directory)
-    file.outputStream().use { output ->
-        output.write(PcmRecorder.wavHeader(pcm.size))
-        output.write(pcm)
+    try {
+        file.outputStream().use { output ->
+            output.write(PcmRecorder.wavHeader(pcm.size))
+            output.write(pcm)
+        }
+    } catch (error: Exception) {
+        file.delete()
+        throw error
     }
     return file
 }

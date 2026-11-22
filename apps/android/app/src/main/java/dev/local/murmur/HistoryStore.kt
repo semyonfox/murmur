@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import android.util.JsonWriter
 import android.util.JsonReader
 import java.io.File
+import java.text.BreakIterator
 import java.util.Calendar
 import java.util.TimeZone
 import kotlin.math.roundToInt
@@ -49,6 +50,8 @@ internal data class WeekStats(
 )
 
 internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(context, "history.db", null, 3) {
+    private val settings by lazy { AppSettings(context) }
+
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE dictations (
@@ -92,20 +95,33 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
     private val lectureDirectory: File get() = File(context.filesDir, "lectures").apply { mkdirs() }
 
     fun lectureFile(fileName: String): File {
-        require(fileName.matches(Regex("lecture-[A-Za-z0-9-]+\\.wav"))) { "Invalid lecture file" }
+        require(LectureAudio.isRecordingName(fileName)) { "Invalid lecture file" }
         return File(lectureDirectory, fileName)
     }
 
     fun addLecture(file: File, title: String, status: String = "recording"): Long {
+        val id = insertLecture(file, title, status, System.currentTimeMillis(), 0)
+        pruneAndGetCutoff()
+        return id
+    }
+
+    fun recoverLectures() {
+        val recordedNames = readableDatabase.query("lectures", arrayOf("file_name"), null, null, null, null, null)
+            .use { cursor -> buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) } }
+        for (file in LectureAudio.unlistedRecordings(lectureDirectory, recordedNames)) {
+            insertLecture(file, "Recovered recording", "failed", file.lastModified(), LectureAudio.durationMs(file))
+        }
+    }
+
+    private fun insertLecture(file: File, title: String, status: String, timestamp: Long, durationMs: Long): Long {
         require(file.canonicalFile.parentFile == lectureDirectory.canonicalFile) { "Invalid lecture location" }
-        val id = writableDatabase.insertOrThrow("lectures", null, ContentValues().apply {
-            put("timestamp", System.currentTimeMillis())
+        return writableDatabase.insertOrThrow("lectures", null, ContentValues().apply {
+            put("timestamp", timestamp)
             put("title", title.take(100))
             put("file_name", file.name)
+            put("duration_ms", durationMs)
             put("status", status)
         })
-        pruneOlderThan(AppSettings(context).historyRetentionDays)
-        return id
     }
 
     fun updateLecture(id: Long, raw: String, finalText: String, durationMs: Long, status: String) {
@@ -119,15 +135,20 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
         check(updated == 1) { "Lecture was deleted." }
     }
 
-    fun lecture(id: Long): LectureRecord? = readableDatabase.query(
+    fun lecture(id: Long): LectureRecord? = storedLecture(id, retentionCutoff())
+
+    fun storedLecture(id: Long, cutoff: Long = Long.MIN_VALUE): LectureRecord? = readableDatabase.query(
         "lectures", arrayOf("id", "timestamp", "title", "file_name", "raw_text", "final_text", "duration_ms", "status"),
-        "id = ?", arrayOf(id.toString()), null, null, null, "1",
+        "id = ? AND timestamp >= ?", arrayOf(id.toString(), cutoff.toString()), null, null, null, "1",
     ).use { cursor -> if (cursor.moveToFirst()) lectureFromCursor(cursor) else null }
 
-    fun lectures(limit: Int = 50): List<LectureRecord> = readableDatabase.query(
-        "lectures", arrayOf("id", "timestamp", "title", "file_name", "raw_text", "final_text", "duration_ms", "status"),
-        null, null, null, null, "timestamp DESC, id DESC", limit.coerceIn(1, 100).toString(),
-    ).use { cursor -> buildList { while (cursor.moveToNext()) add(lectureFromCursor(cursor)) } }
+    fun lectures(limit: Int = 50): List<LectureRecord> {
+        val cutoff = pruneAndGetCutoff()
+        return readableDatabase.query(
+            "lectures", arrayOf("id", "timestamp", "title", "file_name", "raw_text", "final_text", "duration_ms", "status"),
+            "timestamp >= ?", arrayOf(cutoff.toString()), null, null, "timestamp DESC, id DESC", limit.coerceIn(1, 100).toString(),
+        ).use { cursor -> buildList { while (cursor.moveToNext()) add(lectureFromCursor(cursor)) } }
+    }
 
     private fun lectureFromCursor(cursor: android.database.Cursor) = LectureRecord(
         cursor.getLong(0), cursor.getLong(1), cursor.getString(2), cursor.getString(3),
@@ -143,9 +164,10 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
     }
 
     fun deleteLecture(id: Long) {
-        val record = lecture(id) ?: return
+        val record = storedLecture(id) ?: return
+        val audio = lectureFile(record.fileName)
+        check(audio.delete() || !audio.exists()) { "Could not delete the saved audio. Try again." }
         writableDatabase.delete("lectures", "id = ?", arrayOf(id.toString()))
-        lectureFile(record.fileName).delete()
     }
 
     fun add(raw: String, finalText: String, durationMs: Long): Long {
@@ -155,30 +177,58 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
             put("final_text", finalText)
             put("duration_ms", durationMs.coerceAtLeast(0))
         })
-        pruneOlderThan(AppSettings(context).historyRetentionDays)
+        pruneAndGetCutoff()
         return id
     }
 
-    fun pruneOlderThan(days: Int) {
-        if (days == 0) return
-        val cutoff = System.currentTimeMillis() - days * 86_400_000L
+    private fun pruneAndGetCutoff(): Long = retentionCutoff().also { cutoff ->
+        runCatching { pruneBefore(cutoff) }
+            .onFailure { Diagnostics.warn("history", "could not remove expired history", it) }
+    }
+
+    fun lectureRetentionRemainingMs(timestamp: Long): Long? =
+        retentionCutoff().takeUnless { it == Long.MIN_VALUE }?.let { timestamp - it + 1 }
+
+    fun pruneExpired() = pruneBefore(retentionCutoff())
+
+    fun pruneOlderThan(days: Int) = pruneBefore(retentionCutoff(days))
+
+    private fun retentionCutoff(days: Int = settings.historyRetentionDays): Long =
+        if (days == 0) Long.MIN_VALUE else System.currentTimeMillis() - days * 86_400_000L
+
+    private fun pruneBefore(cutoff: Long) {
+        if (cutoff == Long.MIN_VALUE) return
+        settings.removeExpiredLatestTranscript(cutoff)
         writableDatabase.delete("dictations", "timestamp < ?", arrayOf(cutoff.toString()))
         val expired = readableDatabase.query("lectures", arrayOf("id"), "timestamp < ?",
             arrayOf(cutoff.toString()), null, null, null).use { cursor ->
             buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) }
         }
-        expired.forEach(::deleteLecture)
+        synchronized(LectureService) {
+            expired.filterNot { LectureService.state.value.isActive(it) }.forEach { id ->
+                runCatching { deleteLecture(id) }
+                    .onFailure { Diagnostics.warn("history", "could not remove expired lecture audio", it) }
+            }
+        }
     }
 
-    fun recent(limit: Int = 50): List<DictationRecord> = readableDatabase.query(
-        "dictations", arrayOf("id", "timestamp", "raw_text", "final_text", "duration_ms"),
-        null, null, null, null, "timestamp DESC, id DESC", limit.coerceIn(1, 100).toString(),
-    ).use { cursor ->
-        buildList {
-            while (cursor.moveToNext()) add(DictationRecord(
-                cursor.getLong(0), cursor.getLong(1), cursor.getString(2), cursor.getString(3), cursor.getLong(4),
-            ))
+    fun recent(limit: Int = 50): List<DictationRecord> {
+        val cutoff = pruneAndGetCutoff()
+        return readableDatabase.query(
+            "dictations", arrayOf("id", "timestamp", "raw_text", "final_text", "duration_ms"),
+            "timestamp >= ?", arrayOf(cutoff.toString()), null, null, "timestamp DESC, id DESC", limit.coerceIn(1, 100).toString(),
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) add(DictationRecord(
+                    cursor.getLong(0), cursor.getLong(1), cursor.getString(2), cursor.getString(3), cursor.getLong(4),
+                ))
+            }
         }
+    }
+
+    fun updateDictation(id: Long, finalText: String) {
+        writableDatabase.update("dictations", ContentValues().apply { put("final_text", finalText) },
+            "id = ?", arrayOf(id.toString()))
     }
 
     fun delete(id: Long) {
@@ -248,12 +298,13 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
     }
 
     fun writeExport(writer: JsonWriter) {
+        val cutoff = pruneAndGetCutoff()
         writer.beginObject()
         writer.name("version").value(2)
         writer.name("exported_at").value(System.currentTimeMillis())
         writer.name("dictations").beginArray()
         readableDatabase.query("dictations", arrayOf("timestamp", "raw_text", "final_text", "duration_ms"),
-            null, null, null, null, "timestamp DESC, id DESC").use { cursor ->
+            "timestamp >= ?", arrayOf(cutoff.toString()), null, null, "timestamp DESC, id DESC").use { cursor ->
             while (cursor.moveToNext()) {
                 writer.beginObject()
                 writer.name("timestamp").value(cursor.getLong(0))
@@ -266,7 +317,7 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
         writer.endArray()
         writer.name("lectures").beginArray()
         readableDatabase.query("lectures", arrayOf("timestamp", "title", "raw_text", "final_text", "duration_ms", "status"),
-            null, null, null, null, "timestamp DESC, id DESC").use { cursor ->
+            "timestamp >= ?", arrayOf(cutoff.toString()), null, null, "timestamp DESC, id DESC").use { cursor ->
             while (cursor.moveToNext()) {
                 writer.beginObject()
                 writer.name("timestamp").value(cursor.getLong(0))
@@ -282,15 +333,18 @@ internal class HistoryStore(private val context: Context) : SQLiteOpenHelper(con
         writer.flush()
     }
 
-    fun stats(): DictationStats = readableDatabase.query(
-        "dictations", arrayOf("timestamp", "raw_text", "final_text", "duration_ms"),
-        null, null, null, null, null,
-    ).use { cursor ->
-        calculateStats(sequence {
-            while (cursor.moveToNext()) {
-                yield(DictationRecord(0, cursor.getLong(0), cursor.getString(1), cursor.getString(2), cursor.getLong(3)))
-            }
-        }, System.currentTimeMillis())
+    fun stats(): DictationStats {
+        val cutoff = pruneAndGetCutoff()
+        return readableDatabase.query(
+            "dictations", arrayOf("timestamp", "raw_text", "final_text", "duration_ms"),
+            "timestamp >= ?", arrayOf(cutoff.toString()), null, null, null,
+        ).use { cursor ->
+            calculateStats(sequence {
+                while (cursor.moveToNext()) {
+                    yield(DictationRecord(0, cursor.getLong(0), cursor.getString(1), cursor.getString(2), cursor.getLong(3)))
+                }
+            }, System.currentTimeMillis())
+        }
     }
 }
 
@@ -320,14 +374,15 @@ internal fun calculateStats(
     var recordingsWithDuration = 0
     var dictations = 0
 
+    val boundaries = BreakIterator.getWordInstance()
     for (record in records) {
-        val words = countWords(record.finalText)
+        val words = countWords(record.finalText, boundaries)
         if (words == 0) continue
         totalWords += words
         dictations++
         val bucket = buckets[mondayOf(record.timestamp)]
         if (bucket != null) bucket.words += words
-        val rawCount = countWords(record.raw)
+        val rawCount = countWords(record.raw, boundaries)
         if (record.durationMs > 0 && rawCount > 0) {
             rawWords += rawCount
             durationMs += record.durationMs
@@ -359,6 +414,23 @@ internal fun calculateStats(
     )
 }
 
-private fun countWords(value: String): Int = value.split(Regex("\\s+")).count { token ->
-    token.any(Char::isLetterOrDigit)
+private fun countWords(value: String, boundaries: BreakIterator): Int {
+    boundaries.setText(value)
+    var count = 0
+    var start = boundaries.first()
+    var end = boundaries.next()
+    while (end != BreakIterator.DONE) {
+        var index = start
+        while (index < end) {
+            val codePoint = value.codePointAt(index)
+            if (Character.isLetterOrDigit(codePoint)) {
+                count++
+                break
+            }
+            index += Character.charCount(codePoint)
+        }
+        start = end
+        end = boundaries.next()
+    }
+    return count
 }

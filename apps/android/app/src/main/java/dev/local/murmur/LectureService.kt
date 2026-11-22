@@ -13,6 +13,7 @@ import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
+import android.os.CancellationSignal
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
+import java.util.UUID
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -38,8 +40,7 @@ internal data class LectureState(
     val parts: Int = 0,
     // lectures with work waiting behind the current one
     val queuedIds: List<Long> = emptyList(),
-    // imported files still being decoded
-    val preparing: Int = 0,
+    val preparing: Boolean = false,
     // set once when a recording ends normally, so the recorder can open its lecture
     val finishedRecordingId: Long = 0L,
     // the outcome of the last finished job, shown once
@@ -47,7 +48,7 @@ internal data class LectureState(
     val failed: Boolean = false,
 ) {
     val recording: Boolean get() = recordingId != 0L
-    val busy: Boolean get() = recording || preparing > 0 || transcribingId != 0L || queuedIds.isNotEmpty()
+    val busy: Boolean get() = recording || preparing || transcribingId != 0L || queuedIds.isNotEmpty()
 
     // recording, transcribing or waiting its turn
     fun isActive(id: Long): Boolean = id != 0L && (id == recordingId || id == transcribingId || id in queuedIds)
@@ -62,16 +63,25 @@ internal class LectureService : Service() {
     private val settings by lazy { AppSettings(this) }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val worker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture") }
+    private val importWorker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture-import") }
+    private val imports = mutableSetOf<CancellationSignal>()
     private val cleanupWorker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture-cleanup") }
     // lecture id to the number of its tasks still queued or running
     private val pending = LinkedHashMap<Long, Int>()
+    private val liveFiles = java.util.concurrent.ConcurrentHashMap.newKeySet<File>()
+    private val speechClient = TranscriptionClient()
     private var recorder: PcmRecorder? = null
     private var recordingJob: Job? = null
     private var foregroundType = 0
     @Volatile private var destroyed = false
 
     // both workers take the job lock when saving a transcript snapshot
-    private class Job(val id: Long, endpoint: TranscriptionEndpoint, val cleanup: CleanupEndpoint?) {
+    private class Job(
+        val id: Long,
+        endpoint: TranscriptionEndpoint,
+        val cleanup: CleanupEndpoint?,
+        val retry: Boolean = false,
+    ) {
         @Volatile var endpoint = endpoint
         val raw = StringBuilder()
         val cleaned = mutableListOf<String>()
@@ -85,6 +95,7 @@ internal class LectureService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (destroyed) return START_NOT_STICKY
         when (intent?.action) {
             ACTION_STOP -> recorder?.let { capture ->
                 capture.resume()
@@ -106,11 +117,12 @@ internal class LectureService : Service() {
                 recorder = null
                 job?.discarded = true
                 capture.cancel()
-                if (job != null) runCatching { history.deleteLecture(job.id) }
+                val deletion = runCatching { if (job != null) history.deleteLecture(job.id) }
                     .onFailure { Diagnostics.warn("lecture", "could not delete discarded lecture", it) }
                 clearLevels()
                 mutable.update { it.copy(recordingId = 0L, recordedMs = 0L, paused = false,
-                    message = "Recording discarded.", failed = false) }
+                    message = if (deletion.isSuccess) "Recording discarded." else "Could not delete saved audio. Retry from Lectures.",
+                    failed = deletion.isFailure) }
                 stopIfIdle()
             }
             ACTION_RECORD -> startRecording()
@@ -132,25 +144,23 @@ internal class LectureService : Service() {
         runCatching {
             val endpoint = requireEndpoint()
             val cleanup = settings.cleanupEndpointOrNull()
-            lateinit var job: Job
-            // pieces of at least a minute, cut at the first pause after that and never
-            // longer than two, keep whisper's context and the timestamps useful
-            val capture = PcmRecorder.start(this, File(filesDir, "lectures"), settings.noiseSuppressionEnabled,
-                maxSeconds = 28_800, preserveOnFailure = true,
-                onChunk = { piece, offsetMs -> livePiece(job, piece, offsetMs) }, chunkMinSeconds = 60, chunkMaxSeconds = 120,
-                onLevel = ::onLevel, onComplete = { result -> recordingComplete(job, result) })
+            val file = history.lectureFile("lecture-${UUID.randomUUID()}.wav")
+            val title = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date())
+            val id = history.addLecture(file, title)
+            val job = Job(id, endpoint, cleanup)
             try {
-                val id = history.addLecture(capture.file,
-                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date()))
-                job = Job(id, endpoint, cleanup)
-                recordingJob = job
-                recorder = capture
-                mutable.update { it.copy(recordingId = id, recordedMs = 0L, paused = false, finishedRecordingId = 0L) }
-                notifyCurrent()
+                // pieces of at least a minute, cut at the first pause and never longer than two
+                recorder = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled,
+                    maxSeconds = 28_800, savedFile = file,
+                    onChunk = { piece, offsetMs -> livePiece(job, piece, offsetMs) }, chunkMinSeconds = 60, chunkMaxSeconds = 120,
+                    onLevel = ::onLevel, onComplete = { result -> recordingComplete(job, result) })
             } catch (error: Exception) {
-                capture.cancel()
+                history.deleteLecture(id)
                 throw error
             }
+            recordingJob = job
+            mutable.update { it.copy(recordingId = id, recordedMs = 0L, paused = false, finishedRecordingId = 0L) }
+            notifyCurrent()
         }.onFailure { error ->
             Diagnostics.error("lecture", "recording could not start", error)
             finishWith(error.message ?: "Could not start lecture recording.", failed = true)
@@ -159,22 +169,24 @@ internal class LectureService : Service() {
 
     // runs on the main thread, in the order the recorder cut the pieces
     private fun livePiece(job: Job, piece: File, offsetMs: Long) {
-        if (job.discarded) {
+        if (destroyed || job.discarded) {
             piece.delete()
             return
         }
+        liveFiles += piece
         val index = job.pieces++
         enqueue(job.id) {
             try {
                 if (job.discarded || job.failure != null) return@enqueue
                 showPart(job.id, index, if (job.recordingDone) job.pieces else 0)
-                transcribeInto(job, piece, offsetMs, index, null)
-                mutable.update { it.copy(part = index + 1) }
+                transcribeInto(job, piece, offsetMs)
+                advancePart(index)
             } catch (error: Exception) {
                 // the full recording is kept, so the lecture can be transcribed again from it
                 if (!job.discarded) job.failure = error
             } finally {
                 piece.delete()
+                liveFiles.remove(piece)
             }
         }
     }
@@ -206,47 +218,83 @@ internal class LectureService : Service() {
 
     private fun startImport(intent: Intent) {
         if (!enterForeground(workType())) return
-        val source = intent.data
-        val title = intent.getStringExtra(EXTRA_TITLE).orEmpty()
-        mutable.update { it.copy(preparing = it.preparing + 1) }
+        val source = intent.data ?: run {
+            finishWith("No audio file selected.", failed = true)
+            return
+        }
+        val title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "Imported audio" }
+        val signal = CancellationSignal()
+        imports += signal
+        mutable.update { it.copy(preparing = true) }
         notifyCurrent()
-        // decoding runs beside the worker, so a long import does not hold up live pieces
-        Thread({
-            var imported: File? = null
-            try {
+        importWorker.execute {
+            var staged: File? = null
+            val result = runCatching {
+                signal.throwIfCanceled()
                 val endpoint = requireEndpoint()
                 val cleanup = settings.cleanupEndpointOrNull()
-                val uri = source ?: error("No audio file selected.")
-                val file = File.createTempFile("lecture-", ".wav", File(filesDir, "lectures").apply { mkdirs() })
-                imported = file
-                LectureAudio.import(this, uri, file)
-                val id = history.addLecture(file, title.ifBlank { "Imported audio" }, "processing")
-                imported = null
-                val job = Job(id, endpoint, cleanup).apply { durationMs = LectureAudio.durationMs(file) }
-                mainHandler.post { enqueue(id) { transcribeWhole(job, file) } }
-            } catch (error: Exception) {
-                imported?.delete()
-                Diagnostics.error("lecture", "import failed", error)
-                mutable.update { it.copy(failed = true, message = describeFailure(error, "Audio could not be imported")) }
-            } finally {
-                mutable.update { it.copy(preparing = (it.preparing - 1).coerceAtLeast(0)) }
-                mainHandler.post { stopIfIdle() }
+                val file = File.createTempFile("murmur-lecture-import-", ".wav", cacheDir)
+                staged = file
+                LectureAudio.import(this, source, file, signal)
+                mainHandler.post {
+                    try {
+                        if (!destroyed) queueImport(file, title, endpoint, cleanup)
+                    } catch (error: Exception) {
+                        if (!destroyed) reportImportFailure(error)
+                    } finally {
+                        file.delete()
+                        if (!destroyed) finishImport(signal)
+                    }
+                }
             }
-        }, "murmur-lecture-import").start()
+            result.onFailure { error ->
+                staged?.delete()
+                mainHandler.post {
+                    if (!destroyed) {
+                        reportImportFailure(error)
+                        finishImport(signal)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun queueImport(staged: File, title: String, endpoint: TranscriptionEndpoint, cleanup: CleanupEndpoint?) {
+        val file = history.lectureFile("lecture-${UUID.randomUUID()}.wav")
+        val id = history.addLecture(file, title, "processing")
+        if (!staged.renameTo(file)) {
+            history.deleteLecture(id)
+            error("Could not save the imported audio.")
+        }
+        val job = Job(id, endpoint, cleanup).apply { durationMs = LectureAudio.durationMs(file) }
+        enqueue(id) { transcribeWhole(job, file) }
+    }
+
+    private fun reportImportFailure(error: Throwable) {
+        Diagnostics.error("lecture", "import failed", error)
+        mutable.update { it.copy(failed = true, message = describeFailure(error, "Audio could not be imported")) }
+    }
+
+    private fun finishImport(signal: CancellationSignal) {
+        imports.remove(signal)
+        mutable.update { it.copy(preparing = imports.isNotEmpty()) }
+        stopIfIdle()
     }
 
     private fun startRetry(id: Long, language: String?) {
         if (!enterForeground(workType())) return
         runCatching {
-            require(id > 0) { "Lecture was not found." }
-            check(!state.value.isActive(id)) { "This lecture is already being transcribed." }
-            val record = history.lecture(id) ?: error("Lecture was not found.")
-            val file = history.lectureFile(record.fileName)
-            require(file.exists()) { "Saved audio is missing." }
-            val endpoint = requireEndpoint().let { if (language != null) it.withLanguage(language) else it }
-            val job = Job(id, endpoint, settings.cleanupEndpointOrNull()).apply { durationMs = LectureAudio.durationMs(file) }
-            history.updateLecture(id, record.raw, record.finalText, record.durationMs, "processing")
-            enqueue(id) { transcribeWhole(job, file) }
+            synchronized(LectureService) {
+                require(id > 0) { "Lecture was not found." }
+                check(!state.value.isActive(id)) { "This lecture is already being transcribed." }
+                val record = history.lecture(id) ?: error("Lecture was not found.")
+                val file = history.lectureFile(record.fileName)
+                require(file.exists()) { "Saved audio is missing." }
+                val endpoint = requireEndpoint().let { if (language != null) it.withLanguage(language) else it }
+                val job = Job(id, endpoint, settings.cleanupEndpointOrNull(), retry = true)
+                    .apply { durationMs = LectureAudio.durationMs(file) }
+                enqueue(id) { transcribeWhole(job, file) }
+            }
         }.onFailure { error ->
             Diagnostics.error("lecture", "retry could not start", error)
             mutable.update { it.copy(failed = true, message = describeFailure(error, "Could not transcribe again")) }
@@ -286,10 +334,15 @@ internal class LectureService : Service() {
     }
 
     private fun showPart(id: Long, index: Int, total: Int) = synchronized(pending) {
+        if (destroyed) return@synchronized
         mutable.update {
             it.copy(transcribingId = id, part = index, parts = total, queuedIds = pending.keys.filter { queued -> queued != id })
         }
         notifyCurrent()
+    }
+
+    private fun advancePart(index: Int) = synchronized(pending) {
+        if (!destroyed) mutable.update { it.copy(part = index + 1) }
     }
 
     private val hasPendingWork: Boolean get() = synchronized(pending) { pending.isNotEmpty() }
@@ -300,8 +353,8 @@ internal class LectureService : Service() {
             LectureAudio.forEachChunk(file, cacheDir) { chunk, index, total, offsetMs ->
                 check(!job.discarded) { "Lecture was deleted." }
                 showPart(job.id, index, total)
-                transcribeInto(job, chunk, offsetMs, index, total)
-                mutable.update { it.copy(part = index + 1) }
+                transcribeInto(job, chunk, offsetMs)
+                advancePart(index)
             }
             complete(job)
         } catch (error: Exception) {
@@ -314,8 +367,8 @@ internal class LectureService : Service() {
         if (failure != null) fail(job, failure) else complete(job)
     }
 
-    private fun transcribeInto(job: Job, chunk: File, offsetMs: Long, index: Int, total: Int?) {
-        val piece = transcribePart(job, chunk, index, total)
+    private fun transcribeInto(job: Job, chunk: File, offsetMs: Long) {
+        val piece = transcribePart(job, chunk)
         if (piece.isBlank()) return
         val stamp = LectureTranscript.stamp(offsetMs)
         val prepared = settings.prepareTranscript(piece)
@@ -347,21 +400,14 @@ internal class LectureService : Service() {
         }
     }
 
-    // nobody is waiting on a lecture in real time, so a part gets a second chance
-    // after a pause instead of failing the whole lecture on one bad request.
-    // with automatic detection, the language whisper finds in the first part with
-    // speech is kept for the rest, so one accented minute cannot switch languages
-    private fun transcribePart(job: Job, chunk: File, index: Int, total: Int?): String {
+    // keep the first detected language for the rest of the lecture
+    private fun transcribePart(job: Job, chunk: File): String {
         var detected: String? = null
         val endpoint = job.endpoint
-        val text = try {
-            TranscriptionClient().transcribe(endpoint, chunk, allowEmpty = true) { detected = it }
-        } catch (error: java.io.IOException) {
-            val permanent = error is HttpStatusException && error.statusCode in 400..499 && error.statusCode != 408 && error.statusCode != 429
-            if (permanent || endpoint.localModel != null) throw error
-            Diagnostics.warn("lecture", "part ${index + 1}${total?.let { " of $it" }.orEmpty()} failed, retrying in 5 s", error)
-            Thread.sleep(5_000)
-            TranscriptionClient().transcribe(endpoint, chunk, allowEmpty = true) { detected = it }
+        val text = speechClient.retryLecturePart(
+            canRetry = { !job.discarded && history.storedLecture(job.id) != null },
+        ) {
+            speechClient.transcribe(endpoint, chunk, allowEmpty = true) { detected = it }
         }
         val code = detected
         if (code != null && text.isNotBlank() && endpoint.language == SpeechLanguages.AUTO) {
@@ -372,7 +418,7 @@ internal class LectureService : Service() {
     }
 
     private fun save(job: Job, status: String) {
-        if (job.discarded) return
+        if (job.discarded || (job.retry && status != "done")) return
         history.updateLecture(job.id, job.raw.toString().trim(), job.cleaned.joinToString("\n").trim(), job.durationMs, status)
     }
 
@@ -399,7 +445,8 @@ internal class LectureService : Service() {
     }
 
     private fun finishTranscript(job: Job) = synchronized(job) {
-        if (destroyed || job.discarded || job.failure != null || history.lecture(job.id) == null) return@synchronized
+        if (destroyed || job.discarded || job.failure != null || history.storedLecture(job.id) == null) return@synchronized
+        check(!job.retry || job.raw.isNotBlank()) { "No speech returned." }
         save(job, "done")
         mutable.update { it.copy(message = "Transcript ready.", failed = false) }
     }
@@ -408,7 +455,7 @@ internal class LectureService : Service() {
         if (destroyed || job.discarded) return@synchronized
         job.failure = error
         Diagnostics.error("lecture", "lecture ${job.id} failed", error)
-        markFailed(job.id, job.durationMs.takeIf { it > 0 })
+        if (!job.retry) markFailed(job.id, job.durationMs.takeIf { it > 0 })
         mainHandler.post {
             if (!destroyed && !job.discarded) {
                 mutable.update { it.copy(failed = true,
@@ -421,7 +468,7 @@ internal class LectureService : Service() {
 
     private fun markFailed(id: Long, durationMs: Long?) {
         runCatching {
-            history.lecture(id)?.let { history.updateLecture(id, it.raw, it.finalText, durationMs ?: it.durationMs, "failed") }
+            history.storedLecture(id)?.let { history.updateLecture(id, it.raw, it.finalText, durationMs ?: it.durationMs, "failed") }
         }.onFailure { Diagnostics.warn("lecture", "could not mark lecture $id as failed", it) }
     }
 
@@ -451,7 +498,7 @@ internal class LectureService : Service() {
 
     // main thread only
     private fun stopIfIdle() {
-        if (recorder != null || state.value.preparing > 0 || hasPendingWork) {
+        if (recorder != null || state.value.preparing || hasPendingWork) {
             if (foregroundType != workType() && !enterForeground(workType())) {
                 Diagnostics.warn("lecture", "could not keep transcribing in the background")
             }
@@ -533,19 +580,29 @@ internal class LectureService : Service() {
                 .setContentText((if (current.parts > 0) "Part ${minOf(current.part + 1, current.parts)} of ${current.parts}"
                     else "Finishing the last parts") + queueNote)
                 .setProgress(current.parts.coerceAtLeast(1), current.part, current.parts == 0)
-            current.preparing > 0 -> builder.setContentTitle("Preparing lecture audio").setProgress(0, 0, true)
+            current.preparing -> builder.setContentTitle("Preparing lecture audio").setProgress(0, 0, true)
             else -> builder.setContentTitle("Murmur lecture").setContentText(if (waiting > 0) "$waiting waiting" else "")
         }
         return builder.build()
     }
 
-    override fun onDestroy() {
+    private fun stopWorkers() {
         destroyed = true
-        recorder?.stop()
+        speechClient.cancel()
+        imports.forEach { it.cancel() }
+        imports.clear()
+        importWorker.shutdownNow()
         synchronized(pending) {
             worker.shutdownNow()
             cleanupWorker.shutdownNow()
+            liveFiles.forEach { it.delete() }
+            liveFiles.clear()
         }
+    }
+
+    override fun onDestroy() {
+        stopWorkers()
+        recorder?.stop()
         if (state.value.busy) {
             Diagnostics.warn("lecture", "service destroyed with lecture work still running")
             mutable.value = LectureState(failed = true, message = "Lecture stopped. Retry from Lectures.")
@@ -556,12 +613,8 @@ internal class LectureService : Service() {
     }
 
     override fun onTimeout(startId: Int, fgsType: Int) {
-        destroyed = true
+        stopWorkers()
         Diagnostics.error("lecture", "android ended the foreground job (type $fgsType) at its time limit")
-        synchronized(pending) {
-            worker.shutdownNow()
-            cleanupWorker.shutdownNow()
-        }
         mutable.value = LectureState(failed = true, message = "Android stopped transcription for today. Retry from Lectures.")
         stopSelf()
     }

@@ -6,10 +6,19 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import android.os.CancellationSignal
+import android.os.StatFs
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.FutureTask
+import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 internal object LectureAudio {
@@ -20,23 +29,53 @@ internal object LectureAudio {
     private const val FRAME_BYTES = 640
     private const val SEARCH_BYTES = BYTES_PER_SECOND * 10
     private const val MAX_SAMPLES = SAMPLE_RATE * 28_800L
+    private const val IMPORT_RESERVE_BYTES = 256L * 1024 * 1024
+    private const val SPACE_CHECK_BYTES = 4L * 1024 * 1024
+    private val importOpenTimeoutNs = TimeUnit.MINUTES.toNanos(10)
+    private const val IMPORT_STALL_NS = 30_000_000_000L
+    // a provider can block both the copy and the cancellation call
+    private val stagingSlots = Semaphore(2)
+
+    private val recordingName = Regex("lecture-[A-Za-z0-9-]+\\.wav")
+
+    fun isRecordingName(name: String): Boolean = recordingName.matches(name)
+
+    fun unlistedRecordings(directory: File, listedNames: Set<String>): List<File> =
+        directory.listFiles()?.filter { it.isFile && isRecordingName(it.name) && it.name !in listedNames }.orEmpty()
+
+    fun removeTemporaryRecordings(lectureDirectory: File, cacheDirectory: File) {
+        val liveChunk = Regex("murmur-chunk-[A-Za-z0-9-]+\\.wav")
+        val cachedAudio = Regex("murmur-((capture|chunk|lecture-part|lecture-import)-[A-Za-z0-9-]+\\.wav|lecture-source-[A-Za-z0-9-]+\\.audio)")
+        lectureDirectory.listFiles()?.filter { it.isFile && it.name.matches(liveChunk) }?.forEach { it.delete() }
+        cacheDirectory.listFiles()?.filter { it.isFile && it.name.matches(cachedAudio) }?.forEach { it.delete() }
+    }
 
     fun durationMs(file: File): Long = ((file.length() - HEADER_BYTES).coerceAtLeast(0) * 1000L) / BYTES_PER_SECOND
+
+    // interrupted captures can have a zero or stale header, but their PCM is usable
+    fun recoverRecording(file: File): Unit = RandomAccessFile(file, "rw").use { source ->
+        val available = source.length() - HEADER_BYTES
+        val pcmBytes = available - available % 2
+        require(pcmBytes in 2..MAX_SAMPLES * 2) { "Recording is empty or incomplete." }
+        val header = ByteArray(HEADER_BYTES)
+        source.readFully(header)
+        val expected = PcmRecorder.wavHeader(pcmBytes.toInt())
+        require(header.all { it == 0.toByte() } || header.indices.all { index ->
+            index in 4..7 || index in 40..43 || header[index] == expected[index]
+        }) { "Recording is not a supported WAV file." }
+        if (!header.contentEquals(expected)) {
+            source.seek(0)
+            source.write(expected)
+        }
+        if (available != pcmBytes) source.setLength(HEADER_BYTES + pcmBytes)
+    }
 
     // parts of about two minutes. each one ends at the quietest moment of its last
     // ten seconds, so a word is not split between two requests
     fun forEachChunk(file: File, cacheDir: File, consume: (chunk: File, index: Int, total: Int, offsetMs: Long) -> Unit) {
+        recoverRecording(file)
         RandomAccessFile(file, "r").use { source ->
-            val header = ByteArray(HEADER_BYTES)
-            source.readFully(header)
-            require(String(header, 0, 4, Charsets.US_ASCII) == "RIFF" &&
-                String(header, 8, 4, Charsets.US_ASCII) == "WAVE" &&
-                String(header, 36, 4, Charsets.US_ASCII) == "data") { "Recording is not a supported WAV file." }
-            val spec = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
-            require(spec.getShort(22).toInt() == 1 && spec.getInt(24) == SAMPLE_RATE &&
-                spec.getShort(34).toInt() == 16) { "Recording is not 16 kHz mono audio." }
             val available = source.length() - HEADER_BYTES
-            require(available > 0 && available % 2L == 0L) { "Recording is empty or incomplete." }
             val window = ByteArray(CHUNK_BYTES)
             var position = 0L
             var index = 0
@@ -83,11 +122,99 @@ internal object LectureAudio {
         return cut
     }
 
-    fun import(context: Context, uri: Uri, destination: File) {
+    fun import(context: Context, uri: Uri, destination: File, signal: CancellationSignal) {
+        val source = File.createTempFile("murmur-lecture-source-", ".audio", context.cacheDir)
+        try {
+            stageImport(context, uri, source, signal)
+            signal.throwIfCanceled()
+            decodeImport(source, destination, signal)
+        } finally {
+            source.delete()
+        }
+    }
+
+    private fun stageImport(context: Context, uri: Uri, source: File, importSignal: CancellationSignal) {
+        val signal = CancellationSignal()
+        val deadline = AtomicLong(System.nanoTime() + importOpenTimeoutNs)
+        val cacheDir = context.cacheDir
+        source.outputStream().use { output ->
+            val copy = FutureTask {
+                val asset = context.contentResolver.openAssetFileDescriptor(uri, "r", signal)
+                    ?: error("Could not open the selected audio file.")
+                asset.use {
+                    deadline.set(System.nanoTime() + IMPORT_STALL_NS)
+                    signal.setOnCancelListener { runCatching { asset.close() } }
+                    signal.throwIfCanceled()
+                    val length = asset.length
+                    if (length >= 0) requireImportSpace(cacheDir, length)
+                    asset.createInputStream().use { input ->
+                        val buffer = ByteArray(256 * 1024)
+                        while (true) {
+                            signal.throwIfCanceled()
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            if (count == 0) continue
+                            requireImportSpace(cacheDir, count.toLong())
+                            output.write(buffer, 0, count)
+                            deadline.set(System.nanoTime() + IMPORT_STALL_NS)
+                        }
+                    }
+                }
+            }
+            val worker = thread(start = false, isDaemon = true, name = "murmur-import-source") {
+                try {
+                    copy.run()
+                } finally {
+                    stagingSlots.release()
+                }
+            }
+            val canceller = thread(start = false, isDaemon = true, name = "murmur-import-cancel") {
+                try {
+                    signal.cancel()
+                } finally {
+                    stagingSlots.release()
+                }
+            }
+            importSignal.throwIfCanceled()
+            check(stagingSlots.tryAcquire(2)) { "The previous audio provider is still busy. Try again later." }
+            try {
+                worker.start()
+                while (true) {
+                    importSignal.throwIfCanceled()
+                    val remaining = deadline.get() - System.nanoTime()
+                    check(remaining > 0 || copy.isDone) { "The audio provider stopped responding." }
+                    try {
+                        copy.get(remaining.coerceIn(0, TimeUnit.SECONDS.toNanos(1)), TimeUnit.NANOSECONDS)
+                        break
+                    } catch (_: TimeoutException) {
+                        // recheck cancellation and the deadline after each wait
+                    } catch (error: ExecutionException) {
+                        throw error.cause ?: error
+                    }
+                }
+            } finally {
+                try {
+                    if (worker.state == Thread.State.NEW) stagingSlots.release()
+                    else if (copy.cancel(true)) canceller.start()
+                    else worker.join()
+                } finally {
+                    if (canceller.state == Thread.State.NEW) stagingSlots.release()
+                }
+            }
+        }
+    }
+
+    private fun requireImportSpace(cacheDir: File, bytes: Long) {
+        require(bytes <= StatFs(cacheDir.path).availableBytes - IMPORT_RESERVE_BYTES) {
+            "Not enough free storage to import this audio file."
+        }
+    }
+
+    private fun decodeImport(source: File, destination: File, signal: CancellationSignal) {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         try {
-            extractor.setDataSource(context, uri, null)
+            source.inputStream().use { extractor.setDataSource(it.fd) }
             val track = (0 until extractor.trackCount).firstOrNull { index ->
                 extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
             } ?: error("Choose a supported audio file.")
@@ -104,7 +231,10 @@ internal object LectureAudio {
                 var resampler: MonoResampler? = null
                 var channels = 0
                 var encoding = AudioFormat.ENCODING_PCM_16BIT
+                var lastOutput = System.nanoTime()
                 while (!outputEnded) {
+                    signal.throwIfCanceled()
+                    check(System.nanoTime() - lastOutput < IMPORT_STALL_NS) { "Audio decoder stopped producing output." }
                     check(!Thread.currentThread().isInterrupted) { "Audio import stopped." }
                     if (!inputEnded) {
                         val inputIndex = codec.dequeueInputBuffer(10_000)
@@ -135,6 +265,7 @@ internal object LectureAudio {
                             resampler = MonoResampler(rate) { sink.writeSample(it) }
                         }
                         in 0..Int.MAX_VALUE -> {
+                            if (info.size > 0) lastOutput = System.nanoTime()
                             val output = codec.getOutputBuffer(outputIndex) ?: error("Audio decoder has no output buffer.")
                             output.order(ByteOrder.LITTLE_ENDIAN)
                             output.position(info.offset)
@@ -199,10 +330,13 @@ internal object LectureAudio {
         }
     }
 
-    private class WavSink(file: File) : AutoCloseable {
+    // decoding writes up to 920 MB for an eight hour file, so it keeps the same free space
+    // reserve as staging and leaves room for a lecture that is recording at the same time
+    private class WavSink(private val file: File) : AutoCloseable {
         private val output = RandomAccessFile(file, "rw")
         private val buffer = ByteArray(16 * 1024)
         private var used = 0
+        private var unchecked = 0L
         var samples = 0L
             private set
 
@@ -223,15 +357,24 @@ internal object LectureAudio {
         fun writePcm(bytes: ByteArray, count: Int) {
             require(count % 2 == 0)
             flush()
+            reserve(count)
             output.write(bytes, 0, count)
             samples += count / 2
         }
 
         private fun flush() {
             if (used > 0) {
+                reserve(used)
                 output.write(buffer, 0, used)
                 used = 0
             }
+        }
+
+        private fun reserve(bytes: Int) {
+            unchecked += bytes
+            if (unchecked < SPACE_CHECK_BYTES) return
+            unchecked = 0
+            requireImportSpace(file.parentFile ?: file, SPACE_CHECK_BYTES)
         }
 
         override fun close() {

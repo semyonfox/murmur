@@ -160,7 +160,7 @@ internal fun LecturesScreen(
         if (state.recording) item(key = "live") {
             LiveRecordingCard(state, onOpenRecorder)
         }
-        if (state.preparing > 0) item(key = "preparing") {
+        if (state.preparing) item(key = "preparing") {
             PaddedCard {
                 Text("Preparing audio…", style = MaterialTheme.typography.titleSmall)
                 LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -194,7 +194,7 @@ internal fun lectureStatus(state: LectureState): String? {
     val waiting = state.queuedIds.count { it != state.recordingId }
     return listOfNotNull(
         state.transcribingId.takeIf { it != 0L && it != state.recordingId }?.let { transcribingLabel(state) },
-        "Preparing audio…".takeIf { state.preparing > 0 },
+        "Preparing audio…".takeIf { state.preparing },
         "$waiting waiting".takeIf { waiting > 0 },
     ).joinToString(" · ").ifBlank { null }
 }

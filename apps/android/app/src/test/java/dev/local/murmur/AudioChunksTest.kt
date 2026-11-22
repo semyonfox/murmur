@@ -1,12 +1,25 @@
 package dev.local.murmur
 
+import com.sun.net.httpserver.HttpServer
+import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.URI
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import kotlin.math.sin
 
 class AudioChunksTest {
+    @get:Rule val temp = TemporaryFolder()
+
     private val rate = 16_000
 
     // speech stands in as a tone at the given level, pauses as near silence with a little hiss
@@ -73,6 +86,115 @@ class AudioChunksTest {
 
         assertEquals(1, pieces.size)
         assertTrue("cut at ${seconds(pieces[0])} s", seconds(pieces[0]) in 22.0..22.1)
+    }
+
+    @Test
+    fun keepsAVoicedTailEvenWhenItIsShorterThanAFrame() {
+        for (tailMs in listOf(10L, 40L)) {
+            val chunker = PauseChunker(minSeconds = 3, pauseFrames = 2)
+            assertEquals(1, feed(chunker, pcm(speech to 3.5, pause to 0.04)).size)
+            feed(chunker, pcm(speech to tailMs / 1_000.0))
+
+            val tail = chunker.finish()!!
+            assertEquals(20L + tailMs, tail.pcm.size / 32L)
+        }
+    }
+
+    @Test
+    fun dropsATailWithOnlyAClickInSilence() {
+        val chunker = PauseChunker(minSeconds = 3)
+        assertEquals(1, feed(chunker, pcm(speech to 3.5, pause to 0.4)).size)
+        feed(chunker, pcm(pause to 1.0, speech to 0.01))
+
+        assertNull(chunker.finish())
+    }
+
+    @Test
+    fun retriesASingleUploadAfterADroppedConnection() {
+        withSpeechReplies(0 to "", 200 to """{"text":"Recovered"}""", partCount = 0) { transcribe, posts ->
+            assertEquals("Recovered", transcribe())
+            assertEquals(2, posts.get())
+        }
+    }
+
+    @Test
+    fun retriesTheWholeTakeAfterBlankPartsOrRepeatedDrops() {
+        val recovered = 200 to """{"text":"Recovered"}"""
+        withSpeechReplies(200 to """{"text":" "}""", recovered) { finish, posts ->
+            assertEquals("Recovered", finish())
+            assertEquals(2, posts.get())
+        }
+        withSpeechReplies(0 to "", 0 to "", recovered) { finish, posts ->
+            assertEquals("Recovered", finish())
+            assertEquals(3, posts.get())
+        }
+    }
+
+    @Test
+    fun doesNotUploadTheWholeTakeAfterAPermanentOrExhaustedFailure() {
+        for (reply in listOf(401 to "", 402 to "", 200 to """{"error":"invalid"}""", 500 to "")) {
+            withSpeechReplies(reply, reply) { finish, posts ->
+                assertThrows(IOException::class.java) { finish() }
+                assertEquals(if (reply.first == 500) 2 else 1, posts.get())
+            }
+        }
+        withSpeechReplies(500 to "", 0 to "") { finish, posts ->
+            assertThrows(IOException::class.java) { finish() }
+            assertEquals(2, posts.get())
+        }
+        withSpeechReplies(0 to "", 0 to "", 402 to "", partCount = 2) { finish, posts ->
+            assertThrows(HttpStatusException::class.java) { finish() }
+            assertEquals(3, posts.get())
+        }
+    }
+
+    @Test
+    fun uploadsTheWholeTakeAtMostOnceAfterBlankParts() {
+        withSpeechReplies(200 to """{"text":""}""", 500 to "") { finish, posts ->
+            assertThrows(HttpStatusException::class.java) { finish() }
+            assertEquals(2, posts.get())
+        }
+    }
+
+    private fun withSpeechReplies(
+        vararg replies: Pair<Int, String>,
+        partCount: Int = 1,
+        check: (() -> String, AtomicInteger) -> Unit,
+    ) {
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        val posts = AtomicInteger()
+        server.createContext("/speech") { request ->
+            request.use {
+                it.requestBody.readBytes()
+                val (status, body) = replies.getOrElse(posts.getAndIncrement()) { 500 to "" }
+                if (status != 0) {
+                    val bytes = body.toByteArray()
+                    it.responseHeaders.set("Retry-After", "0")
+                    it.sendResponseHeaders(status, if (bytes.isEmpty()) -1 else bytes.size.toLong())
+                    if (bytes.isNotEmpty()) it.responseBody.write(bytes)
+                }
+            }
+        }
+        server.start()
+        val worker = Executors.newSingleThreadExecutor()
+        try {
+            val endpoint = TranscriptionEndpoint(URI("http://127.0.0.1:${server.address.port}/speech"), "test", null)
+            val chunks = ChunkedTranscription(worker, TranscriptionClient(), endpoint)
+            repeat(partCount) { chunks.add(pcmToWav(ByteArray(2), temp.root)) }
+            val full = pcmToWav(ByteArray(2 * (partCount + 1)), temp.root)
+            check({
+                try {
+                    worker.submit<String> {
+                        if (chunks.started) chunks.finish(full) else chunks.client.transcribe(endpoint, full)
+                    }.get(5, TimeUnit.SECONDS)
+                } catch (error: ExecutionException) {
+                    throw error.cause ?: error
+                }
+            }, posts)
+        } finally {
+            worker.shutdownNow()
+            server.stop(0)
+        }
     }
 
     @Test

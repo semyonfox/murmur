@@ -15,7 +15,13 @@ class TranscriptTextTest {
     }
 
     @Test fun collapsesLongStuttersWithoutDroppingDeliberateEmphasis() {
-        assertEquals("I agree", TranscriptText.prepare("I I I I agree", "en", false))
+        assertEquals("I agree", TranscriptText.prepare("I I I I agree", "en", true))
+        assertEquals("I I I I agree", TranscriptText.prepare("I I I I\n agree", "en", false))
         assertEquals("no no", TranscriptText.prepare("no no", "en", false))
+    }
+
+    @Test fun leavesQuotedFillerAndRepetitionIntact() {
+        val text = "uh, she said \"um, no no no\"."
+        assertEquals("she said \"um, no no no\".", TranscriptText.prepare(text, "en", true))
     }
 }

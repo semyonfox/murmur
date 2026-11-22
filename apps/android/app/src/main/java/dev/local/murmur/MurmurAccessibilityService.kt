@@ -246,7 +246,7 @@ class MurmurAccessibilityService : AccessibilityService() {
             settings.activeEndpointOrNull()
         } catch (error: Exception) {
             Diagnostics.warn("bubble", "recognition settings are invalid", error)
-            showMessage("Check Murmur settings")
+            showMessage(describeFailure(error, "Check Murmur settings"))
             return
         }
         if (endpoint == null) {
@@ -268,6 +268,8 @@ class MurmurAccessibilityService : AccessibilityService() {
                 mainHandler.removeCallbacks(refreshTimer)
                 val file = result.getOrNull()
                 if (recordingSession != session || destroyed || !bubbleAllowed()) {
+                    chunks.cancel()
+                    if (chunked === chunks) chunked = null
                     file?.delete()
                     return@start
                 }
@@ -310,8 +312,8 @@ class MurmurAccessibilityService : AccessibilityService() {
     }
 
     private fun startOnDevice(target: FocusTarget, cleanup: CleanupEndpoint?) {
-        if (Build.VERSION.SDK_INT >= MlKitSpeech.MIN_SDK) MlKitSpeech.cached(settings.speechLanguage)?.let { ready ->
-            startMlKit(target, cleanup, ready)
+        if (Build.VERSION.SDK_INT >= MlKitSpeech.MIN_SDK) MlKitSpeech.startLive(settings.speechLanguage)?.let { speech ->
+            startMlKit(target, cleanup, speech)
             return
         }
         // the ml kit model may still be downloading or warming, so the next dictation can use it
@@ -355,10 +357,9 @@ class MurmurAccessibilityService : AccessibilityService() {
 
     // ml kit transcribes while murmur records, so stopping only waits for the last words
     @RequiresApi(MlKitSpeech.MIN_SDK)
-    private fun startMlKit(target: FocusTarget, cleanup: CleanupEndpoint?, ready: MlKitSpeech.Ready) {
+    private fun startMlKit(target: FocusTarget, cleanup: CleanupEndpoint?, speech: MlKitSpeech.LiveSession) {
         val recordingSession = ++session
-        engine = ready.label
-        val speech = MlKitSpeech.LiveSession(ready)
+        engine = speech.label
         try {
             capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled, onPcm = speech::feed) { result ->
                 capture = null
@@ -423,7 +424,7 @@ class MurmurAccessibilityService : AccessibilityService() {
     private fun prepareWhileRecording(endpoint: TranscriptionEndpoint?, cleanup: CleanupEndpoint?) {
         val model = endpoint?.localModel
         if (model != null) worker.submit { LocalWhisper.preload(model) }
-        warmUpConnections(listOfNotNull(endpoint?.uri?.takeIf { model == null }))
+        endpoint?.uri?.takeIf { model == null }?.let(TranscriptionClient::warmUp)
         cleanup?.uri?.let(CleanupClient::warmUp)
     }
 
@@ -436,7 +437,6 @@ class MurmurAccessibilityService : AccessibilityService() {
     ) {
         val client = chunks.client
         val endpoint = chunks.endpoint
-        chunked = null
         request = client
         requestFile = file
         mode = Mode.TRANSCRIBING
@@ -458,6 +458,7 @@ class MurmurAccessibilityService : AccessibilityService() {
                 file.delete()
                 mainHandler.post {
                     if (request === client) {
+                        chunked = null
                         request = null
                         cleanupRequest = null
                         requestTask = null
@@ -473,6 +474,10 @@ class MurmurAccessibilityService : AccessibilityService() {
         target: FocusTarget, durationMs: Long, client: TranscriptionClient?,
     ) {
         if (recordingSession != session || (client != null && request !== client)) return
+        val historyId = runCatching { history.add(raw, raw, durationMs) }
+            .onFailure { Diagnostics.error("bubble", "could not save the dictation to history", it) }
+            .getOrNull()
+        settings.saveRawTranscript(raw, historyId)
         val cleaner = cleanup?.let { CleanupClient().also { cleanupRequest = it } }
         if (recordingSession != session || destroyed) {
             cleaner?.cancel()
@@ -493,10 +498,9 @@ class MurmurAccessibilityService : AccessibilityService() {
         val transcript = cleaned ?: prepared
         mainHandler.post {
             if (recordingSession != session || destroyed || (client != null && request !== client)) return@post
-            val historyId = runCatching { history.add(raw, transcript, durationMs) }
-                .onFailure { Diagnostics.error("bubble", "could not save the dictation to history", it) }
-                .getOrNull()
-            settings.saveTranscript(raw, transcript, historyId)
+            if (historyId != null) runCatching { history.updateDictation(historyId, transcript) }
+                .onFailure { Diagnostics.error("bubble", "could not update the dictation in history", it) }
+            settings.updateLatestTranscript(historyId, raw, transcript)
             if (cleaner != null) settings.lastCleanupFailure = cleanupFailure
             cleanupRequest = null
             if (client == null) requestTask = null

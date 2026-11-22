@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import dev.local.murmur.cleanupVocabulary
 import dev.local.murmur.AnonymousTelemetry
 import dev.local.murmur.BuildConfig
 import dev.local.murmur.Diagnostics
@@ -159,6 +160,7 @@ private fun retentionLabel(days: Int) = when (days) {
 internal fun WordsScreen(model: AppModel, onBack: () -> Unit) {
     var revision by remember { mutableStateOf(0) }
     val terms = remember(revision) { model.settings.dictionary }
+    val sent = remember(terms) { cleanupVocabulary(terms).toSet() }
     var input by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -174,7 +176,7 @@ internal fun WordsScreen(model: AppModel, onBack: () -> Unit) {
         }
     }
     ScreenScaffold(title = "Words", onBack = onBack) {
-        item { Hint("Preferred spelling for names and unusual terms. Cleanup uses them when it is on.") }
+        item { Hint("Preferred spellings for names and unusual terms. Cleanup sends up to 100 terms and 4 KB of vocabulary per request.") }
         item {
             OutlinedTextField(
                 value = input,
@@ -204,7 +206,7 @@ internal fun WordsScreen(model: AppModel, onBack: () -> Unit) {
             GroupCard {
                 matches.forEachIndexed { index, term ->
                     if (index > 0) GroupDivider()
-                    GroupItem(term, trailing = {
+                    GroupItem(term, if (term.trim() in sent) null else "Outside the cleanup vocabulary limit", trailing = {
                         IconButton(onClick = {
                             model.settings.removeDictionaryTerm(term)
                             revision++
