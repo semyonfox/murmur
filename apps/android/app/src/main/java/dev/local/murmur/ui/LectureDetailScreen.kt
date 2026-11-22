@@ -301,9 +301,9 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
         confirm = "Delete",
         onConfirm = {
             player?.release()
-            model.history.deleteLecture(id)
-            model.refresh()
-            onBack()
+            runCatching { model.history.deleteLecture(id) }
+                .onSuccess { model.refresh(); onBack() }
+                .onFailure { snackbar.showLater(it.message ?: "Could not delete the lecture.") }
         },
         onDismiss = { confirmDelete = false },
     )

@@ -65,6 +65,7 @@ internal class LectureService : Service() {
     private val cleanupWorker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture-cleanup") }
     // lecture id to the number of its tasks still queued or running
     private val pending = LinkedHashMap<Long, Int>()
+    private val liveFiles = java.util.concurrent.ConcurrentHashMap.newKeySet<File>()
     private val speechClient = TranscriptionClient()
     private var recorder: PcmRecorder? = null
     private var recordingJob: Job? = null
@@ -112,11 +113,12 @@ internal class LectureService : Service() {
                 recorder = null
                 job?.discarded = true
                 capture.cancel()
-                if (job != null) runCatching { history.deleteLecture(job.id) }
+                val deletion = runCatching { if (job != null) history.deleteLecture(job.id) }
                     .onFailure { Diagnostics.warn("lecture", "could not delete discarded lecture", it) }
                 clearLevels()
                 mutable.update { it.copy(recordingId = 0L, recordedMs = 0L, paused = false,
-                    message = "Recording discarded.", failed = false) }
+                    message = if (deletion.isSuccess) "Recording discarded." else "Could not delete saved audio. Retry from Lectures.",
+                    failed = deletion.isFailure) }
                 stopIfIdle()
             }
             ACTION_RECORD -> startRecording()
@@ -165,10 +167,11 @@ internal class LectureService : Service() {
 
     // runs on the main thread, in the order the recorder cut the pieces
     private fun livePiece(job: Job, piece: File, offsetMs: Long) {
-        if (job.discarded) {
+        if (destroyed || job.discarded) {
             piece.delete()
             return
         }
+        liveFiles += piece
         val index = job.pieces++
         enqueue(job.id) {
             try {
@@ -181,6 +184,7 @@ internal class LectureService : Service() {
                 if (!job.discarded) job.failure = error
             } finally {
                 piece.delete()
+                liveFiles.remove(piece)
             }
         }
     }
@@ -541,6 +545,8 @@ internal class LectureService : Service() {
         synchronized(pending) {
             worker.shutdownNow()
             cleanupWorker.shutdownNow()
+            liveFiles.forEach { it.delete() }
+            liveFiles.clear()
         }
         if (state.value.busy) {
             Diagnostics.warn("lecture", "service destroyed with lecture work still running")
@@ -558,6 +564,8 @@ internal class LectureService : Service() {
         synchronized(pending) {
             worker.shutdownNow()
             cleanupWorker.shutdownNow()
+            liveFiles.forEach { it.delete() }
+            liveFiles.clear()
         }
         mutable.value = LectureState(failed = true, message = "Android stopped transcription for today. Retry from Lectures.")
         stopSelf()

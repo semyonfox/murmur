@@ -268,6 +268,8 @@ class MurmurAccessibilityService : AccessibilityService() {
                 mainHandler.removeCallbacks(refreshTimer)
                 val file = result.getOrNull()
                 if (recordingSession != session || destroyed || !bubbleAllowed()) {
+                    chunks.cancel()
+                    if (chunked === chunks) chunked = null
                     file?.delete()
                     return@start
                 }

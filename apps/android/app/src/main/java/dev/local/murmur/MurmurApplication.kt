@@ -7,5 +7,7 @@ class MurmurApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Diagnostics.install(this)
+        runCatching { HistoryStore(this).use { it.removeOrphanedRecordings() } }
+            .onFailure { Diagnostics.warn("history", "could not remove orphaned recordings", it) }
     }
 }

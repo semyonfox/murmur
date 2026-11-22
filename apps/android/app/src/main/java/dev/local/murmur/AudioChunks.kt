@@ -165,7 +165,7 @@ internal class ChunkedTranscription(
     val client: TranscriptionClient,
     val endpoint: TranscriptionEndpoint,
 ) {
-    private val parts = mutableListOf<Future<String>>()
+    private val parts = mutableListOf<Pair<File, Future<String>>>()
     val started: Boolean get() = parts.isNotEmpty()
 
     // most takes are a few seconds, so pieces can be short. local whisper is the
@@ -175,15 +175,21 @@ internal class ChunkedTranscription(
         if (endpoint.localModel?.let(LocalSpeechModels::engineOf) == SpeechEngine.WHISPER) 12 else 3
 
     fun add(file: File) {
-        parts += worker.submit(Callable {
-            try { client.transcribe(endpoint, file, allowEmpty = true) } finally { file.delete() }
-        })
+        try {
+            val task = worker.submit(Callable {
+                try { client.transcribe(endpoint, file, allowEmpty = true) } finally { file.delete() }
+            })
+            parts += file to task
+        } catch (error: java.util.concurrent.RejectedExecutionException) {
+            file.delete()
+            throw error
+        }
     }
 
     // runs on the single worker after every queued part
     fun finish(fullRecording: File): String {
         val joined = try {
-            parts.map { it.get().trim() }.filter(String::isNotEmpty).joinToString(" ")
+            parts.map { (_, task) -> task.get().trim() }.filter(String::isNotEmpty).joinToString(" ")
         } catch (error: ExecutionException) {
             if (endpoint.localModel == null) throw error.cause ?: error
             ""
@@ -195,7 +201,10 @@ internal class ChunkedTranscription(
 
     fun cancel() {
         client.cancel()
-        parts.forEach { it.cancel(true) }
+        parts.forEach { (file, task) ->
+            task.cancel(true)
+            file.delete()
+        }
     }
 }
 

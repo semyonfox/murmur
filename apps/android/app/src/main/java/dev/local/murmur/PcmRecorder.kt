@@ -22,6 +22,7 @@ internal class PcmRecorder private constructor(
     private val noiseSuppressor: NoiseSuppressor?,
     private val maxPcmBytes: Int,
     private val preserveOnFailure: Boolean,
+    private val chunkDirectory: File,
     private val onChunk: ((piece: File, offsetMs: Long) -> Unit)?,
     private val chunkMinSeconds: Int,
     private val chunkMaxSeconds: Int,
@@ -135,7 +136,7 @@ internal class PcmRecorder private constructor(
     }
 
     private fun emitChunk(piece: AudioPiece) {
-        val chunk = pcmToWav(piece.pcm, file.parentFile ?: return)
+        val chunk = pcmToWav(piece.pcm, chunkDirectory)
         val offsetMs = piece.offsetBytes * 1000L / (SAMPLE_RATE * BYTES_PER_SAMPLE)
         mainHandler.post {
             if (discard.get()) chunk.delete() else onChunk?.invoke(chunk, offsetMs) ?: chunk.delete()
@@ -254,7 +255,7 @@ internal class PcmRecorder private constructor(
                 file.delete()
                 error("Microphone did not start recording.")
             }
-            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, onChunk, chunkMinSeconds, chunkMaxSeconds, onLevel, onPcm, onComplete).also { capture ->
+            return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, context.cacheDir, onChunk, chunkMinSeconds, chunkMaxSeconds, onLevel, onPcm, onComplete).also { capture ->
                 Thread({ capture.runCapture(bufferSize) }, "murmur-audio").start()
             }
         }
