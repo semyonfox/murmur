@@ -16,6 +16,7 @@ pub mod tauri_impl;
 use log::{debug, error, info, warn};
 use serde::Serialize;
 use specta::Type;
+use std::sync::{Mutex, PoisonError};
 use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -1028,35 +1029,66 @@ pub fn change_experimental_enabled_setting(app: AppHandle, enabled: bool) -> Res
     Ok(())
 }
 
+// serialise key writes with URL changes so a save can't restore a deleted key
+static CLEANUP_KEY_EDITS: Mutex<()> = Mutex::new(());
+
 #[tauri::command]
 #[specta::specta]
-pub fn change_post_process_base_url_setting(
+pub async fn change_post_process_base_url_setting(
     app: AppHandle,
     provider_id: String,
     base_url: String,
 ) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    let provider = settings
-        .post_process_provider_mut(&provider_id)
-        .ok_or_else(|| format!("Provider '{provider_id}' not found"))?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = CLEANUP_KEY_EDITS
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let mut settings = settings::get_settings(&app);
+        let provider = settings
+            .post_process_provider(&provider_id)
+            .ok_or_else(|| format!("Provider '{provider_id}' not found"))?;
 
-    if !provider.allow_base_url_edit {
-        return Err(format!(
-            "Provider '{}' does not allow editing the base URL",
-            provider.label
-        ));
-    }
+        if !provider.allow_base_url_edit {
+            return Err(format!(
+                "Provider '{}' does not allow editing the base URL",
+                provider.label
+            ));
+        }
 
-    crate::llm_client::validate_provider_url(&base_url)?;
-    if provider.base_url == base_url {
-        return Ok(());
-    }
-    provider.base_url = base_url;
-    settings
-        .post_process_models
-        .insert(provider_id, String::new());
-    settings::write_settings(&app, settings);
-    Ok(())
+        crate::llm_client::validate_provider_url(&base_url)?;
+        if provider.base_url == base_url {
+            return Ok(());
+        }
+
+        if provider_id == "custom" {
+            let new_origin = crate::secrets::cleanup_origin(&base_url)?;
+            let old_origin = crate::secrets::cleanup_origin(&provider.base_url).ok();
+            if old_origin
+                .as_deref()
+                .is_some_and(|origin| origin != new_origin)
+            {
+                let old_scope = crate::secrets::cleanup_key_scope(&settings, provider)?;
+                crate::secrets::delete_cleanup_key(&provider_id, old_scope.as_deref())?;
+                // the credential store may have blocked while other settings changed
+                settings = settings::get_settings(&app);
+                if old_scope.is_none() {
+                    settings.legacy_custom_cleanup_origin = None;
+                }
+            }
+        }
+
+        settings
+            .post_process_provider_mut(&provider_id)
+            .ok_or_else(|| format!("Provider '{provider_id}' not found"))?
+            .base_url = base_url;
+        settings
+            .post_process_models
+            .insert(provider_id, String::new());
+        settings::write_settings(&app, settings);
+        Ok(())
+    })
+    .await
+    .map_err(|_| "Could not access the system credential store".to_string())?
 }
 
 /// Generic helper to validate provider exists
@@ -1081,12 +1113,15 @@ pub async fn change_post_process_api_key_setting(
     provider_id: String,
     api_key: String,
 ) -> Result<(), String> {
-    let settings = settings::get_settings(&app);
-    let provider = settings
-        .post_process_provider(&provider_id)
-        .ok_or("Unknown provider")?;
-    let origin = crate::secrets::cleanup_key_scope(&settings, provider)?;
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = CLEANUP_KEY_EDITS
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let settings = settings::get_settings(&app);
+        let provider = settings
+            .post_process_provider(&provider_id)
+            .ok_or("Unknown provider")?;
+        let origin = crate::secrets::cleanup_key_scope(&settings, provider)?;
         if api_key.trim().is_empty() {
             crate::secrets::delete_cleanup_key(&provider_id, origin.as_deref())
         } else {
