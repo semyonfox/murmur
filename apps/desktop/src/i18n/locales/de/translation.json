@@ -3,7 +3,7 @@
     "legacyConflictTitle": "Bisherige Murmur-Daten wurden nicht übertragen",
     "legacyConflictMessage": "Die bisherigen Murmur-Daten stehen im Konflikt mit den aktuellen Daten. Deine bisherigen Daten bleiben in {{path}}.",
     "newerHistoryTitle": "Die Verlaufsdatenbank erfordert eine neuere Version",
-    "newerHistoryMessage": "Eine neuere Version von Murmur hat diese Verlaufsdatenbank geschrieben. Aktualisiere Murmur, um deinen Verlauf zu öffnen."
+    "newerHistoryMessage": "Eine neuere Version von Murmur hat diese Verlaufsdatenbank geschrieben. Aktualisiere Murmur, um deinen Verlauf zu öffnen.\n\n{{path}}\n\nUm mit einem leeren Verlauf zu beginnen, schließe Murmur und verschiebe die Datenbank und alle Dateien mit Namen nach dem Muster history.db-* in einen anderen Ordner."
   },
   "tray": {
     "settings": "Einstellungen...",

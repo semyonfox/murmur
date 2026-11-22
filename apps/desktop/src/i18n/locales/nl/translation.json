@@ -3,7 +3,7 @@
     "legacyConflictTitle": "Eerdere Murmur-gegevens konden niet worden overgezet",
     "legacyConflictMessage": "De eerdere en huidige Murmur-gegevens zijn met elkaar in conflict. Je eerdere gegevens staan nog in {{path}}.",
     "newerHistoryTitle": "De geschiedenisdatabase vereist een nieuwere versie",
-    "newerHistoryMessage": "Een nieuwere versie van Murmur heeft deze database geschreven. Werk Murmur bij om je geschiedenis te openen."
+    "newerHistoryMessage": "Een nieuwere versie van Murmur heeft deze database geschreven. Werk Murmur bij om je geschiedenis te openen.\n\n{{path}}\n\nSluit Murmur en verplaats de database en alle bestanden met namen die overeenkomen met history.db-* naar een andere map om met een lege geschiedenis te beginnen."
   },
   "tray": {
     "settings": "Instellingen...",

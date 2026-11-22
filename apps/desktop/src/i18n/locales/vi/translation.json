@@ -3,7 +3,7 @@
     "legacyConflictTitle": "Không thể chuyển dữ liệu Murmur trước đây",
     "legacyConflictMessage": "Dữ liệu Murmur trước đây xung đột với dữ liệu hiện tại. Dữ liệu trước đây vẫn nằm ở {{path}}.",
     "newerHistoryTitle": "Cơ sở dữ liệu lịch sử cần phiên bản mới hơn",
-    "newerHistoryMessage": "Một phiên bản Murmur mới hơn đã ghi cơ sở dữ liệu lịch sử này. Hãy cập nhật Murmur để mở lịch sử của bạn."
+    "newerHistoryMessage": "Một phiên bản Murmur mới hơn đã ghi cơ sở dữ liệu lịch sử này. Hãy cập nhật Murmur để mở lịch sử của bạn.\n\n{{path}}\n\nĐể bắt đầu với lịch sử trống, hãy đóng Murmur rồi chuyển cơ sở dữ liệu và mọi tệp có tên khớp với mẫu history.db-* sang thư mục khác."
   },
   "tray": {
     "settings": "Cài đặt...",

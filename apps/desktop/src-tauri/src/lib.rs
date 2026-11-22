@@ -892,6 +892,9 @@ pub fn run(cli_args: CliArgs) {
     // instance instead.
     if !headless_mode {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if app.try_state::<Arc<HistoryManager>>().is_none() {
+                return;
+            }
             if args.iter().any(|a| a == "--toggle-transcription") {
                 signal_handle::send_transcription_input(app, "transcribe", "CLI");
             } else if args.iter().any(|a| a == "--toggle-post-process") {
@@ -983,22 +986,30 @@ pub fn run(cli_args: CliArgs) {
 
             let (history_manager, history_backup) = match HistoryManager::new(app.handle()) {
                 Ok(history) => history,
-                Err(error) if error.is::<managers::history::UnsupportedHistoryVersion>() => {
+                Err(error) => {
                     use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
+                    let Some(newer_database) =
+                        error.downcast_ref::<managers::history::UnsupportedHistoryVersion>()
+                    else {
+                        return Err(error.into());
+                    };
                     log::error!("{error}");
                     let settings = get_settings(app.handle());
                     let strings =
                         native_i18n::get_startup_translations(Some(&settings.app_language));
                     let handle = app.handle().clone();
                     app.dialog()
-                        .message(&strings.newer_history_message)
+                        .message(
+                            strings
+                                .newer_history_message
+                                .replace("{{path}}", &newer_database.path.to_string_lossy()),
+                        )
                         .title(&strings.newer_history_title)
                         .kind(MessageDialogKind::Error)
                         .show(move |_| handle.exit(1));
                     return Ok(());
                 }
-                Err(error) => return Err(error.into()),
             };
 
             // Create main window programmatically so we can set data_directory
@@ -1163,11 +1174,10 @@ pub fn run(cli_args: CliArgs) {
             // that vanished (#1948): recreate it. When the window is
             // already visible this is just a focus request and the tray is
             // left alone.
-            let window_visible = app
-                .get_webview_window("main")
-                .and_then(|w| w.is_visible().ok())
-                .unwrap_or(false);
-            if !window_visible {
+            let Some(window) = app.get_webview_window("main") else {
+                return;
+            };
+            if !window.is_visible().unwrap_or(false) {
                 tray::recreate_tray_icon(app);
             }
             show_main_window(app);

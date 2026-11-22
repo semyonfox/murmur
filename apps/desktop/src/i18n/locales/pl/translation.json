@@ -3,7 +3,7 @@
     "legacyConflictTitle": "Nie udało się przenieść wcześniejszych danych Murmur",
     "legacyConflictMessage": "Wcześniejsze dane Murmur kolidują z bieżącymi. Wcześniejsze dane nadal znajdują się w {{path}}.",
     "newerHistoryTitle": "Baza danych historii wymaga nowszej wersji",
-    "newerHistoryMessage": "Tę bazę danych historii zapisała nowsza wersja Murmur. Zaktualizuj Murmur, aby otworzyć historię."
+    "newerHistoryMessage": "Tę bazę danych historii zapisała nowsza wersja Murmur. Zaktualizuj Murmur, aby otworzyć historię.\n\n{{path}}\n\nAby zacząć z pustą historią, zamknij Murmur i przenieś bazę danych oraz wszystkie pliki o nazwach pasujących do wzorca history.db-* do innego folderu."
   },
   "tray": {
     "settings": "Ustawienia...",

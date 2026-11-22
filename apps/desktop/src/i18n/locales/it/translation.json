@@ -3,7 +3,7 @@
     "legacyConflictTitle": "Impossibile migrare i dati precedenti di Murmur",
     "legacyConflictMessage": "I dati precedenti di Murmur sono in conflitto con quelli attuali. I dati precedenti restano in {{path}}.",
     "newerHistoryTitle": "Il database della cronologia richiede una versione più recente",
-    "newerHistoryMessage": "Una versione più recente di Murmur ha scritto questo database. Aggiorna Murmur per aprire la cronologia."
+    "newerHistoryMessage": "Una versione più recente di Murmur ha scritto questo database. Aggiorna Murmur per aprire la cronologia.\n\n{{path}}\n\nPer iniziare con una cronologia vuota, chiudi Murmur e sposta in un’altra cartella il database e tutti i file con nomi corrispondenti a history.db-*."
   },
   "tray": {
     "settings": "Impostazioni...",

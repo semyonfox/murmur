@@ -3,7 +3,7 @@
     "legacyConflictTitle": "Předchozí data aplikace Murmur se nepřenesla",
     "legacyConflictMessage": "Předchozí data aplikace Murmur jsou v konfliktu s aktuálními daty. Předchozí data zůstávají v {{path}}.",
     "newerHistoryTitle": "Databáze historie vyžaduje novější verzi",
-    "newerHistoryMessage": "Tuto databázi historie zapsala novější verze aplikace Murmur. Chcete-li otevřít historii, aktualizujte Murmur."
+    "newerHistoryMessage": "Tuto databázi historie zapsala novější verze aplikace Murmur. Chcete-li otevřít historii, aktualizujte Murmur.\n\n{{path}}\n\nChcete-li začít s prázdnou historií, zavřete Murmur a přesuňte databázi i všechny soubory s názvy ve tvaru history.db-* do jiné složky."
   },
   "tray": {
     "settings": "Nastavení...",

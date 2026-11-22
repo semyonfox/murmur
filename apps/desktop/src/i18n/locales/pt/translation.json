@@ -3,7 +3,7 @@
     "legacyConflictTitle": "Não foi possível migrar os dados anteriores do Murmur",
     "legacyConflictMessage": "Os dados anteriores do Murmur entram em conflito com os dados atuais. Os dados anteriores continuam em {{path}}.",
     "newerHistoryTitle": "A base de dados do histórico requer uma versão mais recente",
-    "newerHistoryMessage": "Uma versão mais recente do Murmur escreveu esta base de dados. Atualize o Murmur para abrir o seu histórico."
+    "newerHistoryMessage": "Uma versão mais recente do Murmur escreveu esta base de dados. Atualize o Murmur para abrir o seu histórico.\n\n{{path}}\n\nPara começar com um histórico vazio, feche o Murmur e mova a base de dados e todos os ficheiros com nomes que correspondam a history.db-* para outra pasta."
   },
   "tray": {
     "settings": "Configurações...",

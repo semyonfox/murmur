@@ -3,7 +3,7 @@
     "legacyConflictTitle": "Önceki Murmur verileri taşınamadı",
     "legacyConflictMessage": "Önceki Murmur verileriniz mevcut verilerinizle çakışıyor. Önceki verileriniz {{path}} konumunda duruyor.",
     "newerHistoryTitle": "Geçmiş veritabanı daha yeni bir sürüm gerektiriyor",
-    "newerHistoryMessage": "Bu geçmiş veritabanını Murmur’un daha yeni bir sürümü yazdı. Geçmişinizi açmak için Murmur’u güncelleyin."
+    "newerHistoryMessage": "Bu geçmiş veritabanını Murmur’un daha yeni bir sürümü yazdı. Geçmişinizi açmak için Murmur’u güncelleyin.\n\n{{path}}\n\nBoş bir geçmişle başlamak için Murmur’u kapatın, ardından veritabanını ve adı history.db-* kalıbına uyan tüm dosyaları başka bir klasöre taşıyın."
   },
   "tray": {
     "settings": "Ayarlar...",

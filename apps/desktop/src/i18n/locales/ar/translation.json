@@ -3,7 +3,7 @@
     "legacyConflictTitle": "تعذّر نقل بيانات Murmur السابقة",
     "legacyConflictMessage": "تتعارض بيانات Murmur السابقة مع البيانات الحالية. ستظل بياناتك السابقة في {{path}}.",
     "newerHistoryTitle": "قاعدة بيانات السجل تتطلب إصداراً أحدث",
-    "newerHistoryMessage": "كتب إصدار أحدث من Murmur قاعدة بيانات السجل هذه. حدّث Murmur لفتح سجلك."
+    "newerHistoryMessage": "كتب إصدار أحدث من Murmur قاعدة بيانات السجل هذه. حدّث Murmur لفتح سجلك.\n\n{{path}}\n\nلبدء سجل فارغ، أغلق Murmur وانقل قاعدة البيانات وأي ملفات باسم history.db-* إلى مجلد آخر."
   },
   "tray": {
     "settings": "...الإعدادات",

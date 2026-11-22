@@ -3,7 +3,7 @@
     "legacyConflictTitle": "Tidigare Murmur-data kunde inte flyttas",
     "legacyConflictMessage": "Dina tidigare Murmur-data är i konflikt med nuvarande data. Dina tidigare data finns kvar i {{path}}.",
     "newerHistoryTitle": "Historikdatabasen kräver en nyare version",
-    "newerHistoryMessage": "En nyare version av Murmur skrev den här historikdatabasen. Uppdatera Murmur för att öppna din historik."
+    "newerHistoryMessage": "En nyare version av Murmur skrev den här historikdatabasen. Uppdatera Murmur för att öppna din historik.\n\n{{path}}\n\nFör att börja med tom historik, stäng Murmur och flytta databasen och alla filer vars namn matchar history.db-* till en annan mapp."
   },
   "tray": {
     "settings": "Inställningar...",

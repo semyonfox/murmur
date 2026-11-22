@@ -3,7 +3,7 @@
     "legacyConflictTitle": "Data Murmur sebelumnya tidak dapat dipindahkan",
     "legacyConflictMessage": "Data Murmur sebelumnya bertentangan dengan data saat ini. Data sebelumnya tetap tersimpan di {{path}}.",
     "newerHistoryTitle": "Basis data riwayat memerlukan versi yang lebih baru",
-    "newerHistoryMessage": "Basis data riwayat ini ditulis oleh versi Murmur yang lebih baru. Perbarui Murmur untuk membuka riwayat Anda."
+    "newerHistoryMessage": "Basis data riwayat ini ditulis oleh versi Murmur yang lebih baru. Perbarui Murmur untuk membuka riwayat Anda.\n\n{{path}}\n\nUntuk memulai dengan riwayat kosong, tutup Murmur lalu pindahkan basis data dan semua berkas dengan nama yang cocok dengan history.db-* ke folder lain."
   },
   "tray": {
     "settings": "Pengaturan...",

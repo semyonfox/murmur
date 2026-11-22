@@ -3,7 +3,7 @@
     "legacyConflictTitle": "以前の Murmur のデータを移行できませんでした",
     "legacyConflictMessage": "以前の Murmur のデータが現在のデータと競合しています。以前のデータは {{path}} に残っています。",
     "newerHistoryTitle": "履歴データベースには新しいバージョンが必要です",
-    "newerHistoryMessage": "この履歴データベースは、より新しいバージョンの Murmur で書き込まれました。履歴を開くには Murmur を更新してください。"
+    "newerHistoryMessage": "この履歴データベースは、より新しいバージョンの Murmur で書き込まれました。履歴を開くには Murmur を更新してください。\n\n{{path}}\n\n履歴を空の状態から始めるには、Murmur を終了し、データベースと、名前が history.db-* に一致するファイルを別のフォルダーに移動してください。"
   },
   "tray": {
     "settings": "設定…",

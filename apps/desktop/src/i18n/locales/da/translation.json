@@ -3,7 +3,7 @@
     "legacyConflictTitle": "Tidligere Murmur-data blev ikke flyttet",
     "legacyConflictMessage": "Tidligere Murmur-data er i konflikt med de nuværende data. Dine tidligere data ligger stadig i {{path}}.",
     "newerHistoryTitle": "Historikdatabasen kræver en nyere version",
-    "newerHistoryMessage": "En nyere version af Murmur har skrevet denne historikdatabase. Opdater Murmur for at åbne din historik."
+    "newerHistoryMessage": "En nyere version af Murmur har skrevet denne historikdatabase. Opdater Murmur for at åbne din historik.\n\n{{path}}\n\nLuk Murmur, og flyt databasen og eventuelle filer med navne som history.db-* til en anden mappe for at starte med en tom historik."
   },
   "tray": {
     "settings": "Indstillinger...",

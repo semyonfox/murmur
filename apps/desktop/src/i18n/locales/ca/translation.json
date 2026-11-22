@@ -3,7 +3,7 @@
     "legacyConflictTitle": "No s’han pogut traslladar les dades anteriors de Murmur",
     "legacyConflictMessage": "Les dades anteriors de Murmur entren en conflicte amb les actuals. Les dades anteriors es conserven a {{path}}.",
     "newerHistoryTitle": "La base de dades de l’historial requereix una versió més recent",
-    "newerHistoryMessage": "Una versió més recent de Murmur ha escrit aquesta base de dades de l’historial. Actualitza Murmur per obrir l’historial."
+    "newerHistoryMessage": "Una versió més recent de Murmur ha escrit aquesta base de dades de l’historial. Actualitza Murmur per obrir l’historial.\n\n{{path}}\n\nPer començar amb l’historial buit, tanca Murmur i mou la base de dades i els fitxers amb noms del tipus history.db-* a una altra carpeta."
   },
   "tray": {
     "settings": "Configuració...",

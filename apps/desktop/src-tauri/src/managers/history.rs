@@ -168,14 +168,17 @@ impl StatsBucket {
 }
 
 #[derive(Debug)]
-pub(crate) struct UnsupportedHistoryVersion(i32);
+pub(crate) struct UnsupportedHistoryVersion {
+    version: i32,
+    pub(crate) path: PathBuf,
+}
 
 impl std::fmt::Display for UnsupportedHistoryVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "History database version {} is newer than supported",
-            self.0
+            self.version
         )
     }
 }
@@ -258,7 +261,11 @@ impl HistoryManager {
         let version_before: i32 =
             conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
         if version_before > MIGRATIONS.len() as i32 {
-            return Err(UnsupportedHistoryVersion(version_before).into());
+            return Err(UnsupportedHistoryVersion {
+                version: version_before,
+                path: db_path.to_path_buf(),
+            }
+            .into());
         }
         let legacy_version = Self::legacy_database_version(&conn, version_before)?;
         let version_before = if legacy_version > 0 {
@@ -267,7 +274,11 @@ impl HistoryManager {
             version_before
         };
         if version_before > MIGRATIONS.len() as i32 {
-            return Err(UnsupportedHistoryVersion(version_before).into());
+            return Err(UnsupportedHistoryVersion {
+                version: version_before,
+                path: db_path.to_path_buf(),
+            }
+            .into());
         }
         conn.set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, false)?;
         if legacy_version > 0 {
@@ -1303,7 +1314,8 @@ mod tests {
 
         let error = HistoryManager::prepare_database(&path).unwrap_err();
 
-        assert!(error.is::<UnsupportedHistoryVersion>());
+        let newer_database = error.downcast_ref::<UnsupportedHistoryVersion>().unwrap();
+        assert_eq!(newer_database.path, path);
         assert_eq!(fs::read(&path).unwrap(), before);
         assert_eq!(fs::read(&wal).unwrap(), wal_before);
     }
