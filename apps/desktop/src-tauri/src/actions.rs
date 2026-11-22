@@ -7,8 +7,7 @@ use crate::linux_modifier_guard::ModifierReadiness;
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
-use crate::managers::transcription::StreamWorkKind;
-use crate::managers::transcription::TranscriptionManager;
+use crate::managers::transcription::{Recognition, StreamWorkKind, TranscriptionManager};
 use crate::settings::{
     get_settings, AppSettings, OverlayStyle, SttSource, APPLE_INTELLIGENCE_PROVIDER_ID,
 };
@@ -645,7 +644,7 @@ fn resolve_effective_language(app: &AppHandle, settings: &AppSettings) -> String
 
 pub(crate) async fn process_transcription_output(
     app: &AppHandle,
-    transcription: &str,
+    transcription: &Recognition,
     post_process: bool,
 ) -> ProcessedTranscription {
     let settings = get_settings(app);
@@ -655,10 +654,10 @@ pub(crate) async fn process_transcription_output(
 async fn process_transcription_output_with_settings(
     app: &AppHandle,
     settings: &AppSettings,
-    transcription: &str,
+    transcription: &Recognition,
     post_process: bool,
 ) -> ProcessedTranscription {
-    let mut final_text = transcription.to_string();
+    let mut final_text = transcription.text().to_string();
     let mut post_processed_text: Option<String> = None;
     let mut post_process_prompt: Option<String> = None;
 
@@ -667,7 +666,7 @@ async fn process_transcription_output_with_settings(
     // the effective language rather than a possibly-stale intent.
     let effective_language = resolve_effective_language(app, settings);
     if let Some(converted_text) =
-        maybe_convert_chinese_variant(&effective_language, transcription).await
+        maybe_convert_chinese_variant(&effective_language, &final_text).await
     {
         final_text = converted_text;
     }
@@ -693,7 +692,8 @@ async fn process_transcription_output_with_settings(
         } else if !final_text.trim().is_empty() {
             let _ = app.emit("cleanup-error", ());
         }
-    } else if final_text != transcription {
+    }
+    if post_processed_text.is_none() && final_text != transcription.raw {
         post_processed_text = Some(final_text.clone());
     }
 
@@ -1083,7 +1083,7 @@ impl ShortcutAction for TranscribeAction {
                             // transcription of the same audio. A finalize timeout is
                             // surfaced instead — the worker may still hold the engine,
                             // so a batch fallback would contend with it.
-                            Ok(Some(text)) if !text.trim().is_empty() => Ok(text),
+                            Ok(Some(result)) if !result.raw.trim().is_empty() => Ok(result),
                             Ok(_) => tm.transcribe(std::mem::take(&mut samples)),
                             Err(err) => Err(err),
                         })
@@ -1126,7 +1126,7 @@ impl ShortcutAction for TranscribeAction {
                             set_tray_state(&ah, TrayIconState::Idle);
                             return;
                         };
-                        result
+                        result.map(Recognition::from)
                     };
 
                     if rm.was_cancelled_since(cancel_generation) {
@@ -1158,7 +1158,7 @@ impl ShortcutAction for TranscribeAction {
                             debug!(
                                 "Transcription completed in {:?}: '{}'",
                                 transcription_time.elapsed(),
-                                utils::redact_text(&transcription)
+                                utils::redact_text(&transcription.raw)
                             );
 
                             if post_process {
@@ -1194,7 +1194,7 @@ impl ShortcutAction for TranscribeAction {
 
                             if let Err(err) = hm.save_entry(
                                 file_name,
-                                transcription,
+                                transcription.raw,
                                 post_process,
                                 processed.post_processed_text.clone(),
                                 processed.post_process_prompt.clone(),

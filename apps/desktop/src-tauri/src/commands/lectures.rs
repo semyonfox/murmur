@@ -398,6 +398,7 @@ async fn transcribe_long_audio(
                 language,
             )
             .await
+            .map(crate::managers::transcription::Recognition::from)
             .map_err(|error| error.to_string())?
         } else {
             let manager = Arc::clone(transcription);
@@ -406,26 +407,26 @@ async fn transcribe_long_audio(
                 .map_err(|error| format!("Transcription task failed: {error}"))?
                 .map_err(|error| error.to_string())?
         };
-        if text.trim().is_empty() {
+        if text.raw.trim().is_empty() {
             report_progress(app, index + 1, total);
             continue;
         }
         let timestamp = part_timestamp(part_offset);
         raw.push_str(&timestamp);
-        raw.push_str(text.trim());
+        raw.push_str(&text.raw);
         raw.push_str("\n\n");
         history
             .update_transcription(id, raw.clone(), None, None)
             .map_err(|error| error.to_string())?;
         let output = process_transcription_output(app, &text, settings.post_process_enabled).await;
         cleaned.push_str(&timestamp);
-        cleaned.push_str(output.post_processed_text.as_deref().unwrap_or(text.trim()));
+        cleaned.push_str(&output.final_text);
         cleaned.push_str("\n\n");
         history
             .update_transcription(
                 id,
                 raw.clone(),
-                Some(cleaned.clone()),
+                (cleaned != raw).then(|| cleaned.clone()),
                 output.post_process_prompt,
             )
             .map_err(|error| error.to_string())?;

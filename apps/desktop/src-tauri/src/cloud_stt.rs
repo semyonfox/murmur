@@ -69,7 +69,7 @@ pub async fn transcribe_samples(
         remaining = rest;
         let part =
             transcribe_wav_piece(base_url, model, api_key, encode_wav(part)?, language).await?;
-        if !part.is_empty() {
+        if !part.trim().is_empty() {
             if !text.is_empty() {
                 text.push(' ');
             }
@@ -96,7 +96,7 @@ pub async fn transcribe_wav(
     language: Option<&str>,
 ) -> Result<String> {
     let text = transcribe_wav_piece(base_url, model, api_key, wav, language).await?;
-    if text.is_empty() {
+    if text.trim().is_empty() {
         return Err(anyhow!("Speech server returned an empty transcript"));
     }
     Ok(text)
@@ -164,7 +164,7 @@ pub async fn transcribe_wav_piece(
 
     let parsed: TranscriptionResponse = serde_json::from_slice(&response_bytes)
         .map_err(|_| anyhow!("Speech server returned an invalid transcription response"))?;
-    Ok(parsed.text.trim().to_owned())
+    Ok(parsed.text)
 }
 
 /// The key saved for this endpoint, or the one from the environment, or none
@@ -420,41 +420,55 @@ mod tests {
         status: &'static str,
         payload: Vec<u8>,
     ) -> (String, tokio::task::JoinHandle<Vec<u8>>) {
+        let (url, requests) = serve_responses(vec![(status, payload)]).await;
+        (
+            url,
+            tokio::spawn(async move { requests.await.unwrap().pop().unwrap() }),
+        )
+    }
+
+    async fn serve_responses(
+        responses: Vec<(&'static str, Vec<u8>)>,
+    ) -> (String, tokio::task::JoinHandle<Vec<Vec<u8>>>) {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}/v1", listener.local_addr().unwrap());
         let task = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let mut request = Vec::new();
-            let mut buffer = [0u8; 4096];
-            loop {
-                let count = stream.read(&mut buffer).await.unwrap();
-                if count == 0 {
-                    break;
-                }
-                request.extend_from_slice(&buffer[..count]);
-                if let Some(end) = request.windows(4).position(|bytes| bytes == b"\r\n\r\n") {
-                    let head = String::from_utf8_lossy(&request[..end]);
-                    let content_length = head
-                        .lines()
-                        .find_map(|line| {
-                            line.strip_prefix("content-length: ")
-                                .or_else(|| line.strip_prefix("Content-Length: "))
-                        })
-                        .unwrap()
-                        .parse::<usize>()
-                        .unwrap();
-                    if request.len() >= end + 4 + content_length {
+            let mut requests = Vec::new();
+            for (status, payload) in responses {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut request = Vec::new();
+                let mut buffer = [0u8; 4096];
+                loop {
+                    let count = stream.read(&mut buffer).await.unwrap();
+                    if count == 0 {
                         break;
                     }
+                    request.extend_from_slice(&buffer[..count]);
+                    if let Some(end) = request.windows(4).position(|bytes| bytes == b"\r\n\r\n") {
+                        let head = String::from_utf8_lossy(&request[..end]);
+                        let content_length = head
+                            .lines()
+                            .find_map(|line| {
+                                line.strip_prefix("content-length: ")
+                                    .or_else(|| line.strip_prefix("Content-Length: "))
+                            })
+                            .unwrap()
+                            .parse::<usize>()
+                            .unwrap();
+                        if request.len() >= end + 4 + content_length {
+                            break;
+                        }
+                    }
                 }
-            }
-            let response = format!(
+                let response = format!(
                 "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
                 payload.len()
             );
-            stream.write_all(response.as_bytes()).await.unwrap();
-            let _ = stream.write_all(&payload).await;
-            request
+                stream.write_all(response.as_bytes()).await.unwrap();
+                let _ = stream.write_all(&payload).await;
+                requests.push(request);
+            }
+            requests
         });
         (url, task)
     }
@@ -465,7 +479,7 @@ mod tests {
         let transcript = transcribe_wav(&url, "whisper-1", "test-key", sample_wav(), Some("en"))
             .await
             .unwrap();
-        assert_eq!(transcript, "hello world");
+        assert_eq!(transcript, "  hello world  ");
         let request = server.await.unwrap();
         let header_end = request
             .windows(4)
@@ -487,6 +501,37 @@ mod tests {
             .windows(b"name=\"language\"".len())
             .any(|window| window == b"name=\"language\""));
         assert!(body.windows(b"RIFF".len()).any(|window| window == b"RIFF"));
+    }
+
+    #[tokio::test]
+    async fn oversized_take_uploads_every_part_and_skips_silent_replies() {
+        let sample_count = MAX_AUDIO_BYTES / 2;
+        let samples = vec![0.0; sample_count];
+        let responses = (0..7)
+            .map(|index| {
+                let json = match index {
+                    0 => br#"{"text":"first"}"#.as_slice(),
+                    6 => br#"{"text":"last"}"#.as_slice(),
+                    _ => br#"{"text":"  "}"#.as_slice(),
+                };
+                ("200 OK", json.to_vec())
+            })
+            .collect();
+        let (url, received) = serve_responses(responses).await;
+        let transcript = transcribe_samples(&url, "local", "", &samples, None)
+            .await
+            .unwrap();
+        assert_eq!(transcript, "first last");
+
+        let mut total = 0;
+        for request in received.await.unwrap() {
+            let wav_start = request.windows(4).position(|part| part == b"RIFF").unwrap();
+            let wave = hound::WavReader::new(Cursor::new(&request[wav_start..])).unwrap();
+            let count = wave.duration() as usize;
+            assert!(count * 2 + 44 <= MAX_AUDIO_BYTES);
+            total += count;
+        }
+        assert_eq!(total, sample_count);
     }
 
     #[tokio::test]

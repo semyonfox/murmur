@@ -144,6 +144,7 @@ pub async fn retry_history_entry_transcription(
             language,
         )
         .await
+        .map(crate::managers::transcription::Recognition::from)
         .map_err(|error| error.to_string())?
     } else {
         let samples = crate::audio_toolkit::read_wav_samples(&audio_path)
@@ -159,7 +160,7 @@ pub async fn retry_history_entry_transcription(
             .map_err(|e| e.to_string())?
     };
 
-    if transcription.is_empty() {
+    if transcription.raw.trim().is_empty() {
         return Err("Recording contains no speech".to_string());
     }
 
@@ -168,7 +169,7 @@ pub async fn retry_history_entry_transcription(
     let result = history_manager
         .update_transcription(
             id,
-            transcription,
+            transcription.raw,
             processed.post_processed_text,
             processed.post_process_prompt,
         )
