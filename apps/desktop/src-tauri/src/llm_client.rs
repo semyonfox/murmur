@@ -4,7 +4,7 @@ use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE, USER_
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{LazyLock, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Serialize)]
@@ -27,32 +27,23 @@ struct ResponseFormat {
     json_schema: JsonSchema,
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
-struct ReasoningConfig {
-    enabled: bool,
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum ReasoningOff {
+    ReasoningEffort(&'static str),
+    Reasoning(Value),
+    Thinking(Value),
+    EnableThinking(bool),
 }
 
-/// Request fields used to ask an endpoint to skip reasoning/thinking.
-/// Providers disagree on the field name and accepted values, so at most one of
-/// these is set per request (see `reasoning_disable_params`).
-#[derive(Debug, Serialize, Clone, Default, PartialEq)]
-struct ReasoningParams {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reasoning_effort: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reasoning: Option<ReasoningConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    thinking: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    enable_thinking: Option<bool>,
-}
-
-impl ReasoningParams {
-    fn is_empty(&self) -> bool {
-        self.reasoning_effort.is_none()
-            && self.reasoning.is_none()
-            && self.thinking.is_none()
-            && self.enable_thinking.is_none()
+impl ReasoningOff {
+    fn field(&self) -> &'static str {
+        match self {
+            Self::ReasoningEffort(_) => "reasoning_effort",
+            Self::Reasoning(_) => "reasoning",
+            Self::Thinking(_) => "thinking",
+            Self::EnableThinking(_) => "enable_thinking",
+        }
     }
 }
 
@@ -75,36 +66,17 @@ fn require_non_thinking(provider: &PostProcessProvider, disable_reasoning: bool)
 /// Pick the reasoning-disable request fields an endpoint understands.
 /// Unknown endpoints get the common OpenAI-style field; if they reject it,
 /// the request is retried without it (see `send_chat_completion_with_schema`).
-fn reasoning_disable_params(provider: &PostProcessProvider) -> ReasoningParams {
+fn reasoning_disable_params(provider: &PostProcessProvider) -> ReasoningOff {
     let is_deepseek = reqwest::Url::parse(&provider.base_url)
         .is_ok_and(|url| url.host_str() == Some("api.deepseek.com"));
     if is_siliconflow(provider) {
-        // SiliconFlow uses a top-level boolean for supported reasoning models.
-        // https://docs.siliconflow.cn/docs/api/chat-completions-post
-        ReasoningParams {
-            enable_thinking: Some(false),
-            ..Default::default()
-        }
+        ReasoningOff::EnableThinking(false)
     } else if is_deepseek {
-        // DeepSeek rejects reasoning_effort "none" and uses its own field:
-        // https://api-docs.deepseek.com/guides/thinking_mode
-        ReasoningParams {
-            thinking: Some(serde_json::json!({ "type": "disabled" })),
-            ..Default::default()
-        }
+        ReasoningOff::Thinking(serde_json::json!({ "type": "disabled" }))
     } else if provider.id == "openrouter" {
-        // Excluding reasoning only hides it from the response; disabling it
-        // asks the endpoint to skip reasoning and its billable tokens.
-        // https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
-        ReasoningParams {
-            reasoning: Some(ReasoningConfig { enabled: false }),
-            ..Default::default()
-        }
+        ReasoningOff::Reasoning(serde_json::json!({ "enabled": false }))
     } else {
-        ReasoningParams {
-            reasoning_effort: Some("none".to_string()),
-            ..Default::default()
-        }
+        ReasoningOff::ReasoningEffort("none")
     }
 }
 
@@ -118,11 +90,8 @@ enum OptionalField {
 
 type EndpointModel = (String, String, String);
 
-fn rejected_fields() -> &'static Mutex<HashMap<EndpointModel, HashSet<OptionalField>>> {
-    static REJECTED: OnceLock<Mutex<HashMap<EndpointModel, HashSet<OptionalField>>>> =
-        OnceLock::new();
-    REJECTED.get_or_init(|| Mutex::new(HashMap::new()))
-}
+static REJECTED_FIELDS: LazyLock<Mutex<HashMap<EndpointModel, HashSet<OptionalField>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 fn endpoint_key(provider: &PostProcessProvider, model: &str) -> EndpointModel {
     (
@@ -240,15 +209,10 @@ fn schema_rejection(
         body.split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
             .any(|word| word == field)
     };
-    if !request.reasoning.is_empty()
-        && [
-            "reasoning",
-            "reasoning_effort",
-            "thinking",
-            "enable_thinking",
-        ]
-        .iter()
-        .any(|field| mentions(field))
+    if request
+        .reasoning
+        .as_ref()
+        .is_some_and(|value| mentions(value.field()))
     {
         Some(OptionalField::Reasoning)
     } else if request.temperature.is_some() && mentions("temperature") {
@@ -257,13 +221,7 @@ fn schema_rejection(
         && (mentions("response_format") || mentions("json_schema"))
     {
         Some(OptionalField::ResponseFormat)
-    } else if !cap_already_swapped
-        && mentions(if request.output_cap.max_tokens.is_some() {
-            "max_tokens"
-        } else {
-            "max_completion_tokens"
-        })
-    {
+    } else if !cap_already_swapped && mentions(request.output_cap.field()) {
         Some(OptionalField::OutputCap)
     } else {
         None
@@ -282,7 +240,7 @@ struct ChatCompletionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     response_format: Option<ResponseFormat>,
     #[serde(flatten)]
-    reasoning: ReasoningParams,
+    reasoning: Option<ReasoningOff>,
     #[serde(flatten)]
     output_cap: OutputCap,
 }
@@ -291,32 +249,35 @@ struct ChatCompletionRequest {
 /// flag once ran single cleanups to its 262k output limit, so every request
 /// carries a cap. OpenAI's newer models reject `max_tokens` and want
 /// `max_completion_tokens`; everyone else takes `max_tokens`.
-#[derive(Debug, Serialize, Clone, Default, PartialEq)]
-struct OutputCap {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_tokens: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_completion_tokens: Option<u32>,
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum OutputCap {
+    MaxTokens(u32),
+    MaxCompletionTokens(u32),
 }
 
 impl OutputCap {
     fn for_provider(provider: &PostProcessProvider, content_chars: usize) -> Self {
-        let cap = Some(cleanup_output_cap(content_chars));
+        let cap = cleanup_output_cap(content_chars);
         if provider.id == "openai" {
-            Self {
-                max_completion_tokens: cap,
-                ..Default::default()
-            }
+            Self::MaxCompletionTokens(cap)
         } else {
-            Self {
-                max_tokens: cap,
-                ..Default::default()
-            }
+            Self::MaxTokens(cap)
+        }
+    }
+
+    fn field(self) -> &'static str {
+        match self {
+            Self::MaxTokens(_) => "max_tokens",
+            Self::MaxCompletionTokens(_) => "max_completion_tokens",
         }
     }
 
     fn swap_fields(&mut self) {
-        std::mem::swap(&mut self.max_tokens, &mut self.max_completion_tokens);
+        *self = match *self {
+            Self::MaxTokens(cap) => Self::MaxCompletionTokens(cap),
+            Self::MaxCompletionTokens(cap) => Self::MaxTokens(cap),
+        };
     }
 }
 
@@ -439,8 +400,6 @@ fn cleanup_timeout(content_chars: usize) -> Duration {
     Duration::from_millis(20_000 + 20 * content_chars as u64).min(Duration::from_secs(60))
 }
 
-/// Format a bounded error source chain.
-///
 fn sanitized_url(url: &reqwest::Url) -> String {
     let mut url = url.clone();
 
@@ -506,10 +465,8 @@ pub async fn send_chat_completion_with_schema(
     let content_chars = user_content.chars().count();
     let timeout = cleanup_timeout(content_chars);
 
-    // Build messages vector
     let mut messages = Vec::new();
 
-    // Add system prompt if provided
     if let Some(system) = system_prompt {
         messages.push(ChatMessage {
             role: "system".to_string(),
@@ -517,13 +474,11 @@ pub async fn send_chat_completion_with_schema(
         });
     }
 
-    // Add user message
     messages.push(ChatMessage {
         role: "user".to_string(),
         content: user_content,
     });
 
-    // Build response_format if schema is provided
     let response_format = json_schema.map(|schema| ResponseFormat {
         format_type: "json_schema".to_string(),
         json_schema: JsonSchema {
@@ -535,18 +490,15 @@ pub async fn send_chat_completion_with_schema(
 
     let key = endpoint_key(provider, model);
     let strict_disable = require_non_thinking(provider, disable_reasoning);
-    let mut rejected = rejected_fields()
+    let mut rejected = REJECTED_FIELDS
         .lock()
-        .unwrap()
+        .unwrap_or_else(PoisonError::into_inner)
         .get(&key)
         .cloned()
         .unwrap_or_default();
-    let reasoning =
-        if disable_reasoning && (strict_disable || !rejected.contains(&OptionalField::Reasoning)) {
-            reasoning_disable_params(provider)
-        } else {
-            ReasoningParams::default()
-        };
+    let reasoning = (disable_reasoning
+        && (strict_disable || !rejected.contains(&OptionalField::Reasoning)))
+    .then(|| reasoning_disable_params(provider));
     let mut output_cap = OutputCap::for_provider(provider, content_chars);
     if rejected.contains(&OptionalField::OutputCap) {
         output_cap.swap_fields();
@@ -584,9 +536,9 @@ pub async fn send_chat_completion_with_schema(
                 serde_json::from_slice(&body).map_err(|_| CleanupFailure::InvalidOutput)?;
             let text = completion_content(completion)?;
             if !rejected.is_empty() {
-                rejected_fields()
+                REJECTED_FIELDS
                     .lock()
-                    .unwrap()
+                    .unwrap_or_else(PoisonError::into_inner)
                     .entry(key)
                     .or_default()
                     .extend(rejected);
@@ -614,7 +566,7 @@ pub async fn send_chat_completion_with_schema(
                     OptionalField::Reasoning if strict_disable => {
                         return Err(CleanupFailure::Reasoning)
                     }
-                    OptionalField::Reasoning => request.reasoning = ReasoningParams::default(),
+                    OptionalField::Reasoning => request.reasoning = None,
                     OptionalField::Temperature => request.temperature = None,
                     OptionalField::ResponseFormat => request.response_format = None,
                     OptionalField::OutputCap => request.output_cap.swap_fields(),
@@ -699,7 +651,7 @@ mod tests {
         }
     }
 
-    fn request_json(reasoning: ReasoningParams) -> Value {
+    fn request_json(reasoning: Option<ReasoningOff>) -> Value {
         let request = ChatCompletionRequest {
             model: "test-model".to_string(),
             messages: vec![ChatMessage {
@@ -710,7 +662,7 @@ mod tests {
             temperature: Some(0.0),
             response_format: None,
             reasoning,
-            output_cap: OutputCap::default(),
+            output_cap: OutputCap::MaxTokens(512),
         };
         serde_json::to_value(&request).unwrap()
     }
@@ -894,14 +846,14 @@ mod tests {
 
     #[test]
     fn requests_explicitly_disable_streaming() {
-        let json = request_json(ReasoningParams::default());
+        let json = request_json(None);
         assert_eq!(json["stream"], false);
         assert_eq!(json["temperature"], 0.0);
     }
 
     #[test]
     fn default_reasoning_params_serialize_to_no_fields() {
-        let json = request_json(ReasoningParams::default());
+        let json = request_json(None);
         assert!(json.get("reasoning_effort").is_none());
         assert!(json.get("reasoning").is_none());
         assert!(json.get("thinking").is_none());
@@ -911,7 +863,7 @@ mod tests {
     #[test]
     fn custom_provider_uses_top_level_reasoning_effort() {
         let params = reasoning_disable_params(&provider("custom", "http://localhost:11434/v1"));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert_eq!(json["reasoning_effort"], "none");
         assert!(json.get("reasoning").is_none());
         assert!(json.get("thinking").is_none());
@@ -922,7 +874,7 @@ mod tests {
     fn openrouter_uses_nested_reasoning_object() {
         let params =
             reasoning_disable_params(&provider("openrouter", "https://openrouter.ai/api/v1"));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert!(json.get("reasoning_effort").is_none());
         assert_eq!(json["reasoning"], serde_json::json!({ "enabled": false }));
         assert!(json.get("thinking").is_none());
@@ -932,7 +884,7 @@ mod tests {
     #[test]
     fn deepseek_base_url_uses_thinking_disabled() {
         let params = reasoning_disable_params(&provider("custom", "https://api.deepseek.com"));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert!(json.get("reasoning_effort").is_none());
         assert!(json.get("reasoning").is_none());
         assert_eq!(json["thinking"]["type"], "disabled");
@@ -943,7 +895,7 @@ mod tests {
     fn siliconflow_provider_uses_enable_thinking_false() {
         let params =
             reasoning_disable_params(&provider("siliconflow", "https://api.siliconflow.cn/v1"));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert_eq!(json["enable_thinking"], false);
         assert!(json.get("reasoning_effort").is_none());
         assert!(json.get("reasoning").is_none());
@@ -954,7 +906,7 @@ mod tests {
     fn custom_siliconflow_url_uses_enable_thinking_false() {
         let params =
             reasoning_disable_params(&provider("custom", "https://api.siliconflow.com/v1"));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert_eq!(json["enable_thinking"], false);
         assert!(json.get("reasoning_effort").is_none());
     }
@@ -985,29 +937,9 @@ mod tests {
             "custom",
             "https://api.siliconflow.cn.example.com/v1",
         ));
-        let json = request_json(params);
+        let json = request_json(Some(params));
         assert_eq!(json["reasoning_effort"], "none");
         assert!(json.get("enable_thinking").is_none());
-    }
-
-    #[test]
-    fn reasoning_params_is_empty_tracks_all_fields() {
-        assert!(ReasoningParams::default().is_empty());
-        assert!(!ReasoningParams {
-            reasoning_effort: Some("none".to_string()),
-            ..Default::default()
-        }
-        .is_empty());
-        assert!(!ReasoningParams {
-            thinking: Some(serde_json::json!({ "type": "disabled" })),
-            ..Default::default()
-        }
-        .is_empty());
-        assert!(!ReasoningParams {
-            enable_thinking: Some(false),
-            ..Default::default()
-        }
-        .is_empty());
     }
 
     #[tokio::test]

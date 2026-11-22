@@ -198,30 +198,15 @@ fn prepare_explicit_spellings(transcription: &str) -> (String, Vec<String>) {
     (prepared, spellings)
 }
 
-fn preserve_explicit_spellings(cleaned: String, prepared: &str, spellings: &[String]) -> String {
-    if spellings.iter().any(|spelling| {
-        let required = prepared
-            .split(|c: char| !c.is_alphanumeric() && c != '_')
-            .filter(|word| word.eq_ignore_ascii_case(spelling))
-            .count();
-        cleaned
-            .split(|c: char| !c.is_alphanumeric() && c != '_')
-            .filter(|word| word.eq_ignore_ascii_case(spelling))
-            .count()
-            < required
-    }) {
-        warn!("Cleanup changed an explicit spelling; using the prepared transcript");
-        prepared.to_string()
-    } else {
-        cleaned
-    }
-}
-
-// corrections and spoken spelling can shrink a short dictation a lot, but a long
-// transcript that comes back at under half its length was summarised
-fn cleanup_dropped_too_much(prepared: &str, cleaned: &str) -> bool {
-    let prepared = prepared.chars().count();
-    prepared >= 600 && cleaned.chars().count() * 2 < prepared
+fn explicit_spellings_preserved(cleaned: &str, prepared: &str, spellings: &[String]) -> bool {
+    spellings.iter().all(|spelling| {
+        let count = |text: &str| {
+            text.split(|c: char| !c.is_alphanumeric() && c != '_')
+                .filter(|word| word.eq_ignore_ascii_case(spelling))
+                .count()
+        };
+        count(cleaned) >= count(prepared)
+    })
 }
 
 fn guard_cleanup(
@@ -230,16 +215,20 @@ fn guard_cleanup(
     spellings: &[String],
 ) -> Result<(String, bool), CleanupFailure> {
     let input_chars = prepared.chars().count();
+    let output_chars = cleaned.chars().count();
+    // short dictations can shrink a lot when spoken spelling is resolved
     if is_blank_transcription(&cleaned)
-        || cleanup_dropped_too_much(prepared, &cleaned)
-        || cleaned.chars().count() > input_chars.saturating_mul(3).saturating_add(256)
+        || (input_chars >= 600 && output_chars * 2 < input_chars)
+        || output_chars > input_chars.saturating_mul(3).saturating_add(256)
     {
         return Err(CleanupFailure::InvalidOutput);
     }
-    let unchanged = cleaned == prepared;
-    let result = preserve_explicit_spellings(cleaned, prepared, spellings);
-    let accepted = unchanged || result != prepared;
-    Ok((result, accepted))
+    if explicit_spellings_preserved(&cleaned, prepared, spellings) {
+        Ok((cleaned, true))
+    } else {
+        warn!("Cleanup changed an explicit spelling. Using the prepared transcript");
+        Ok((prepared.to_string(), false))
+    }
 }
 
 // transcript and vocabulary stay in the user payload, even without structured output
@@ -1270,11 +1259,10 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
 #[cfg(test)]
 mod tests {
     use super::{
-        build_cleanup_user_content, build_system_prompt, complete_unless_cancelled,
-        is_blank_transcription, prepare_explicit_spellings, preserve_explicit_spellings,
-        should_use_streaming_overlay, strip_think_block, ACTION_MAP,
-        MAX_CLEANUP_VOCABULARY_JSON_BYTES, MAX_CLEANUP_VOCABULARY_TERMS,
-        MAX_CLEANUP_VOCABULARY_TERM_BYTES,
+        build_cleanup_user_content, build_system_prompt, complete_unless_cancelled, guard_cleanup,
+        is_blank_transcription, prepare_explicit_spellings, should_use_streaming_overlay,
+        strip_think_block, ACTION_MAP, MAX_CLEANUP_VOCABULARY_JSON_BYTES,
+        MAX_CLEANUP_VOCABULARY_TERMS, MAX_CLEANUP_VOCABULARY_TERM_BYTES,
     };
     use crate::settings::{get_default_settings, OverlayStyle};
     use std::future;
@@ -1385,27 +1373,21 @@ mod tests {
             "Contact tomorrow!",
         ] {
             assert_eq!(
-                preserve_explicit_spellings(cleaned.to_string(), &prepared, &spellings),
-                prepared
+                guard_cleanup(cleaned.to_string(), &prepared, &spellings).unwrap(),
+                (prepared.clone(), false)
             );
         }
         let cleaned = "Contact SEMYON tomorrow!";
         assert_eq!(
-            preserve_explicit_spellings(cleaned.to_string(), &prepared, &spellings),
-            cleaned
+            guard_cleanup(cleaned.to_string(), &prepared, &spellings).unwrap(),
+            (cleaned.to_string(), true)
         );
-        let cleaned = "The original question?";
-        assert_eq!(
-            preserve_explicit_spellings(cleaned.to_string(), "raw", &[]),
-            cleaned
-        );
-
         let (prepared, spellings) = prepare_explicit_spellings(
             "Semyon met Simion spelt S-E-M-Y-O-N and Simion spelt S-E-M-Y-O-N",
         );
         assert_eq!(
-            preserve_explicit_spellings("Semyon met Semyon".to_string(), &prepared, &spellings),
-            prepared
+            guard_cleanup("Semyon met Semyon".to_string(), &prepared, &spellings).unwrap(),
+            (prepared, false)
         );
     }
 
