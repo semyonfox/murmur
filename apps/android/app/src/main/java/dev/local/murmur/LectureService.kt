@@ -13,6 +13,7 @@ import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
+import android.os.CancellationSignal
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -62,6 +63,8 @@ internal class LectureService : Service() {
     private val settings by lazy { AppSettings(this) }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val worker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture") }
+    private val importWorker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture-import") }
+    private var importCancellation: CancellationSignal? = null
     private val cleanupWorker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "murmur-lecture-cleanup") }
     // lecture id to the number of its tasks still queued or running
     private val pending = LinkedHashMap<Long, Int>()
@@ -92,6 +95,7 @@ internal class LectureService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (destroyed) return START_NOT_STICKY
         when (intent?.action) {
             ACTION_STOP -> recorder?.let { capture ->
                 capture.resume()
@@ -215,34 +219,76 @@ internal class LectureService : Service() {
     }
 
     private fun startImport(intent: Intent) {
+        if (destroyed) return
+        if (importCancellation != null) {
+            finishWith("Another audio file is being imported.", failed = true)
+            return
+        }
         if (!enterForeground(workType())) return
-        val source = intent.data
-        val title = intent.getStringExtra(EXTRA_TITLE).orEmpty()
-        mutable.update { it.copy(preparing = it.preparing + 1) }
+        val source = intent.data ?: run {
+            finishWith("No audio file selected.", failed = true)
+            return
+        }
+        val title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "Imported audio" }
+        val signal = CancellationSignal()
+        importCancellation = signal
+        mutable.update { it.copy(preparing = 1) }
         notifyCurrent()
-        // decoding runs beside the worker, so a long import does not hold up live pieces
-        Thread({
-            var imported: File? = null
-            try {
+        importWorker.execute {
+            var staged: File? = null
+            val result = runCatching {
                 val endpoint = requireEndpoint()
                 val cleanup = settings.cleanupEndpointOrNull()
-                val uri = source ?: error("No audio file selected.")
-                val file = File.createTempFile("lecture-", ".wav", File(filesDir, "lectures").apply { mkdirs() })
-                imported = file
-                LectureAudio.import(this, uri, file)
-                val id = history.addLecture(file, title.ifBlank { "Imported audio" }, "processing")
-                imported = null
-                val job = Job(id, endpoint, cleanup).apply { durationMs = LectureAudio.durationMs(file) }
-                mainHandler.post { enqueue(id) { transcribeWhole(job, file) } }
-            } catch (error: Exception) {
-                imported?.delete()
-                Diagnostics.error("lecture", "import failed", error)
-                mutable.update { it.copy(failed = true, message = describeFailure(error, "Audio could not be imported")) }
-            } finally {
-                mutable.update { it.copy(preparing = (it.preparing - 1).coerceAtLeast(0)) }
-                mainHandler.post { stopIfIdle() }
+                val file = File.createTempFile("murmur-lecture-import-", ".wav", cacheDir)
+                staged = file
+                LectureAudio.import(this, source, file, signal)
+                mainHandler.post {
+                    try {
+                        if (!destroyed) queueImport(file, title, endpoint, cleanup)
+                    } finally {
+                        file.delete()
+                        if (!destroyed) finishImport()
+                    }
+                }
             }
-        }, "murmur-lecture-import").start()
+            result.onFailure { error ->
+                staged?.delete()
+                mainHandler.post {
+                    if (!destroyed) {
+                        reportImportFailure(error)
+                        finishImport()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun queueImport(staged: File, title: String, endpoint: TranscriptionEndpoint, cleanup: CleanupEndpoint?) {
+        var untracked: File? = null
+        try {
+            val directory = File(filesDir, "lectures").apply { mkdirs() }
+            val file = File(directory, "lecture-${java.util.UUID.randomUUID()}.wav")
+            check(staged.renameTo(file)) { "Could not save the imported audio." }
+            untracked = file
+            val id = history.addLecture(file, title, "processing")
+            untracked = null
+            val job = Job(id, endpoint, cleanup).apply { durationMs = LectureAudio.durationMs(file) }
+            enqueue(id) { transcribeWhole(job, file) }
+        } catch (error: Exception) {
+            untracked?.delete()
+            reportImportFailure(error)
+        }
+    }
+
+    private fun reportImportFailure(error: Throwable) {
+        Diagnostics.error("lecture", "import failed", error)
+        mutable.update { it.copy(failed = true, message = describeFailure(error, "Audio could not be imported")) }
+    }
+
+    private fun finishImport() {
+        importCancellation = null
+        mutable.update { it.copy(preparing = 0) }
+        stopIfIdle()
     }
 
     private fun startRetry(id: Long, language: String?) {
@@ -541,6 +587,8 @@ internal class LectureService : Service() {
     override fun onDestroy() {
         destroyed = true
         speechClient.cancel()
+        importCancellation?.cancel()
+        importWorker.shutdownNow()
         recorder?.stop()
         synchronized(pending) {
             worker.shutdownNow()
@@ -560,6 +608,8 @@ internal class LectureService : Service() {
     override fun onTimeout(startId: Int, fgsType: Int) {
         destroyed = true
         speechClient.cancel()
+        importCancellation?.cancel()
+        importWorker.shutdownNow()
         Diagnostics.error("lecture", "android ended the foreground job (type $fgsType) at its time limit")
         synchronized(pending) {
             worker.shutdownNow()

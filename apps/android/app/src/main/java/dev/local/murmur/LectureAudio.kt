@@ -6,6 +6,7 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import android.os.CancellationSignal
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
@@ -94,11 +95,13 @@ internal object LectureAudio {
         return cut
     }
 
-    fun import(context: Context, uri: Uri, destination: File) {
+    fun import(context: Context, uri: Uri, destination: File, signal: CancellationSignal? = null) {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         try {
-            extractor.setDataSource(context, uri, null)
+            val asset = context.contentResolver.openAssetFileDescriptor(uri, "r", signal)
+                ?: error("Could not open the selected audio file.")
+            asset.use { extractor.setDataSource(it) }
             val track = (0 until extractor.trackCount).firstOrNull { index ->
                 extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
             } ?: error("Choose a supported audio file.")
@@ -115,7 +118,10 @@ internal object LectureAudio {
                 var resampler: MonoResampler? = null
                 var channels = 0
                 var encoding = AudioFormat.ENCODING_PCM_16BIT
+                var lastOutput = System.nanoTime()
                 while (!outputEnded) {
+                    signal?.throwIfCanceled()
+                    check(System.nanoTime() - lastOutput < 30_000_000_000L) { "Audio decoder stopped producing output." }
                     check(!Thread.currentThread().isInterrupted) { "Audio import stopped." }
                     if (!inputEnded) {
                         val inputIndex = codec.dequeueInputBuffer(10_000)
@@ -146,6 +152,7 @@ internal object LectureAudio {
                             resampler = MonoResampler(rate) { sink.writeSample(it) }
                         }
                         in 0..Int.MAX_VALUE -> {
+                            if (info.size > 0) lastOutput = System.nanoTime()
                             val output = codec.getOutputBuffer(outputIndex) ?: error("Audio decoder has no output buffer.")
                             output.order(ByteOrder.LITTLE_ENDIAN)
                             output.position(info.offset)
