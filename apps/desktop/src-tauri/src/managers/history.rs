@@ -71,6 +71,14 @@ pub struct HistoryEntry {
     pub cleanup_succeeded: Option<bool>,
 }
 
+impl HistoryEntry {
+    pub fn final_text(&self) -> &str {
+        self.post_processed_text
+            .as_deref()
+            .unwrap_or(&self.transcription_text)
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Type)]
 pub struct ArchiveExportSummary {
     pub entries: u64,
@@ -920,7 +928,7 @@ impl HistoryManager {
         Ok(entry)
     }
 
-    /// Get the latest entry with non-empty transcription text.
+    /// Get the latest entry with non-blank final dictation text.
     pub fn get_latest_completed_entry(&self) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         Self::get_latest_completed_entry_with_conn(&conn)
@@ -940,14 +948,17 @@ impl HistoryManager {
                 post_process_requested,
                 cleanup_succeeded
              FROM transcription_history
-             WHERE transcription_text != ''
+             WHERE COALESCE(post_processed_text, transcription_text) != ''
                AND title NOT LIKE 'Lecture · %' AND title NOT LIKE 'Import · %'
-             ORDER BY timestamp DESC
-             LIMIT 1",
+             ORDER BY timestamp DESC",
         )?;
 
-        let entry = stmt.query_row([], Self::map_history_entry).optional()?;
-        Ok(entry)
+        let mut rows = stmt.query_map([], Self::map_history_entry)?;
+        let entry = rows.find_map(|entry| match entry {
+            Ok(entry) if entry.final_text().trim().is_empty() => None,
+            entry => Some(entry),
+        });
+        Ok(entry.transpose()?)
     }
 
     pub async fn toggle_saved_status(&self, id: i64) -> Result<()> {
@@ -1310,6 +1321,8 @@ mod tests {
         let conn = setup_conn();
         insert_entry(&conn, 100, "completed", None);
         insert_entry(&conn, 200, "", None);
+        insert_entry(&conn, 300, "uh", Some(""));
+        insert_entry(&conn, 400, "um", Some("\t\n\u{a0}"));
 
         let entry = HistoryManager::get_latest_completed_entry_with_conn(&conn)
             .expect("fetch latest completed entry")
