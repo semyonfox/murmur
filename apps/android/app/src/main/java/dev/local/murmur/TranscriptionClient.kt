@@ -100,10 +100,9 @@ internal class TranscriptionClient {
     }
 
     private fun send(request: Request, deadline: Long): String {
-        val remainingMs = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime())
-        if (remainingMs <= 0) throw SocketTimeoutException("Transcription deadline expired.")
-        val client = http.newBuilder().callTimeout(remainingMs, TimeUnit.MILLISECONDS).build()
-        val call = client.newCall(request)
+        if (deadline - System.nanoTime() <= 0) throw SocketTimeoutException("Transcription deadline expired.")
+        val call = http.newCall(request)
+        call.timeout().deadlineNanoTime(deadline)
         activeCall = call
         try {
             check(!cancelled && !Thread.currentThread().isInterrupted) { "Transcription cancelled." }
@@ -114,7 +113,7 @@ internal class TranscriptionClient {
                 parseSpeechResponse(source.readUtf8())
             }
         } catch (error: InterruptedIOException) {
-            if (!cancelled && System.nanoTime() >= deadline - TimeUnit.MILLISECONDS.toNanos(1)) {
+            if (!cancelled && deadline - System.nanoTime() <= 0) {
                 throw SocketTimeoutException("Transcription deadline expired.").apply { initCause(error) }
             }
             throw error
@@ -136,7 +135,9 @@ internal class TranscriptionClient {
         fun warmUp(uri: URI) {
             if (uri.scheme != "https") return
             val request = Request.Builder().url(uri.toASCIIString()).head().build()
-            http.newBuilder().callTimeout(5, TimeUnit.SECONDS).build().newCall(request).enqueue(object : Callback {
+            val call = http.newCall(request)
+            call.timeout().timeout(5, TimeUnit.SECONDS)
+            call.enqueue(object : Callback {
                 override fun onResponse(call: Call, response: Response) = response.close()
                 override fun onFailure(call: Call, e: IOException) = Unit
             })
