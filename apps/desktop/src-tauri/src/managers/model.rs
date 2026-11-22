@@ -493,27 +493,30 @@ impl Drop for RescanGuard {
 }
 
 /// RAII guard that cleans up download state (`is_downloading` flag and cancel flag)
-/// when dropped, unless explicitly disarmed. This ensures consistent cleanup on
-/// every error path without requiring manual cleanup at each `?` or `return Err`.
+/// when dropped, including errors and cancellation.
 struct DownloadCleanup<'a> {
+    app_handle: &'a AppHandle,
     available_models: &'a Mutex<HashMap<String, ModelInfo>>,
     cancel_flags: &'a Arc<Mutex<HashMap<String, CancellationToken>>>,
     model_id: String,
-    disarmed: bool,
 }
 
 impl<'a> Drop for DownloadCleanup<'a> {
     fn drop(&mut self) {
-        if self.disarmed {
-            return;
+        let mut flags = self.cancel_flags.lock().unwrap();
+        let mut models = self.available_models.lock().unwrap();
+        if let Some(model) = models.get_mut(&self.model_id) {
+            model.is_downloading = false;
         }
-        {
-            let mut models = self.available_models.lock().unwrap();
-            if let Some(model) = models.get_mut(self.model_id.as_str()) {
-                model.is_downloading = false;
-            }
+        let cancelled = flags
+            .remove(&self.model_id)
+            .is_some_and(|token| token.is_cancelled());
+        drop(models);
+        if cancelled {
+            let _ = self
+                .app_handle
+                .emit("model-download-cancelled", &self.model_id);
         }
-        self.cancel_flags.lock().unwrap().remove(&self.model_id);
     }
 }
 
@@ -1216,9 +1219,7 @@ impl ModelManager {
     /// The merge is additive: only new ids are inserted, so existing entries keep
     /// their values — including runtime-probed capabilities from
     /// [`Self::set_runtime_capabilities`]. It then runs [`Self::update_download_status`],
-    /// which recomputes disk-derived flags for *every* entry; a rescan racing an
-    /// in-flight download can briefly clear its `is_downloading`, but the download
-    /// continues and the event-driven UI self-corrects.
+    /// which recomputes disk-derived flags without clearing active downloads.
     ///
     /// The disk walk and 64 KiB header probes run against a cloned snapshot
     /// *off-lock* so readers never block on I/O; only the brief merge takes the
@@ -1377,14 +1378,12 @@ impl ModelManager {
     }
 
     fn update_download_status(&self) -> Result<()> {
-        // Snapshot in-flight download ids before taking the registry lock (the
-        // two locks are never nested) so a mid-download entry is never dropped.
-        let downloading_ids: HashSet<String> =
-            self.cancel_flags.lock().unwrap().keys().cloned().collect();
+        let downloads = self.cancel_flags.lock().unwrap();
         let mut models = self.available_models.lock().unwrap();
         let mut vanished_models: Vec<String> = Vec::new();
 
         for model in models.values_mut() {
+            let downloading = downloads.contains_key(&model.id);
             if let ModelSource::HuggingFace { repo_id, revision } = &model.source {
                 // A models-dir copy counts too: mirror-fallback downloads land
                 // there, and it makes manual drop-ins of catalog files work.
@@ -1392,16 +1391,15 @@ impl ModelManager {
                 let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
                 model.is_downloaded = hf_cached_path(repo_id, revision, &model.filename).is_some()
                     || local_path.exists();
-                model.is_downloading = false;
+                if !downloading {
+                    model.is_downloading = false;
+                }
                 model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
                 // Alternate-quant entries exist only because their file was
                 // discovered on disk — the catalog offers just the default
                 // quant, so they are never presented for download. When the
                 // file is gone, the entry goes with it.
-                if !model.is_downloaded
-                    && !downloading_ids.contains(&model.id)
-                    && Self::disappears_when_missing(model)
-                {
+                if !model.is_downloaded && !downloading && Self::disappears_when_missing(model) {
                     vanished_models.push(model.id.clone());
                 }
                 continue;
@@ -1426,7 +1424,9 @@ impl ModelManager {
                 }
 
                 model.is_downloaded = model_path.exists() && model_path.is_dir();
-                model.is_downloading = false;
+                if !downloading {
+                    model.is_downloading = false;
+                }
 
                 // Get partial file size if it exists (for the .tar.gz being downloaded)
                 if partial_path.exists() {
@@ -1440,7 +1440,9 @@ impl ModelManager {
                 let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
 
                 model.is_downloaded = model_path.exists();
-                model.is_downloading = false;
+                if !downloading {
+                    model.is_downloading = false;
+                }
 
                 // Get partial file size if it exists
                 if partial_path.exists() {
@@ -1453,10 +1455,7 @@ impl ModelManager {
             // Custom entries are discovered from files and have no download
             // source. Once their file is gone, keeping the entry would offer a
             // Download action that can never succeed.
-            if !model.is_downloaded
-                && !downloading_ids.contains(&model.id)
-                && Self::disappears_when_missing(model)
-            {
+            if !model.is_downloaded && !downloading && Self::disappears_when_missing(model) {
                 vanished_models.push(model.id.clone());
             }
         }
@@ -1900,7 +1899,8 @@ impl ModelManager {
         model_info: &ModelInfo,
         repo_id: String,
         revision: String,
-    ) -> Result<()> {
+        cancel_token: CancellationToken,
+    ) -> Result<bool> {
         let model_id = model_info.id.clone();
         let filename = model_info.filename.clone();
 
@@ -1910,32 +1910,8 @@ impl ModelManager {
             || self.models_dir.join(&filename).exists()
         {
             self.update_download_status()?;
-            let _ = self.app_handle.emit("model-download-complete", &model_id);
-            return Ok(());
+            return Ok(true);
         }
-
-        // Mark downloading; the guard resets the flag on any error path.
-        {
-            let mut models = self.available_models.lock().unwrap();
-            if let Some(model) = models.get_mut(&model_id) {
-                model.is_downloading = true;
-            }
-        }
-
-        // Register a cancellation token so `cancel_download` can abort this
-        // transfer promptly. The guard removes it on every exit path.
-        let cancel_token = CancellationToken::new();
-        {
-            let mut flags = self.cancel_flags.lock().unwrap();
-            flags.insert(model_id.clone(), cancel_token.clone());
-        }
-
-        let mut cleanup = DownloadCleanup {
-            available_models: &self.available_models,
-            cancel_flags: &self.cancel_flags,
-            model_id: model_id.clone(),
-            disarmed: false,
-        };
 
         info!(
             "Downloading HF model {} from {}@{} ({})",
@@ -2033,10 +2009,9 @@ impl ModelManager {
                     // User cancelled. hf-hub leaves the partially downloaded
                     // `.sync.part` in the shared cache, so a later attempt resumes
                     // instead of restarting. The guard resets is_downloading and
-                    // drops the token; `cancel_download` already emitted
-                    // `model-download-cancelled`.
+                    // drops the token and reports cancellation to the UI.
                     info!("HF download cancelled for: {}", model_id);
-                    return Ok(());
+                    return Ok(false);
                 }
                 Err(hf_hub::api::tokio::ApiError::Cancelled) => {
                     let err = anyhow::anyhow!(
@@ -2065,7 +2040,7 @@ impl ModelManager {
                         _ = tokio::time::sleep(delay) => {}
                         _ = cancel_token.cancelled() => {
                             info!("HF download cancelled for: {}", model_id);
-                            return Ok(());
+                            return Ok(false);
                         }
                     }
                     attempt += 1;
@@ -2092,7 +2067,7 @@ impl ModelManager {
                         _ = tokio::time::sleep(delay) => {}
                         _ = cancel_token.cancelled() => {
                             info!("HF download cancelled for: {}", model_id);
-                            return Ok(());
+                            return Ok(false);
                         }
                     }
                     attempt += 1;
@@ -2127,7 +2102,7 @@ impl ModelManager {
                     }
                     Ok(false) => {
                         info!("Mirror download cancelled for: {}", model_id);
-                        return Ok(());
+                        return Ok(false);
                     }
                     Err(e) => {
                         warn!(
@@ -2146,12 +2121,9 @@ impl ModelManager {
             }
         }
 
-        cleanup.disarmed = true;
         self.update_download_status()?;
-        self.cancel_flags.lock().unwrap().remove(&model_id);
-        let _ = self.app_handle.emit("model-download-complete", &model_id);
         info!("HF model {} downloaded", model_id);
-        Ok(())
+        Ok(true)
     }
 
     /// Direct-HTTP download of a catalog model's file from a mirror into the
@@ -2204,12 +2176,37 @@ impl ModelManager {
         let model_info =
             model_info.ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_id))?;
 
+        let cancel_token = CancellationToken::new();
+        let cleanup = {
+            let mut flags = self.cancel_flags.lock().unwrap();
+            let std::collections::hash_map::Entry::Vacant(slot) = flags.entry(model_id.to_string())
+            else {
+                return Ok(());
+            };
+            slot.insert(cancel_token.clone());
+            let mut models = self.available_models.lock().unwrap();
+            if let Some(model) = models.get_mut(model_id) {
+                model.is_downloading = true;
+            }
+            DownloadCleanup {
+                app_handle: &self.app_handle,
+                available_models: &self.available_models,
+                cancel_flags: &self.cancel_flags,
+                model_id: model_id.to_string(),
+            }
+        };
+
         let (url, expected_sha256) = match &model_info.source {
             ModelSource::Url { url, sha256 } => (url.clone(), sha256.clone()),
             ModelSource::HuggingFace { repo_id, revision } => {
-                return self
-                    .download_hf_model(&model_info, repo_id.clone(), revision.clone())
+                let result = self
+                    .download_hf_model(&model_info, repo_id.clone(), revision.clone(), cancel_token)
                     .await;
+                drop(cleanup);
+                if result? {
+                    let _ = self.app_handle.emit("model-download-complete", model_id);
+                }
+                return Ok(());
             }
             ModelSource::Local => {
                 return Err(anyhow::anyhow!("No download source for model"));
@@ -2229,30 +2226,6 @@ impl ModelManager {
             self.update_download_status()?;
             return Ok(());
         }
-
-        // Mark as downloading
-        {
-            let mut models = self.available_models.lock().unwrap();
-            if let Some(model) = models.get_mut(model_id) {
-                model.is_downloading = true;
-            }
-        }
-
-        // Create cancellation token for this download
-        let cancel_token = CancellationToken::new();
-        {
-            let mut flags = self.cancel_flags.lock().unwrap();
-            flags.insert(model_id.to_string(), cancel_token.clone());
-        }
-
-        // Guard ensures is_downloading and cancel_flags are cleaned up on every
-        // error path. Disarmed only on success (which sets is_downloaded = true).
-        let mut cleanup = DownloadCleanup {
-            available_models: &self.available_models,
-            cancel_flags: &self.cancel_flags,
-            model_id: model_id.to_string(),
-            disarmed: false,
-        };
 
         // URL sources carry no authoritative size, so the helper falls back to
         // the server's content-length for progress and completeness checks.
@@ -2369,18 +2342,14 @@ impl ModelManager {
             fs::rename(&partial_path, &model_path)?;
         }
 
-        // Disarm the guard — success path does its own cleanup because it
-        // additionally sets is_downloaded = true.
-        cleanup.disarmed = true;
         {
             let mut models = self.available_models.lock().unwrap();
             if let Some(model) = models.get_mut(model_id) {
-                model.is_downloading = false;
                 model.is_downloaded = true;
                 model.partial_size = 0;
             }
         }
-        self.cancel_flags.lock().unwrap().remove(model_id);
+        drop(cleanup);
 
         // Emit completion event
         let _ = self.app_handle.emit("model-download-complete", model_id);
@@ -2651,20 +2620,6 @@ impl ModelManager {
                 warn!("No active download found for: {}", model_id);
             }
         }
-
-        // Update state immediately for UI responsiveness
-        {
-            let mut models = self.available_models.lock().unwrap();
-            if let Some(model) = models.get_mut(model_id) {
-                model.is_downloading = false;
-            }
-        }
-
-        // Update download status to reflect current state
-        self.update_download_status()?;
-
-        // Emit cancellation event so all UI components can clear their state
-        let _ = self.app_handle.emit("model-download-cancelled", model_id);
 
         info!("Download cancellation initiated for: {}", model_id);
         Ok(())

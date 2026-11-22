@@ -206,16 +206,6 @@ export const useModelStore = create<ModelsStore>()(
         set({ error: null });
         const result = await commands.cancelDownload(modelId);
         if (result.status === "ok") {
-          set(
-            produce((state) => {
-              delete state.downloadingModels[modelId];
-              delete state.downloadProgress[modelId];
-              delete state.downloadStats[modelId];
-            }),
-          );
-
-          // Reload models to sync with backend state
-          await get().loadModels();
           return true;
         } else {
           set({ error: `Failed to cancel download: ${result.error}` });
@@ -409,6 +399,7 @@ export const useModelStore = create<ModelsStore>()(
             delete state.downloadStats[modelId];
           }),
         );
+        void get().loadModels();
       });
 
       listen<string>("model-deleted", () => {
