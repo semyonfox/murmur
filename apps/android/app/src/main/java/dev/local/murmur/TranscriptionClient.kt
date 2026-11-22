@@ -64,12 +64,12 @@ internal class TranscriptionClient {
         }
     }
 
-    fun retryLecturePart(transcribe: () -> String): String = try {
+    fun retryLecturePart(canRetry: () -> Boolean = { true }, transcribe: () -> String): String = try {
         transcribe()
     } catch (error: IOException) {
         when (error) {
             is SpeechConnectionDropped, is ConnectException, is NoRouteToHostException, is UnknownHostException -> {
-                if (cancellation.await(5, TimeUnit.SECONDS)) throw error
+                if (cancellation.await(5, TimeUnit.SECONDS) || !canRetry()) throw error
                 transcribe()
             }
             else -> throw error
