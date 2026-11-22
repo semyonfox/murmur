@@ -312,8 +312,8 @@ class MurmurAccessibilityService : AccessibilityService() {
     }
 
     private fun startOnDevice(target: FocusTarget, cleanup: CleanupEndpoint?) {
-        if (Build.VERSION.SDK_INT >= MlKitSpeech.MIN_SDK) MlKitSpeech.cached(settings.speechLanguage)?.let { ready ->
-            startMlKit(target, cleanup, ready)
+        if (Build.VERSION.SDK_INT >= MlKitSpeech.MIN_SDK) MlKitSpeech.startLive(settings.speechLanguage)?.let { speech ->
+            startMlKit(target, cleanup, speech)
             return
         }
         // the ml kit model may still be downloading or warming, so the next dictation can use it
@@ -357,10 +357,9 @@ class MurmurAccessibilityService : AccessibilityService() {
 
     // ml kit transcribes while murmur records, so stopping only waits for the last words
     @RequiresApi(MlKitSpeech.MIN_SDK)
-    private fun startMlKit(target: FocusTarget, cleanup: CleanupEndpoint?, ready: MlKitSpeech.Ready) {
+    private fun startMlKit(target: FocusTarget, cleanup: CleanupEndpoint?, speech: MlKitSpeech.LiveSession) {
         val recordingSession = ++session
-        engine = ready.label
-        val speech = MlKitSpeech.LiveSession(ready)
+        engine = speech.label
         try {
             capture = PcmRecorder.start(this, cacheDir, settings.noiseSuppressionEnabled, onPcm = speech::feed) { result ->
                 capture = null
