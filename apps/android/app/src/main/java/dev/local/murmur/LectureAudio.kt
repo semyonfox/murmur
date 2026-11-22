@@ -94,7 +94,7 @@ internal object LectureAudio {
         return cut
     }
 
-    fun import(context: Context, uri: Uri, destination: File, signal: CancellationSignal? = null) {
+    fun import(context: Context, uri: Uri, destination: File, signal: CancellationSignal) {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         try {
@@ -119,7 +119,7 @@ internal object LectureAudio {
                 var encoding = AudioFormat.ENCODING_PCM_16BIT
                 var lastOutput = System.nanoTime()
                 while (!outputEnded) {
-                    signal?.throwIfCanceled()
+                    signal.throwIfCanceled()
                     check(System.nanoTime() - lastOutput < 30_000_000_000L) { "Audio decoder stopped producing output." }
                     check(!Thread.currentThread().isInterrupted) { "Audio import stopped." }
                     if (!inputEnded) {

@@ -39,8 +39,7 @@ internal data class LectureState(
     val parts: Int = 0,
     // lectures with work waiting behind the current one
     val queuedIds: List<Long> = emptyList(),
-    // imported files still being decoded
-    val preparing: Int = 0,
+    val preparing: Boolean = false,
     // set once when a recording ends normally, so the recorder can open its lecture
     val finishedRecordingId: Long = 0L,
     // the outcome of the last finished job, shown once
@@ -48,7 +47,7 @@ internal data class LectureState(
     val failed: Boolean = false,
 ) {
     val recording: Boolean get() = recordingId != 0L
-    val busy: Boolean get() = recording || preparing > 0 || transcribingId != 0L || queuedIds.isNotEmpty()
+    val busy: Boolean get() = recording || preparing || transcribingId != 0L || queuedIds.isNotEmpty()
 
     // recording, transcribing or waiting its turn
     fun isActive(id: Long): Boolean = id != 0L && (id == recordingId || id == transcribingId || id in queuedIds)
@@ -182,7 +181,7 @@ internal class LectureService : Service() {
                 if (job.discarded || job.failure != null) return@enqueue
                 showPart(job.id, index, if (job.recordingDone) job.pieces else 0)
                 transcribeInto(job, piece, offsetMs)
-                mutable.update { it.copy(part = index + 1) }
+                advancePart(index)
             } catch (error: Exception) {
                 // the full recording is kept, so the lecture can be transcribed again from it
                 if (!job.discarded) job.failure = error
@@ -219,7 +218,6 @@ internal class LectureService : Service() {
     }
 
     private fun startImport(intent: Intent) {
-        if (destroyed) return
         if (importCancellation != null) {
             finishWith("Another audio file is being imported.", failed = true)
             return
@@ -232,7 +230,7 @@ internal class LectureService : Service() {
         val title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "Imported audio" }
         val signal = CancellationSignal()
         importCancellation = signal
-        mutable.update { it.copy(preparing = 1) }
+        mutable.update { it.copy(preparing = true) }
         notifyCurrent()
         importWorker.execute {
             var staged: File? = null
@@ -287,7 +285,7 @@ internal class LectureService : Service() {
 
     private fun finishImport() {
         importCancellation = null
-        mutable.update { it.copy(preparing = 0) }
+        mutable.update { it.copy(preparing = false) }
         stopIfIdle()
     }
 
@@ -344,10 +342,15 @@ internal class LectureService : Service() {
     }
 
     private fun showPart(id: Long, index: Int, total: Int) = synchronized(pending) {
+        if (destroyed) return@synchronized
         mutable.update {
             it.copy(transcribingId = id, part = index, parts = total, queuedIds = pending.keys.filter { queued -> queued != id })
         }
         notifyCurrent()
+    }
+
+    private fun advancePart(index: Int) = synchronized(pending) {
+        if (!destroyed) mutable.update { it.copy(part = index + 1) }
     }
 
     private val hasPendingWork: Boolean get() = synchronized(pending) { pending.isNotEmpty() }
@@ -359,7 +362,7 @@ internal class LectureService : Service() {
                 check(!job.discarded) { "Lecture was deleted." }
                 showPart(job.id, index, total)
                 transcribeInto(job, chunk, offsetMs)
-                mutable.update { it.copy(part = index + 1) }
+                advancePart(index)
             }
             complete(job)
         } catch (error: Exception) {
@@ -499,7 +502,7 @@ internal class LectureService : Service() {
 
     // main thread only
     private fun stopIfIdle() {
-        if (recorder != null || state.value.preparing > 0 || hasPendingWork) {
+        if (recorder != null || state.value.preparing || hasPendingWork) {
             if (foregroundType != workType() && !enterForeground(workType())) {
                 Diagnostics.warn("lecture", "could not keep transcribing in the background")
             }
@@ -581,24 +584,28 @@ internal class LectureService : Service() {
                 .setContentText((if (current.parts > 0) "Part ${minOf(current.part + 1, current.parts)} of ${current.parts}"
                     else "Finishing the last parts") + queueNote)
                 .setProgress(current.parts.coerceAtLeast(1), current.part, current.parts == 0)
-            current.preparing > 0 -> builder.setContentTitle("Preparing lecture audio").setProgress(0, 0, true)
+            current.preparing -> builder.setContentTitle("Preparing lecture audio").setProgress(0, 0, true)
             else -> builder.setContentTitle("Murmur lecture").setContentText(if (waiting > 0) "$waiting waiting" else "")
         }
         return builder.build()
     }
 
-    override fun onDestroy() {
+    private fun stopWorkers() {
         destroyed = true
         speechClient.cancel()
         importCancellation?.cancel()
         importWorker.shutdownNow()
-        recorder?.stop()
         synchronized(pending) {
             worker.shutdownNow()
             cleanupWorker.shutdownNow()
             liveFiles.forEach { it.delete() }
             liveFiles.clear()
         }
+    }
+
+    override fun onDestroy() {
+        stopWorkers()
+        recorder?.stop()
         if (state.value.busy) {
             Diagnostics.warn("lecture", "service destroyed with lecture work still running")
             mutable.value = LectureState(failed = true, message = "Lecture stopped. Retry from Lectures.")
@@ -609,17 +616,8 @@ internal class LectureService : Service() {
     }
 
     override fun onTimeout(startId: Int, fgsType: Int) {
-        destroyed = true
-        speechClient.cancel()
-        importCancellation?.cancel()
-        importWorker.shutdownNow()
+        stopWorkers()
         Diagnostics.error("lecture", "android ended the foreground job (type $fgsType) at its time limit")
-        synchronized(pending) {
-            worker.shutdownNow()
-            cleanupWorker.shutdownNow()
-            liveFiles.forEach { it.delete() }
-            liveFiles.clear()
-        }
         mutable.value = LectureState(failed = true, message = "Android stopped transcription for today. Retry from Lectures.")
         stopSelf()
     }
