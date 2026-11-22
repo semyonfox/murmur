@@ -119,9 +119,9 @@
         "requestFailed": "فشل طلب الإذن. يرجى المحاولة مرة أخرى."
       }
     },
-    "configureEndpoint": "Use a speech endpoint",
-    "configureEndpointDescription": "Configure an online provider or a server you run in Models.",
-    "noModels": "No downloadable models are listed right now."
+    "configureEndpoint": "استخدام خدمة تفريغ صوتي",
+    "configureEndpointDescription": "اضبط مزوّدًا عبر الإنترنت أو خادمًا تشغّله بنفسك من صفحة النماذج.",
+    "noModels": "لا توجد نماذج متاحة للتنزيل حاليًا."
   },
   "modelSelector": {
     "custom": "مخصص",
@@ -664,8 +664,8 @@
     "copy": "نسخ",
     "clear": "مسح",
     "noOptionsFound": "لم يتم العثور على خيارات",
-    "download": "Download",
-    "retry": "Retry",
+    "download": "تنزيل",
+    "retry": "إعادة المحاولة",
     "cancel": "إلغاء"
   },
   "accessibility": {
@@ -734,36 +734,36 @@
         "configuration": "رُفض الطلب. تحقّق من إعدادات مزوّد الخدمة والنموذج."
       },
       "failed": "تعذّر تنقيح النص بالذكاء الاصطناعي",
-      "removeKey": "Remove key",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "keyStored": "Key saved in the system credential store",
-      "keyMissing": "No key saved",
+      "removeKey": "إزالة المفتاح",
+      "keyStatusUnknown": "جارٍ التحقق من مخزن بيانات الاعتماد في النظام…",
+      "keyStored": "المفتاح محفوظ في مخزن بيانات الاعتماد في النظام",
+      "keyMissing": "لا يوجد مفتاح محفوظ",
       "formality": {
-        "veryCasual": "Very casual",
-        "casual": "Casual",
-        "natural": "Natural",
-        "professional": "Professional",
-        "formal": "Formal",
-        "title": "Tone",
-        "description": "Choose punctuation and grammar polish. Every level should keep your own words."
+        "veryCasual": "عفوي جدًا",
+        "casual": "عفوي",
+        "natural": "طبيعي",
+        "professional": "مهني",
+        "formal": "رسمي",
+        "title": "الأسلوب",
+        "description": "اختر مستوى تنقيح علامات الترقيم والقواعد. كل مستوى يحافظ على كلماتك."
       },
       "basic": {
-        "title": "On this device",
-        "description": "Always runs locally, even when AI cleanup is off."
+        "title": "على هذا الجهاز",
+        "description": "يعمل دائمًا محليًا، حتى عند إيقاف التنقيح بالذكاء الاصطناعي."
       },
-      "title": "AI cleanup",
-      "description": "Fixes punctuation and clear errors and splits long dictation into readable sentences, keeping your words. Cloud providers receive the transcript, not the recording.",
+      "title": "التنقيح بالذكاء الاصطناعي",
+      "description": "يصحّح علامات الترقيم والأخطاء الواضحة ويقسّم الإملاء الطويل إلى جمل سهلة القراءة مع الحفاظ على كلماتك. يتلقى المزوّدون السحابيون النص فقط، لا التسجيل.",
       "instructions": {
-        "title": "Custom instructions",
-        "description": "Optional. Tell the cleanup model anything extra."
+        "title": "تعليمات مخصّصة",
+        "description": "اختياري. أخبر نموذج التنقيح بأي شيء إضافي."
       },
       "model": {
-        "none": "No provider chosen"
+        "none": "لم يتم اختيار مزوّد"
       }
     },
     "app": {
-      "loading": "Loading Murmur…",
-      "skip": "Skip to settings",
+      "loading": "جارٍ تحميل Murmur…",
+      "skip": "الانتقال إلى الإعدادات",
       "appearance": {
         "title": "المظهر"
       },
@@ -786,323 +786,323 @@
     },
     "pages": {
       "dictation": {
-        "description": "Your shortcut, microphone and spoken language, plus what you see and hear while recording."
+        "description": "الاختصار والميكروفون ولغة الكلام، وما تراه وتسمعه أثناء التسجيل."
       },
       "lectures": {
         "description": "سجّل محاضرة أو استورد ملفًا صوتيًا. سيظهر النص في السجل."
       },
       "models": {
-        "description": "Choose what turns your speech into text. Every saved API key is listed here too."
+        "description": "اختر ما يحوّل كلامك إلى نص. تظهر هنا أيضًا كل مفاتيح API المحفوظة."
       },
       "cleanup": {
-        "description": "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions."
+        "description": "تنقيح النصوص قبل إدراجها: كلمات الحشو، ونموذج الذكاء الاصطناعي ومفتاحه، والأسلوب والتعليمات."
       },
       "dictionary": {
-        "description": "Names and terms Murmur should spell your way."
+        "description": "الأسماء والمصطلحات التي يجب أن يكتبها Murmur بطريقتك."
       },
       "insertion": {
-        "description": "How finished text reaches the app you are typing in, and what happens after."
+        "description": "كيف يصل النص النهائي إلى التطبيق الذي تكتب فيه، وما يحدث بعد ذلك."
       },
       "stats": {
-        "description": "Words, speaking pace, saved audio duration and provider cost."
+        "description": "الكلمات وسرعة الكلام ومدة الصوت المحفوظ وتكلفة المزوّد."
       },
       "history": {
-        "description": "Past dictations, retention and compressed export."
+        "description": "الإملاءات السابقة ومدة الاحتفاظ والتصدير المضغوط."
       },
       "privacy": {
-        "description": "What leaves this computer, what stays on it, and for how long."
+        "description": "ما يغادر هذا الكمبيوتر، وما يبقى عليه، وإلى متى."
       },
       "app": {
         "description": "المظهر ولغة الواجهة وبدء التشغيل والأداء."
       },
       "about": {
-        "description": "Version, credits and where Murmur keeps its files."
+        "description": "الإصدار والشكر ومكان حفظ ملفات Murmur."
       },
       "debug": {
-        "description": "Diagnostics for troubleshooting."
+        "description": "أدوات تشخيص لحل المشكلات."
       }
     },
     "onboarding": {
-      "checking": "Checking permissions…",
-      "checkFailed": "Permission checks failed. Use the permission action below to retry. Your system settings have not been changed.",
-      "microphoneWaiting": "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
-      "recheck": "Check again",
-      "accessibilityWaiting": "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically."
+      "checking": "جارٍ التحقق من الأذونات…",
+      "checkFailed": "فشل التحقق من الأذونات. استخدم زر الإذن أدناه لإعادة المحاولة. لم تتغير إعدادات النظام.",
+      "microphoneWaiting": "فعّل الوصول إلى الميكروفون في إعدادات النظام، ثم عد إلى هنا. سيتحقق Murmur مجددًا تلقائيًا.",
+      "recheck": "التحقق مجددًا",
+      "accessibilityWaiting": "فعّل Murmur في إعدادات إمكانية الوصول في النظام، ثم عد إلى هنا. سيتحقق Murmur مجددًا تلقائيًا."
     },
     "models": {
-      "downloadNamed": "Download {{model}}",
-      "browse": "Browse {{count}} models to download",
+      "downloadNamed": "تنزيل {{model}}",
+      "browse": "تصفّح {{count}} نموذجًا للتنزيل",
       "local": {
-        "title": "On-device models"
+        "title": "نماذج على الجهاز"
       },
       "cleanup": {
-        "title": "Cleanup model",
-        "on": "AI cleanup is on",
-        "off": "AI cleanup is off",
-        "change": "Change in Cleanup"
+        "title": "نموذج التنقيح",
+        "on": "التنقيح بالذكاء الاصطناعي مفعّل",
+        "off": "التنقيح بالذكاء الاصطناعي متوقف",
+        "change": "تغيير من صفحة التنقيح"
       }
     },
     "dictionary": {
-      "saveError": "Could not save this dictionary entry.",
-      "search": "Search saved words",
-      "count": "{{count}} terms saved",
-      "noMatches": "No matching words.",
-      "title": "Your words",
-      "description": "Used by on-device recognition and by AI cleanup to spell unusual names and terms."
+      "saveError": "تعذّر حفظ إدخال القاموس هذا.",
+      "search": "البحث في الكلمات المحفوظة",
+      "count": "{{count}} مصطلحًا محفوظًا",
+      "noMatches": "لا توجد كلمات مطابقة.",
+      "title": "كلماتك",
+      "description": "يستخدمها التعرّف على الكلام على الجهاز والتنقيح بالذكاء الاصطناعي لكتابة الأسماء والمصطلحات غير المألوفة."
     },
     "history": {
       "limit": {
         "confirmMessage": "هل تريد الاحتفاظ بآخر {{count}} من الإملاءات؟ ستُحذف الإملاءات الأقدم غير المميزة بنجمة وتسجيلاتها نهائيًا.",
-        "confirmTitle": "Reduce history limit"
+        "confirmTitle": "تقليل حد السجل"
       },
       "retention": {
-        "confirmMessage": "Changing retention may permanently delete existing recordings and transcripts that exceed the new limit. Continue?",
-        "confirmTitle": "Change history retention"
+        "confirmMessage": "قد يؤدي تغيير مدة الاحتفاظ إلى حذف التسجيلات والنصوص الحالية التي تتجاوز الحد الجديد نهائيًا. هل تريد المتابعة؟",
+        "confirmTitle": "تغيير مدة الاحتفاظ بالسجل"
       },
-      "playbackError": "Recording playback is unavailable. Try Play again or recover the transcript above.",
-      "saveError": "Could not change whether this dictation is kept. Try again.",
-      "folderError": "Could not open the recordings folder. Your transcripts are still available here.",
+      "playbackError": "تشغيل التسجيل غير متاح. جرّب التشغيل مجددًا أو استرجع النص أعلاه.",
+      "saveError": "تعذّر تغيير حالة الاحتفاظ بهذا الإملاء. حاول مرة أخرى.",
+      "folderError": "تعذّر فتح مجلد التسجيلات. لا تزال نصوصك متاحة هنا.",
       "archive": {
-        "partial": "Archived {{count}} dictations, but {{missing}} recordings were already missing.",
-        "complete": "Archived {{count}} dictations. Originals are unchanged.",
-        "error": "Could not export history.",
-        "working": "Creating archive…",
-        "action": "Export compressed archive",
-        "note": "Lossless compression keeps the original WAV audio. The archive is not encrypted, and exporting never deletes local history."
+        "partial": "تمت أرشفة {{count}} إملاء، لكن {{missing}} تسجيلًا كانت مفقودة مسبقًا.",
+        "complete": "تمت أرشفة {{count}} إملاء. لم تتغير الملفات الأصلية.",
+        "error": "تعذّر تصدير السجل.",
+        "working": "جارٍ إنشاء الأرشيف…",
+        "action": "تصدير أرشيف مضغوط",
+        "note": "يحافظ الضغط دون فقدان على صوت WAV الأصلي. الأرشيف غير مشفّر، والتصدير لا يحذف السجل المحلي أبدًا."
       },
-      "loadError": "Could not load history. Your saved dictations have not been removed.",
-      "retryLoad": "Retry loading",
+      "loadError": "تعذّر تحميل السجل. لم تُحذف إملاءاتك المحفوظة.",
+      "retryLoad": "إعادة التحميل",
       "storage": {
-        "title": "Storage and archive",
-        "description": "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive."
+        "title": "التخزين والأرشيف",
+        "description": "اختر مدة الاحتفاظ بالتسجيلات والنصوص. صدّر نسخة مضغوطة تحتوي على النص الخام والمنقّح متى أردت أرشيفًا طويل الأمد."
       },
-      "copied": "Copied displayed transcript.",
-      "deleteMessage": "This permanently removes the raw and cleaned text and its recording.",
-      "deleteTitle": "Delete dictation?",
-      "retryFinished": "Transcription request finished. Check this entry for the result.",
-      "raw": "Raw transcript",
-      "cleaned": "Cleaned transcript",
+      "copied": "تم نسخ النص المعروض.",
+      "deleteMessage": "سيؤدي هذا إلى حذف النص الخام والمنقّح وتسجيله نهائيًا.",
+      "deleteTitle": "حذف الإملاء؟",
+      "retryFinished": "انتهى طلب التفريغ. تحقّق من هذا الإدخال لمعرفة النتيجة.",
+      "raw": "النص الخام",
+      "cleaned": "النص المنقّح",
       "processed": "النص بعد المعالجة",
-      "showCleaned": "Show cleaned text",
+      "showCleaned": "عرض النص المنقّح",
       "showProcessed": "عرض النص بعد المعالجة",
-      "showRaw": "Show raw text",
+      "showRaw": "عرض النص الخام",
       "rawFallback": "لم يكن التنقيح بالذكاء الاصطناعي متاحًا لهذا الإدخال.",
       "stats": {
-        "noPreviousWeek": "No previous week to compare",
-        "totalWords": "Retained words",
-        "thisWeek": "This week",
-        "recordedPace": "Recorded pace",
-        "wpm": "wpm",
-        "minutes": "min",
-        "retainedOnly": "Based on retained history. Deleted dictations are not counted.",
-        "stale": "Could not refresh statistics. These figures may be out of date.",
-        "loading": "Loading statistics…",
-        "unavailable": "Statistics are unavailable right now.",
-        "weeklyWords": "Words each week",
-        "vsPrevious": "vs last full week",
-        "weekBar": "{{date}}: {{count}} words",
-        "weeklyPace": "Recorded pace each week",
-        "weekPaceUnavailable": "{{date}}: no recording data",
-        "weekPaceValue": "{{date}}: {{wpm}} words per minute",
-        "method": "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress."
+        "noPreviousWeek": "لا يوجد أسبوع سابق للمقارنة",
+        "totalWords": "الكلمات المحفوظة",
+        "thisWeek": "هذا الأسبوع",
+        "recordedPace": "السرعة المسجّلة",
+        "wpm": "كلمة/دقيقة",
+        "minutes": "دقيقة",
+        "retainedOnly": "بناءً على السجل المحفوظ. الإملاءات المحذوفة غير محتسبة.",
+        "stale": "تعذّر تحديث الإحصاءات. قد تكون هذه الأرقام قديمة.",
+        "loading": "جارٍ تحميل الإحصاءات…",
+        "unavailable": "الإحصاءات غير متاحة حاليًا.",
+        "weeklyWords": "الكلمات في كل أسبوع",
+        "vsPrevious": "مقارنة بآخر أسبوع كامل",
+        "weekBar": "{{date}}: {{count}} كلمة",
+        "weeklyPace": "السرعة المسجّلة في كل أسبوع",
+        "weekPaceUnavailable": "{{date}}: لا توجد بيانات تسجيل",
+        "weekPaceValue": "{{date}}: {{wpm}} كلمة في الدقيقة",
+        "method": "تعتمد السرعة على الصوت المحفوظ لـ {{covered}} من أصل {{count}} تسجيل. لا يُحتسب الصمت الذي تمت تصفيته أثناء الالتقاط. هذا الأسبوع لم ينتهِ بعد."
       }
     },
     "lectures": {
-      "saved": "Lecture transcript saved in History",
-      "imported": "Audio transcript saved in History",
-      "importFailed": "Import or transcription failed: {{error}}",
-      "recordTitle": "Record a lecture",
-      "recordDescription": "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
-      "finish": "Finish and transcribe",
-      "record": "Record lecture",
-      "recordingSince": "Recording since {{time}}",
-      "earlier": "earlier",
-      "progress": "Transcribing {{completed}} of {{total}} parts",
-      "working": "Working…",
-      "importTitle": "Transcribe an audio file",
-      "importDescription": "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
-      "choose": "Choose audio file",
-      "privacy": "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode."
+      "saved": "تم حفظ نص المحاضرة في السجل",
+      "imported": "تم حفظ نص الملف الصوتي في السجل",
+      "importFailed": "فشل الاستيراد أو التفريغ: {{error}}",
+      "recordTitle": "تسجيل محاضرة",
+      "recordDescription": "التقط الصوت من الميكروفون. يُحفظ الصوت أثناء التسجيل، ثم يُفرَّغ عند الانتهاء.",
+      "finish": "إنهاء وتفريغ",
+      "record": "تسجيل المحاضرة",
+      "recordingSince": "التسجيل جارٍ منذ {{time}}",
+      "earlier": "في وقت سابق",
+      "progress": "جارٍ تفريغ الجزء {{completed}} من {{total}}",
+      "working": "جارٍ العمل…",
+      "importTitle": "تفريغ ملف صوتي",
+      "importDescription": "اختر تسجيلًا لإضافته إلى السجل. يستخدم Murmur مزوّدي الكلام والتنقيح المحددين.",
+      "choose": "اختيار ملف صوتي",
+      "privacy": "يخضع الصوت الخام والنصوص لإعدادات الاحتفاظ بالسجل. يتلقى المزوّدون السحابيون الصوت فقط عند اختيار وضع خدمة كلام خارجية."
     },
     "dictation": {
-      "resetMicrophone": "Reset microphone to default",
+      "resetMicrophone": "إعادة الميكروفون إلى الافتراضي",
       "indicator": {
-        "visibility": "Show recording indicator",
-        "description": "A visible alternative to sound cues. Availability depends on the desktop and its permissions."
+        "visibility": "إظهار مؤشر التسجيل",
+        "description": "بديل مرئي للتنبيهات الصوتية. يعتمد توفّره على سطح المكتب وأذوناته."
       },
-      "previewSounds": "Preview sound theme: start then stop",
+      "previewSounds": "معاينة سمة الصوت: بدء ثم إيقاف",
       "status": {
-        "hold": "Hold {{shortcut}} to dictate; release to finish",
-        "toggle": "Press {{shortcut}} to start; press again to finish",
-        "holdOrToggle": "Hold {{shortcut}}, or tap to start and tap again to finish",
-        "speechCloud": "Audio is sent to {{host}} for transcription",
-        "speechLocal": "Audio stays on this device ({{model}})",
-        "noModel": "no model selected",
-        "cleanupOff": "AI cleanup is off",
-        "cleanupLocal": "AI cleanup runs locally with {{provider}}",
-        "cleanupCloud": "Transcript text is sent to {{provider}} for cleanup",
-        "unavailable": "Microphone status unavailable",
-        "chooseModel": "Choose a recognition model to start",
-        "checking": "Checking dictation status…",
-        "change": "Change models",
-        "captureOnly": "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
-        "release": "Release the shortcut to finish.",
-        "pressAgain": "Press the shortcut again to finish.",
-        "releaseOrPress": "Release if holding, or tap the shortcut again to finish."
+        "hold": "اضغط مطولًا على {{shortcut}} للإملاء، وأفلته للإنهاء",
+        "toggle": "اضغط {{shortcut}} للبدء، واضغط مجددًا للإنهاء",
+        "holdOrToggle": "اضغط مطولًا على {{shortcut}}، أو انقر للبدء وانقر مجددًا للإنهاء",
+        "speechCloud": "يُرسل الصوت إلى {{host}} لتفريغه",
+        "speechLocal": "يبقى الصوت على هذا الجهاز ({{model}})",
+        "noModel": "لم يتم اختيار نموذج",
+        "cleanupOff": "التنقيح بالذكاء الاصطناعي متوقف",
+        "cleanupLocal": "يعمل التنقيح بالذكاء الاصطناعي محليًا باستخدام {{provider}}",
+        "cleanupCloud": "يُرسل النص إلى {{provider}} لتنقيحه",
+        "unavailable": "حالة الميكروفون غير متاحة",
+        "chooseModel": "اختر نموذج تعرّف على الكلام للبدء",
+        "checking": "جارٍ التحقق من حالة الإملاء…",
+        "change": "تغيير النماذج",
+        "captureOnly": "التقاط الميكروفون متوقف. قد يكون التعرّف أو التنقيح لا يزال جاريًا، فتحقّق من مؤشر التسجيل أو من السجل لمعرفة النتيجة.",
+        "release": "أفلت الاختصار للإنهاء.",
+        "pressAgain": "اضغط الاختصار مجددًا للإنهاء.",
+        "releaseOrPress": "أفلت الاختصار إن كنت تضغطه، أو انقره مجددًا للإنهاء."
       },
       "shortcut": {
-        "title": "Shortcut"
+        "title": "الاختصار"
       },
       "microphone": {
         "title": "الميكروفون"
       },
       "sounds": {
-        "title": "Sounds",
+        "title": "الأصوات",
         "theme": "الصوت",
-        "themeDescription": "Recording cues use your system output and volume."
+        "themeDescription": "تستخدم تنبيهات التسجيل جهاز الإخراج ومستوى الصوت في النظام."
       },
       "language": {
-        "title": "Spoken language",
-        "model": "Options depend on the active model, {{model}}."
+        "title": "لغة الكلام",
+        "model": "تعتمد الخيارات على النموذج النشط، {{model}}."
       }
     },
     "download": {
-      "pending": "Downloading…",
-      "multiple": "{{count}} downloading…"
+      "pending": "جارٍ التنزيل…",
+      "multiple": "جارٍ تنزيل {{count}}…"
     },
     "about": {
       "versionDescription": "الإصدار الحالي من Murmur",
       "ggml": {
-        "details": "Murmur uses transcribe.cpp and ggml for local speech recognition. Thanks to Georgi Gerganov and contributors."
+        "details": "يستخدم Murmur مكتبتي transcribe.cpp وggml للتعرّف على الكلام محليًا. شكرًا لـ Georgi Gerganov والمساهمين."
       }
     },
     "general": {
       "status": {
-        "recording": "Recording now",
-        "idle": "Not recording"
+        "recording": "التسجيل جارٍ",
+        "idle": "لا يوجد تسجيل"
       },
       "indicator": {
-        "title": "Recording indicator"
+        "title": "مؤشر التسجيل"
       }
     },
     "insertion": {
       "method": {
-        "title": "Inserting text",
-        "description": "If transcripts appear in History but not in your app, try another method here."
+        "title": "إدراج النص",
+        "description": "إذا ظهرت النصوص في السجل ولكن ليس في تطبيقك، فجرّب طريقة أخرى هنا."
       },
       "after": {
-        "title": "After inserting"
+        "title": "بعد الإدراج"
       }
     },
     "keys": {
-      "removed": "Removed the key for {{name}}",
-      "title": "Saved API keys",
-      "description": "Keys are kept in your system credential store, never in Murmur's settings file.",
-      "unavailable": "Credential-store status is unavailable. Saved keys have not been removed.",
-      "loading": "Checking the credential store…",
-      "none": "No API keys saved.",
-      "speech": "Speech recognition",
-      "cleanup": "AI cleanup",
-      "remove": "Remove"
+      "removed": "تمت إزالة مفتاح {{name}}",
+      "title": "مفاتيح API المحفوظة",
+      "description": "تُحفظ المفاتيح في مخزن بيانات الاعتماد في النظام، وليس في ملف إعدادات Murmur أبدًا.",
+      "unavailable": "حالة مخزن بيانات الاعتماد غير متاحة. لم تُحذف المفاتيح المحفوظة.",
+      "loading": "جارٍ التحقق من مخزن بيانات الاعتماد…",
+      "none": "لا توجد مفاتيح API محفوظة.",
+      "speech": "التعرّف على الكلام",
+      "cleanup": "التنقيح بالذكاء الاصطناعي",
+      "remove": "إزالة"
     },
     "stt": {
-      "inUse": "In use",
-      "keySaved": "Speech API key saved",
-      "keyRemoved": "Speech API key removed",
-      "saved": "Speech source saved",
-      "refreshFailed": "Speech source was saved, but settings could not be reloaded. Retry loading settings.",
-      "title": "Speech recognition",
-      "description": "Choose where your speech is turned into text.",
-      "source": "Transcription source",
+      "inUse": "قيد الاستخدام",
+      "keySaved": "تم حفظ مفتاح API للكلام",
+      "keyRemoved": "تمت إزالة مفتاح API للكلام",
+      "saved": "تم حفظ مصدر الكلام",
+      "refreshFailed": "تم حفظ مصدر الكلام، لكن تعذّرت إعادة تحميل الإعدادات. أعد محاولة تحميل الإعدادات.",
+      "title": "التعرّف على الكلام",
+      "description": "اختر أين يتحوّل كلامك إلى نص.",
+      "source": "مصدر التفريغ",
       "local": {
-        "title": "On this device",
-        "description": "Pick or download a model below. Audio never leaves this computer."
+        "title": "على هذا الجهاز",
+        "description": "اختر نموذجًا أو نزّله أدناه. لا يغادر الصوت هذا الكمبيوتر أبدًا."
       },
       "endpoint": {
-        "title": "Cloud API or your own server",
-        "description": "OpenAI, Groq or any OpenAI-compatible service. Needs an API key unless it runs locally.",
-        "notice": "Each recording is sent to this service, which may charge for usage. Murmur never switches to another service on its own."
+        "title": "واجهة API سحابية أو خادمك الخاص",
+        "description": "OpenAI أو Groq أو أي خدمة متوافقة مع OpenAI. تحتاج إلى مفتاح API إلا إذا كانت تعمل محليًا.",
+        "notice": "يُرسل كل تسجيل إلى هذه الخدمة، وقد تفرض رسومًا على الاستخدام. لا ينتقل Murmur إلى خدمة أخرى من تلقاء نفسه أبدًا."
       },
-      "service": "Service",
-      "presetOther": "or enter any compatible server below",
-      "baseUrl": "API base URL",
-      "baseUrlHelp": "For a server on this computer, try http://127.0.0.1:8000/v1. A full /audio/transcriptions URL also works.",
-      "model": "Model ID",
-      "modelHelp": "Use the model name your speech server accepts.",
+      "service": "الخدمة",
+      "presetOther": "أو أدخل أي خادم متوافق أدناه",
+      "baseUrl": "عنوان URL الأساسي لـ API",
+      "baseUrlHelp": "لخادم على هذا الكمبيوتر، جرّب http://127.0.0.1:8000/v1. يعمل أيضًا عنوان URL كامل ينتهي بـ /audio/transcriptions.",
+      "model": "معرّف النموذج",
+      "modelHelp": "استخدم اسم النموذج الذي يقبله خادم الكلام.",
       "apiKey": "مفتاح API",
-      "apiKeyPlaceholder": "Paste your key",
-      "saveKey": "Save key",
-      "removeKey": "Remove",
-      "keySavedWithSource": "Your key is saved with the URL and model when you press Save.",
-      "keyStored": "A key is saved for this endpoint in the system credential store.",
-      "noKey": "No key saved. Leave it empty only for a server that does not need one.",
-      "keyStatusError": "Could not check the system credential store. Retry below.",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "retryKeyCheck": "Retry key check",
-      "retryRefresh": "Retry loading settings",
-      "saving": "Saving…",
-      "save": "إنشاء مطالبة"
+      "apiKeyPlaceholder": "الصق مفتاحك",
+      "saveKey": "حفظ المفتاح",
+      "removeKey": "إزالة",
+      "keySavedWithSource": "يُحفظ مفتاحك مع عنوان URL والنموذج عند الضغط على حفظ.",
+      "keyStored": "يوجد مفتاح محفوظ لهذه الخدمة في مخزن بيانات الاعتماد في النظام.",
+      "noKey": "لا يوجد مفتاح محفوظ. اتركه فارغًا فقط لخادم لا يحتاج إلى مفتاح.",
+      "keyStatusError": "تعذّر التحقق من مخزن بيانات الاعتماد في النظام. أعد المحاولة أدناه.",
+      "keyStatusUnknown": "جارٍ التحقق من مخزن بيانات الاعتماد في النظام…",
+      "retryKeyCheck": "إعادة التحقق من المفتاح",
+      "retryRefresh": "إعادة تحميل الإعدادات",
+      "saving": "جارٍ الحفظ…",
+      "save": "حفظ"
     },
     "privacy": {
-      "loading": "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
-      "change": "Change",
-      "reporting": "Anonymous usage and errors",
-      "reportingSwitch": "Share anonymous usage and errors",
-      "reportingNotice": "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
-      "reportingUnconfigured": "Reporting is not configured in this build. Nothing is sent.",
-      "reportingSaveError": "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+      "loading": "إعدادات الخصوصية غير متاحة أثناء تحميل التكوين. استخدم إعادة المحاولة للتحقق مجددًا.",
+      "change": "تغيير",
+      "reporting": "بيانات الاستخدام والأخطاء المجهولة",
+      "reportingSwitch": "مشاركة بيانات الاستخدام والأخطاء المجهولة",
+      "reportingNotice": "أعداد الشاشات والإجراءات وفئات الأخطاء الثابتة فقط، على خادم مستضاف ذاتيًا. لا تتبّع للزوار، ولا تسجيلات أو نصوص أو كلمات قاموس أو مفاتيح API. متوقف حتى يضبط المالك خدمة الاستقبال. تتغلب إعدادات Do Not Track وGlobal Privacy Control على هذا المفتاح. تنتهي صلاحية الأعداد بعد 30 يومًا، والأخطاء بعد 14 يومًا.",
+      "reportingUnconfigured": "الإبلاغ غير مضبوط في هذا الإصدار. لا يُرسل أي شيء.",
+      "reportingSaveError": "تعذّر حفظ تفضيل الإبلاغ. يبقى الإبلاغ متوقفًا حتى يمكن قراءة التفضيل.",
       "leaves": {
-        "title": "What leaves this computer",
-        "description": "Your voice and text only go to services you choose. Murmur never switches to one on its own."
+        "title": "ما يغادر هذا الكمبيوتر",
+        "description": "لا يذهب صوتك ونصك إلا إلى الخدمات التي تختارها. لا ينتقل Murmur إلى أي خدمة من تلقاء نفسه أبدًا."
       },
       "speech": {
-        "title": "Your voice",
-        "cloud": "Each recording is sent to {{host}} to be transcribed.",
-        "local": "Transcribed on this computer. Recordings are never uploaded."
+        "title": "صوتك",
+        "cloud": "يُرسل كل تسجيل إلى {{host}} لتفريغه.",
+        "local": "يُفرَّغ على هذا الكمبيوتر. لا تُرفع التسجيلات أبدًا."
       },
       "cleanup": {
-        "title": "Your transcripts",
-        "off": "AI cleanup is off, so transcripts stay here.",
-        "local": "Cleaned up on this computer by {{provider}}.",
-        "cloud": "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not."
+        "title": "نصوصك",
+        "off": "التنقيح بالذكاء الاصطناعي متوقف، لذا تبقى النصوص هنا.",
+        "local": "يُنقَّح على هذا الكمبيوتر بواسطة {{provider}}.",
+        "cloud": "يُرسل النص وكلمات قاموسك إلى {{provider}} للتنقيح. أما الصوت فلا يُرسل."
       },
       "stored": {
-        "title": "What stays on this computer"
+        "title": "ما يبقى على هذا الكمبيوتر"
       },
       "history": {
-        "title": "Recordings and transcripts",
-        "detail": "Kept: {{period}}. Starred dictations are always kept."
+        "title": "التسجيلات والنصوص",
+        "detail": "مدة الاحتفاظ: {{period}}. يُحتفظ دائمًا بالإملاءات المميّزة بنجمة."
       },
       "keys": {
-        "title": "API keys",
-        "detail": "{{count}} saved in your system credential store, never in Murmur's settings file."
+        "title": "مفاتيح API",
+        "detail": "{{count}} محفوظة في مخزن بيانات الاعتماد في النظام، وليس في ملف إعدادات Murmur أبدًا."
       },
-      "manage": "Manage"
+      "manage": "إدارة"
     },
     "stats": {
-      "providerCost": "Provider cost",
-      "openrouterKeys": "OpenRouter usage for your configured keys",
-      "refresh": "Refresh",
-      "costStale": "Could not refresh provider usage. These figures may be out of date.",
-      "costLoading": "Checking OpenRouter usage…",
-      "costUnavailable": "OpenRouter usage is unavailable. Check your connection and key, then retry.",
-      "noOpenrouterKey": "Add an OpenRouter speech key in Models or a cleanup key in Cleanup to see its usage here.",
-      "costWeek": "This week",
-      "costMonth": "This month",
-      "costAll": "All time",
-      "byokValue": "OpenRouter also reports {{value}} in BYOK model usage this month. Your provider bills that separately.",
-      "costScope": "These totals cover {{count}} configured OpenRouter key(s), including use outside Murmur. Local models and direct provider keys are not counted.",
-      "totalWordsDescription": "Words in saved dictations",
-      "thisWeekDescription": "Words saved since Monday",
-      "recordedDescription": "Based on saved audio after silence filtering",
-      "recordedMinutes": "Saved audio minutes",
-      "title": "Your dictation stats",
-      "unavailableHelp": "Try again after Murmur has finished starting up.",
-      "position": "Stat {{current}} of {{total}}",
-      "swipeHint": "Drag or swipe to browse",
-      "metricCards": "Dictation stat cards",
-      "noAudioShort": "No retained audio",
-      "noAudio": "No retained recordings with audio are available, so recorded pace and minutes cannot be calculated. This week is still in progress."
+      "providerCost": "تكلفة المزوّد",
+      "openrouterKeys": "استخدام OpenRouter لمفاتيحك المضبوطة",
+      "refresh": "تحديث",
+      "costStale": "تعذّر تحديث استخدام المزوّد. قد تكون هذه الأرقام قديمة.",
+      "costLoading": "جارٍ التحقق من استخدام OpenRouter…",
+      "costUnavailable": "استخدام OpenRouter غير متاح. تحقّق من الاتصال والمفتاح، ثم أعد المحاولة.",
+      "noOpenrouterKey": "أضف مفتاح كلام من OpenRouter في صفحة النماذج أو مفتاح تنقيح في صفحة التنقيح لرؤية الاستخدام هنا.",
+      "costWeek": "هذا الأسبوع",
+      "costMonth": "هذا الشهر",
+      "costAll": "كل الأوقات",
+      "byokValue": "يُبلغ OpenRouter أيضًا عن {{value}} من استخدام نماذج BYOK هذا الشهر. يحاسبك مزوّدك على ذلك بشكل منفصل.",
+      "costScope": "تشمل هذه الإجماليات {{count}} من مفاتيح OpenRouter المضبوطة، بما في ذلك الاستخدام خارج Murmur. لا تُحتسب النماذج المحلية ومفاتيح المزوّدين المباشرة.",
+      "totalWordsDescription": "الكلمات في الإملاءات المحفوظة",
+      "thisWeekDescription": "الكلمات المحفوظة منذ يوم الاثنين",
+      "recordedDescription": "بناءً على الصوت المحفوظ بعد تصفية الصمت",
+      "recordedMinutes": "دقائق الصوت المحفوظ",
+      "title": "إحصاءات الإملاء",
+      "unavailableHelp": "حاول مجددًا بعد انتهاء تشغيل Murmur.",
+      "position": "الإحصاء {{current}} من {{total}}",
+      "swipeHint": "اسحب للتصفّح",
+      "metricCards": "بطاقات إحصاءات الإملاء",
+      "noAudioShort": "لا يوجد صوت محفوظ",
+      "noAudio": "لا توجد تسجيلات محفوظة تحتوي على صوت، لذا لا يمكن حساب السرعة المسجّلة والدقائق. هذا الأسبوع لم ينتهِ بعد."
     }
   }
 }

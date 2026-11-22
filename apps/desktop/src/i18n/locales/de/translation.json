@@ -119,9 +119,9 @@
         "requestFailed": "Berechtigungsanfrage fehlgeschlagen. Bitte erneut versuchen."
       }
     },
-    "configureEndpoint": "Use a speech endpoint",
-    "configureEndpointDescription": "Configure an online provider or a server you run in Models.",
-    "noModels": "No downloadable models are listed right now."
+    "configureEndpoint": "Sprach-Endpunkt verwenden",
+    "configureEndpointDescription": "Richten Sie unter Modelle einen Online-Anbieter oder einen eigenen Server ein.",
+    "noModels": "Derzeit sind keine Modelle zum Herunterladen verfügbar."
   },
   "modelSelector": {
     "custom": "Benutzerdefiniert",
@@ -664,8 +664,8 @@
     "copy": "Kopieren",
     "clear": "Leeren",
     "noOptionsFound": "Keine Optionen gefunden",
-    "download": "Download",
-    "retry": "Retry",
+    "download": "Herunterladen",
+    "retry": "Erneut versuchen",
     "cancel": "Abbrechen"
   },
   "accessibility": {
@@ -734,36 +734,36 @@
         "configuration": "Die Anfrage wurde abgelehnt. Prüfen Sie die Anbieter- und Modelleinstellungen."
       },
       "failed": "KI-Textkorrektur fehlgeschlagen",
-      "removeKey": "Remove key",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "keyStored": "Key saved in the system credential store",
-      "keyMissing": "No key saved",
+      "removeKey": "Schlüssel entfernen",
+      "keyStatusUnknown": "Anmeldedatenspeicher des Systems wird geprüft…",
+      "keyStored": "Schlüssel im Anmeldedatenspeicher des Systems gespeichert",
+      "keyMissing": "Kein Schlüssel gespeichert",
       "formality": {
-        "veryCasual": "Very casual",
-        "casual": "Casual",
-        "natural": "Natural",
-        "professional": "Professional",
-        "formal": "Formal",
-        "title": "Tone",
-        "description": "Choose punctuation and grammar polish. Every level should keep your own words."
+        "veryCasual": "Sehr locker",
+        "casual": "Locker",
+        "natural": "Natürlich",
+        "professional": "Professionell",
+        "formal": "Förmlich",
+        "title": "Tonfall",
+        "description": "Legen Sie fest, wie stark Zeichensetzung und Grammatik geglättet werden. Jede Stufe behält Ihre eigenen Worte bei."
       },
       "basic": {
-        "title": "On this device",
-        "description": "Always runs locally, even when AI cleanup is off."
+        "title": "Auf diesem Gerät",
+        "description": "Läuft immer lokal, auch wenn die KI-Textkorrektur aus ist."
       },
-      "title": "AI cleanup",
-      "description": "Fixes punctuation and clear errors and splits long dictation into readable sentences, keeping your words. Cloud providers receive the transcript, not the recording.",
+      "title": "KI-Textkorrektur",
+      "description": "Korrigiert Zeichensetzung und eindeutige Fehler und teilt lange Diktate in lesbare Sätze auf, ohne Ihre Worte zu ändern. Cloud-Anbieter erhalten die Transkription, nicht die Aufnahme.",
       "instructions": {
-        "title": "Custom instructions",
-        "description": "Optional. Tell the cleanup model anything extra."
+        "title": "Eigene Anweisungen",
+        "description": "Optional. Geben Sie dem Korrekturmodell zusätzliche Hinweise."
       },
       "model": {
-        "none": "No provider chosen"
+        "none": "Kein Anbieter ausgewählt"
       }
     },
     "app": {
-      "loading": "Loading Murmur…",
-      "skip": "Skip to settings",
+      "loading": "Murmur wird geladen…",
+      "skip": "Zu den Einstellungen springen",
       "appearance": {
         "title": "Darstellung"
       },
@@ -786,323 +786,323 @@
     },
     "pages": {
       "dictation": {
-        "description": "Your shortcut, microphone and spoken language, plus what you see and hear while recording."
+        "description": "Tastenkürzel, Mikrofon und gesprochene Sprache sowie das, was Sie während der Aufnahme sehen und hören."
       },
       "lectures": {
         "description": "Nehmen Sie eine Vorlesung auf oder importieren Sie eine Audiodatei. Die Transkription erscheint im Verlauf."
       },
       "models": {
-        "description": "Choose what turns your speech into text. Every saved API key is listed here too."
+        "description": "Wählen Sie, was Ihre Sprache in Text umwandelt. Hier finden Sie auch alle gespeicherten API-Schlüssel."
       },
       "cleanup": {
-        "description": "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions."
+        "description": "Transkriptionen vor dem Einfügen glätten: Füllwörter, KI-Modell und Schlüssel, Tonfall und Anweisungen."
       },
       "dictionary": {
-        "description": "Names and terms Murmur should spell your way."
+        "description": "Namen und Begriffe, die Murmur so schreiben soll, wie Sie es möchten."
       },
       "insertion": {
-        "description": "How finished text reaches the app you are typing in, and what happens after."
+        "description": "Wie der fertige Text in die App gelangt, in der Sie schreiben, und was danach passiert."
       },
       "stats": {
-        "description": "Words, speaking pace, saved audio duration and provider cost."
+        "description": "Wörter, Sprechtempo, gespeicherte Audiodauer und Anbieterkosten."
       },
       "history": {
-        "description": "Past dictations, retention and compressed export."
+        "description": "Frühere Diktate, Aufbewahrung und komprimierter Export."
       },
       "privacy": {
-        "description": "What leaves this computer, what stays on it, and for how long."
+        "description": "Was diesen Computer verlässt, was hier bleibt und wie lange."
       },
       "app": {
         "description": "Darstellung, Oberflächensprache, Autostart und Leistung."
       },
       "about": {
-        "description": "Version, credits and where Murmur keeps its files."
+        "description": "Version, Danksagungen und wo Murmur seine Dateien ablegt."
       },
       "debug": {
-        "description": "Diagnostics for troubleshooting."
+        "description": "Diagnosedaten zur Fehlersuche."
       }
     },
     "onboarding": {
-      "checking": "Checking permissions…",
-      "checkFailed": "Permission checks failed. Use the permission action below to retry. Your system settings have not been changed.",
-      "microphoneWaiting": "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
-      "recheck": "Check again",
-      "accessibilityWaiting": "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically."
+      "checking": "Berechtigungen werden geprüft…",
+      "checkFailed": "Die Berechtigungsprüfung ist fehlgeschlagen. Verwenden Sie die Berechtigungsaktion unten, um es erneut zu versuchen. Ihre Systemeinstellungen wurden nicht geändert.",
+      "microphoneWaiting": "Erlauben Sie den Mikrofonzugriff in den Systemeinstellungen und kehren Sie dann hierher zurück. Murmur prüft automatisch erneut.",
+      "recheck": "Erneut prüfen",
+      "accessibilityWaiting": "Aktivieren Sie Murmur in den Bedienungshilfen der Systemeinstellungen und kehren Sie dann hierher zurück. Murmur prüft automatisch erneut."
     },
     "models": {
-      "downloadNamed": "Download {{model}}",
-      "browse": "Browse {{count}} models to download",
+      "downloadNamed": "{{model}} herunterladen",
+      "browse": "{{count}} Modelle zum Herunterladen ansehen",
       "local": {
-        "title": "On-device models"
+        "title": "Modelle auf dem Gerät"
       },
       "cleanup": {
-        "title": "Cleanup model",
-        "on": "AI cleanup is on",
-        "off": "AI cleanup is off",
-        "change": "Change in Cleanup"
+        "title": "Korrekturmodell",
+        "on": "KI-Textkorrektur ist an",
+        "off": "KI-Textkorrektur ist aus",
+        "change": "Unter Textkorrektur ändern"
       }
     },
     "dictionary": {
-      "saveError": "Could not save this dictionary entry.",
-      "search": "Search saved words",
-      "count": "{{count}} terms saved",
-      "noMatches": "No matching words.",
-      "title": "Your words",
-      "description": "Used by on-device recognition and by AI cleanup to spell unusual names and terms."
+      "saveError": "Dieser Wörterbucheintrag konnte nicht gespeichert werden.",
+      "search": "Gespeicherte Wörter durchsuchen",
+      "count": "{{count}} Begriffe gespeichert",
+      "noMatches": "Keine passenden Wörter.",
+      "title": "Ihre Wörter",
+      "description": "Wird von der Erkennung auf dem Gerät und von der KI-Textkorrektur genutzt, um ungewöhnliche Namen und Begriffe richtig zu schreiben."
     },
     "history": {
       "limit": {
         "confirmMessage": "Die letzten {{count}} Diktate behalten? Ältere nicht markierte Diktate und ihre Aufnahmen werden dauerhaft gelöscht.",
-        "confirmTitle": "Reduce history limit"
+        "confirmTitle": "Verlaufslimit verringern"
       },
       "retention": {
-        "confirmMessage": "Changing retention may permanently delete existing recordings and transcripts that exceed the new limit. Continue?",
-        "confirmTitle": "Change history retention"
+        "confirmMessage": "Wenn Sie die Aufbewahrung ändern, werden vorhandene Aufnahmen und Transkriptionen, die über das neue Limit hinausgehen, möglicherweise dauerhaft gelöscht. Fortfahren?",
+        "confirmTitle": "Aufbewahrung des Verlaufs ändern"
       },
-      "playbackError": "Recording playback is unavailable. Try Play again or recover the transcript above.",
-      "saveError": "Could not change whether this dictation is kept. Try again.",
-      "folderError": "Could not open the recordings folder. Your transcripts are still available here.",
+      "playbackError": "Die Aufnahme kann nicht abgespielt werden. Versuchen Sie es erneut mit Abspielen oder stellen Sie die Transkription oben wieder her.",
+      "saveError": "Es konnte nicht geändert werden, ob dieses Diktat behalten wird. Versuchen Sie es erneut.",
+      "folderError": "Der Aufnahmeordner konnte nicht geöffnet werden. Ihre Transkriptionen sind hier weiterhin verfügbar.",
       "archive": {
-        "partial": "Archived {{count}} dictations, but {{missing}} recordings were already missing.",
-        "complete": "Archived {{count}} dictations. Originals are unchanged.",
-        "error": "Could not export history.",
-        "working": "Creating archive…",
-        "action": "Export compressed archive",
-        "note": "Lossless compression keeps the original WAV audio. The archive is not encrypted, and exporting never deletes local history."
+        "partial": "{{count}} Diktate archiviert, aber {{missing}} Aufnahmen fehlten bereits.",
+        "complete": "{{count}} Diktate archiviert. Die Originale bleiben unverändert.",
+        "error": "Der Verlauf konnte nicht exportiert werden.",
+        "working": "Archiv wird erstellt…",
+        "action": "Komprimiertes Archiv exportieren",
+        "note": "Die verlustfreie Komprimierung behält das ursprüngliche WAV-Audio bei. Das Archiv ist nicht verschlüsselt, und beim Exportieren wird kein lokaler Verlauf gelöscht."
       },
-      "loadError": "Could not load history. Your saved dictations have not been removed.",
-      "retryLoad": "Retry loading",
+      "loadError": "Der Verlauf konnte nicht geladen werden. Ihre gespeicherten Diktate wurden nicht entfernt.",
+      "retryLoad": "Erneut laden",
       "storage": {
-        "title": "Storage and archive",
-        "description": "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive."
+        "title": "Speicher und Archiv",
+        "description": "Legen Sie fest, wie lange Aufnahmen und Transkriptionen aufbewahrt werden. Für ein Langzeitarchiv können Sie jederzeit eine komprimierte Kopie mit Rohtext und korrigiertem Text exportieren."
       },
-      "copied": "Copied displayed transcript.",
-      "deleteMessage": "This permanently removes the raw and cleaned text and its recording.",
-      "deleteTitle": "Delete dictation?",
-      "retryFinished": "Transcription request finished. Check this entry for the result.",
-      "raw": "Raw transcript",
-      "cleaned": "Cleaned transcript",
+      "copied": "Angezeigte Transkription kopiert.",
+      "deleteMessage": "Dadurch werden der Rohtext, der korrigierte Text und die zugehörige Aufnahme dauerhaft entfernt.",
+      "deleteTitle": "Diktat löschen?",
+      "retryFinished": "Die Transkriptionsanfrage ist abgeschlossen. Das Ergebnis finden Sie in diesem Eintrag.",
+      "raw": "Rohe Transkription",
+      "cleaned": "Korrigierte Transkription",
       "processed": "Bearbeitete Transkription",
-      "showCleaned": "Show cleaned text",
+      "showCleaned": "Korrigierten Text anzeigen",
       "showProcessed": "Bearbeiteten Text anzeigen",
-      "showRaw": "Show raw text",
+      "showRaw": "Rohtext anzeigen",
       "rawFallback": "Für diesen Eintrag war die KI-Textkorrektur nicht verfügbar.",
       "stats": {
-        "noPreviousWeek": "No previous week to compare",
-        "totalWords": "Retained words",
-        "thisWeek": "This week",
-        "recordedPace": "Recorded pace",
-        "wpm": "wpm",
-        "minutes": "min",
-        "retainedOnly": "Based on retained history. Deleted dictations are not counted.",
-        "stale": "Could not refresh statistics. These figures may be out of date.",
-        "loading": "Loading statistics…",
-        "unavailable": "Statistics are unavailable right now.",
-        "weeklyWords": "Words each week",
-        "vsPrevious": "vs last full week",
-        "weekBar": "{{date}}: {{count}} words",
-        "weeklyPace": "Recorded pace each week",
-        "weekPaceUnavailable": "{{date}}: no recording data",
-        "weekPaceValue": "{{date}}: {{wpm}} words per minute",
-        "method": "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress."
+        "noPreviousWeek": "Keine Vorwoche zum Vergleich",
+        "totalWords": "Aufbewahrte Wörter",
+        "thisWeek": "Diese Woche",
+        "recordedPace": "Aufgezeichnetes Tempo",
+        "wpm": "WPM",
+        "minutes": "Min.",
+        "retainedOnly": "Basiert auf dem aufbewahrten Verlauf. Gelöschte Diktate werden nicht gezählt.",
+        "stale": "Die Statistik konnte nicht aktualisiert werden. Diese Werte sind möglicherweise veraltet.",
+        "loading": "Statistik wird geladen…",
+        "unavailable": "Die Statistik ist gerade nicht verfügbar.",
+        "weeklyWords": "Wörter pro Woche",
+        "vsPrevious": "ggü. letzter voller Woche",
+        "weekBar": "{{date}}: {{count}} Wörter",
+        "weeklyPace": "Aufgezeichnetes Tempo pro Woche",
+        "weekPaceUnavailable": "{{date}}: keine Aufnahmedaten",
+        "weekPaceValue": "{{date}}: {{wpm}} Wörter pro Minute",
+        "method": "Das Tempo basiert auf dem gespeicherten Audio von {{covered}} von {{count}} Aufnahmen. Bei der Aufnahme herausgefilterte Stille zählt nicht. Diese Woche ist noch nicht abgeschlossen."
       }
     },
     "lectures": {
-      "saved": "Lecture transcript saved in History",
-      "imported": "Audio transcript saved in History",
-      "importFailed": "Import or transcription failed: {{error}}",
-      "recordTitle": "Record a lecture",
-      "recordDescription": "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
-      "finish": "Finish and transcribe",
-      "record": "Record lecture",
-      "recordingSince": "Recording since {{time}}",
-      "earlier": "earlier",
-      "progress": "Transcribing {{completed}} of {{total}} parts",
-      "working": "Working…",
-      "importTitle": "Transcribe an audio file",
-      "importDescription": "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
-      "choose": "Choose audio file",
-      "privacy": "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode."
+      "saved": "Vorlesungstranskription im Verlauf gespeichert",
+      "imported": "Audiotranskription im Verlauf gespeichert",
+      "importFailed": "Import oder Transkription fehlgeschlagen: {{error}}",
+      "recordTitle": "Vorlesung aufnehmen",
+      "recordDescription": "Nimmt über Ihr Mikrofon auf. Das Audio wird während der Aufnahme gespeichert und am Ende transkribiert.",
+      "finish": "Beenden und transkribieren",
+      "record": "Vorlesung aufnehmen",
+      "recordingSince": "Aufnahme läuft seit {{time}}",
+      "earlier": "vorhin",
+      "progress": "Teil {{completed}} von {{total}} wird transkribiert",
+      "working": "Wird verarbeitet…",
+      "importTitle": "Audiodatei transkribieren",
+      "importDescription": "Wählen Sie eine Aufnahme, um sie dem Verlauf hinzuzufügen. Murmur verwendet Ihre ausgewählten Sprach- und Korrekturanbieter.",
+      "choose": "Audiodatei auswählen",
+      "privacy": "Rohaudio und Transkriptionen folgen Ihren Aufbewahrungseinstellungen für den Verlauf. Cloud-Anbieter erhalten Audio nur, wenn Sie einen Endpunkt als Spracherkennung wählen."
     },
     "dictation": {
-      "resetMicrophone": "Reset microphone to default",
+      "resetMicrophone": "Mikrofon auf Standard zurücksetzen",
       "indicator": {
-        "visibility": "Show recording indicator",
-        "description": "A visible alternative to sound cues. Availability depends on the desktop and its permissions."
+        "visibility": "Aufnahmeanzeige einblenden",
+        "description": "Eine sichtbare Alternative zu Tonsignalen. Die Verfügbarkeit hängt vom Desktop und seinen Berechtigungen ab."
       },
-      "previewSounds": "Preview sound theme: start then stop",
+      "previewSounds": "Tonschema anhören: Start, dann Stopp",
       "status": {
-        "hold": "Hold {{shortcut}} to dictate; release to finish",
-        "toggle": "Press {{shortcut}} to start; press again to finish",
-        "holdOrToggle": "Hold {{shortcut}}, or tap to start and tap again to finish",
-        "speechCloud": "Audio is sent to {{host}} for transcription",
-        "speechLocal": "Audio stays on this device ({{model}})",
-        "noModel": "no model selected",
-        "cleanupOff": "AI cleanup is off",
-        "cleanupLocal": "AI cleanup runs locally with {{provider}}",
-        "cleanupCloud": "Transcript text is sent to {{provider}} for cleanup",
-        "unavailable": "Microphone status unavailable",
-        "chooseModel": "Choose a recognition model to start",
-        "checking": "Checking dictation status…",
-        "change": "Change models",
-        "captureOnly": "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
-        "release": "Release the shortcut to finish.",
-        "pressAgain": "Press the shortcut again to finish.",
-        "releaseOrPress": "Release if holding, or tap the shortcut again to finish."
+        "hold": "{{shortcut}} gedrückt halten zum Diktieren, loslassen zum Beenden",
+        "toggle": "{{shortcut}} drücken zum Starten, erneut drücken zum Beenden",
+        "holdOrToggle": "{{shortcut}} gedrückt halten oder antippen zum Starten und erneut antippen zum Beenden",
+        "speechCloud": "Audio wird zur Transkription an {{host}} gesendet",
+        "speechLocal": "Audio bleibt auf diesem Gerät ({{model}})",
+        "noModel": "kein Modell ausgewählt",
+        "cleanupOff": "KI-Textkorrektur ist aus",
+        "cleanupLocal": "KI-Textkorrektur läuft lokal mit {{provider}}",
+        "cleanupCloud": "Der transkribierte Text wird zur Korrektur an {{provider}} gesendet",
+        "unavailable": "Mikrofonstatus nicht verfügbar",
+        "chooseModel": "Wählen Sie zum Starten ein Erkennungsmodell",
+        "checking": "Diktierstatus wird geprüft…",
+        "change": "Modelle ändern",
+        "captureOnly": "Die Mikrofonaufnahme ist aus. Erkennung oder Korrektur laufen möglicherweise noch. Das Ergebnis sehen Sie in der Aufnahmeanzeige oder im Verlauf.",
+        "release": "Lassen Sie das Tastenkürzel los, um zu beenden.",
+        "pressAgain": "Drücken Sie das Tastenkürzel erneut, um zu beenden.",
+        "releaseOrPress": "Loslassen, wenn Sie es gedrückt halten, oder das Tastenkürzel erneut antippen, um zu beenden."
       },
       "shortcut": {
-        "title": "Shortcut"
+        "title": "Tastenkürzel"
       },
       "microphone": {
         "title": "Mikrofon"
       },
       "sounds": {
-        "title": "Sounds",
+        "title": "Töne",
         "theme": "Ton",
-        "themeDescription": "Recording cues use your system output and volume."
+        "themeDescription": "Aufnahmesignale nutzen die Audioausgabe und Lautstärke Ihres Systems."
       },
       "language": {
-        "title": "Spoken language",
-        "model": "Options depend on the active model, {{model}}."
+        "title": "Gesprochene Sprache",
+        "model": "Die Optionen hängen vom aktiven Modell ab: {{model}}."
       }
     },
     "download": {
-      "pending": "Downloading…",
-      "multiple": "{{count}} downloading…"
+      "pending": "Wird heruntergeladen…",
+      "multiple": "{{count}} werden heruntergeladen…"
     },
     "about": {
       "versionDescription": "Aktuelle Version von Murmur",
       "ggml": {
-        "details": "Murmur uses transcribe.cpp and ggml for local speech recognition. Thanks to Georgi Gerganov and contributors."
+        "details": "Murmur nutzt transcribe.cpp und ggml für die lokale Spracherkennung. Dank an Georgi Gerganov und alle Mitwirkenden."
       }
     },
     "general": {
       "status": {
-        "recording": "Recording now",
-        "idle": "Not recording"
+        "recording": "Aufnahme läuft",
+        "idle": "Keine Aufnahme"
       },
       "indicator": {
-        "title": "Recording indicator"
+        "title": "Aufnahmeanzeige"
       }
     },
     "insertion": {
       "method": {
-        "title": "Inserting text",
-        "description": "If transcripts appear in History but not in your app, try another method here."
+        "title": "Text einfügen",
+        "description": "Wenn Transkriptionen im Verlauf erscheinen, aber nicht in Ihrer App, probieren Sie hier eine andere Methode."
       },
       "after": {
-        "title": "After inserting"
+        "title": "Nach dem Einfügen"
       }
     },
     "keys": {
-      "removed": "Removed the key for {{name}}",
-      "title": "Saved API keys",
-      "description": "Keys are kept in your system credential store, never in Murmur's settings file.",
-      "unavailable": "Credential-store status is unavailable. Saved keys have not been removed.",
-      "loading": "Checking the credential store…",
-      "none": "No API keys saved.",
-      "speech": "Speech recognition",
-      "cleanup": "AI cleanup",
-      "remove": "Remove"
+      "removed": "Schlüssel für {{name}} entfernt",
+      "title": "Gespeicherte API-Schlüssel",
+      "description": "Schlüssel liegen im Anmeldedatenspeicher Ihres Systems, nie in der Einstellungsdatei von Murmur.",
+      "unavailable": "Der Status des Anmeldedatenspeichers ist nicht verfügbar. Gespeicherte Schlüssel wurden nicht entfernt.",
+      "loading": "Anmeldedatenspeicher wird geprüft…",
+      "none": "Keine API-Schlüssel gespeichert.",
+      "speech": "Spracherkennung",
+      "cleanup": "KI-Textkorrektur",
+      "remove": "Entfernen"
     },
     "stt": {
-      "inUse": "In use",
-      "keySaved": "Speech API key saved",
-      "keyRemoved": "Speech API key removed",
-      "saved": "Speech source saved",
-      "refreshFailed": "Speech source was saved, but settings could not be reloaded. Retry loading settings.",
-      "title": "Speech recognition",
-      "description": "Choose where your speech is turned into text.",
-      "source": "Transcription source",
+      "inUse": "In Verwendung",
+      "keySaved": "Sprach-API-Schlüssel gespeichert",
+      "keyRemoved": "Sprach-API-Schlüssel entfernt",
+      "saved": "Sprachquelle gespeichert",
+      "refreshFailed": "Die Sprachquelle wurde gespeichert, aber die Einstellungen konnten nicht neu geladen werden. Laden Sie die Einstellungen erneut.",
+      "title": "Spracherkennung",
+      "description": "Wählen Sie, wo Ihre Sprache in Text umgewandelt wird.",
+      "source": "Transkriptionsquelle",
       "local": {
-        "title": "On this device",
-        "description": "Pick or download a model below. Audio never leaves this computer."
+        "title": "Auf diesem Gerät",
+        "description": "Wählen oder laden Sie unten ein Modell herunter. Das Audio verlässt diesen Computer nie."
       },
       "endpoint": {
-        "title": "Cloud API or your own server",
-        "description": "OpenAI, Groq or any OpenAI-compatible service. Needs an API key unless it runs locally.",
-        "notice": "Each recording is sent to this service, which may charge for usage. Murmur never switches to another service on its own."
+        "title": "Cloud-API oder eigener Server",
+        "description": "OpenAI, Groq oder ein beliebiger OpenAI-kompatibler Dienst. Benötigt einen API-Schlüssel, außer er läuft lokal.",
+        "notice": "Jede Aufnahme wird an diesen Dienst gesendet, der dafür Gebühren berechnen kann. Murmur wechselt nie von selbst zu einem anderen Dienst."
       },
-      "service": "Service",
-      "presetOther": "or enter any compatible server below",
-      "baseUrl": "API base URL",
-      "baseUrlHelp": "For a server on this computer, try http://127.0.0.1:8000/v1. A full /audio/transcriptions URL also works.",
-      "model": "Model ID",
-      "modelHelp": "Use the model name your speech server accepts.",
+      "service": "Dienst",
+      "presetOther": "oder unten einen beliebigen kompatiblen Server eingeben",
+      "baseUrl": "API-Basis-URL",
+      "baseUrlHelp": "Für einen Server auf diesem Computer versuchen Sie http://127.0.0.1:8000/v1. Eine vollständige /audio/transcriptions-URL funktioniert ebenfalls.",
+      "model": "Modell-ID",
+      "modelHelp": "Verwenden Sie den Modellnamen, den Ihr Sprachserver akzeptiert.",
       "apiKey": "API-Schlüssel",
-      "apiKeyPlaceholder": "Paste your key",
-      "saveKey": "Save key",
-      "removeKey": "Remove",
-      "keySavedWithSource": "Your key is saved with the URL and model when you press Save.",
-      "keyStored": "A key is saved for this endpoint in the system credential store.",
-      "noKey": "No key saved. Leave it empty only for a server that does not need one.",
-      "keyStatusError": "Could not check the system credential store. Retry below.",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "retryKeyCheck": "Retry key check",
-      "retryRefresh": "Retry loading settings",
-      "saving": "Saving…",
-      "save": "Prompt erstellen"
+      "apiKeyPlaceholder": "Schlüssel einfügen",
+      "saveKey": "Schlüssel speichern",
+      "removeKey": "Entfernen",
+      "keySavedWithSource": "Ihr Schlüssel wird zusammen mit URL und Modell gespeichert, wenn Sie auf Speichern klicken.",
+      "keyStored": "Für diesen Endpunkt ist ein Schlüssel im Anmeldedatenspeicher des Systems gespeichert.",
+      "noKey": "Kein Schlüssel gespeichert. Lassen Sie das Feld nur bei einem Server leer, der keinen benötigt.",
+      "keyStatusError": "Der Anmeldedatenspeicher des Systems konnte nicht geprüft werden. Versuchen Sie es unten erneut.",
+      "keyStatusUnknown": "Anmeldedatenspeicher des Systems wird geprüft…",
+      "retryKeyCheck": "Schlüsselprüfung wiederholen",
+      "retryRefresh": "Einstellungen erneut laden",
+      "saving": "Wird gespeichert…",
+      "save": "Speichern"
     },
     "privacy": {
-      "loading": "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
-      "change": "Change",
-      "reporting": "Anonymous usage and errors",
-      "reportingSwitch": "Share anonymous usage and errors",
-      "reportingNotice": "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
-      "reportingUnconfigured": "Reporting is not configured in this build. Nothing is sent.",
-      "reportingSaveError": "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+      "loading": "Datenschutzeinstellungen sind nicht verfügbar, solange die Konfiguration lädt. Mit Erneut versuchen prüfen Sie noch einmal.",
+      "change": "Ändern",
+      "reporting": "Anonyme Nutzung und Fehler",
+      "reportingSwitch": "Anonyme Nutzungsdaten und Fehler teilen",
+      "reportingNotice": "Nur selbst gehostete Zähler für Ansichten und Aktionen sowie feste Fehlerkategorien. Kein Besucher-Tracking, keine Aufnahmen, Transkriptionen, Wörterbucheinträge oder API-Schlüssel. Aus, bis ein Endpunkt des Betreibers eingerichtet ist. Do Not Track und Global Privacy Control haben Vorrang vor diesem Schalter. Zähler verfallen nach 30 Tagen, Fehler nach 14 Tagen.",
+      "reportingUnconfigured": "In diesem Build ist keine Berichterstattung eingerichtet. Es wird nichts gesendet.",
+      "reportingSaveError": "Die Einstellung zur Berichterstattung konnte nicht gespeichert werden. Die Berichterstattung bleibt aus, bis die Einstellung gelesen werden kann.",
       "leaves": {
-        "title": "What leaves this computer",
-        "description": "Your voice and text only go to services you choose. Murmur never switches to one on its own."
+        "title": "Was diesen Computer verlässt",
+        "description": "Ihre Stimme und Ihr Text gehen nur an Dienste, die Sie auswählen. Murmur wechselt nie von selbst zu einem anderen."
       },
       "speech": {
-        "title": "Your voice",
-        "cloud": "Each recording is sent to {{host}} to be transcribed.",
-        "local": "Transcribed on this computer. Recordings are never uploaded."
+        "title": "Ihre Stimme",
+        "cloud": "Jede Aufnahme wird zur Transkription an {{host}} gesendet.",
+        "local": "Wird auf diesem Computer transkribiert. Aufnahmen werden nie hochgeladen."
       },
       "cleanup": {
-        "title": "Your transcripts",
-        "off": "AI cleanup is off, so transcripts stay here.",
-        "local": "Cleaned up on this computer by {{provider}}.",
-        "cloud": "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not."
+        "title": "Ihre Transkriptionen",
+        "off": "Die KI-Textkorrektur ist aus, daher bleiben Transkriptionen hier.",
+        "local": "Wird auf diesem Computer von {{provider}} korrigiert.",
+        "cloud": "Der transkribierte Text und Ihre Wörterbucheinträge werden zur Korrektur an {{provider}} gesendet. Audio nicht."
       },
       "stored": {
-        "title": "What stays on this computer"
+        "title": "Was auf diesem Computer bleibt"
       },
       "history": {
-        "title": "Recordings and transcripts",
-        "detail": "Kept: {{period}}. Starred dictations are always kept."
+        "title": "Aufnahmen und Transkriptionen",
+        "detail": "Aufbewahrt: {{period}}. Markierte Diktate werden immer behalten."
       },
       "keys": {
-        "title": "API keys",
-        "detail": "{{count}} saved in your system credential store, never in Murmur's settings file."
+        "title": "API-Schlüssel",
+        "detail": "{{count}} im Anmeldedatenspeicher Ihres Systems gespeichert, nie in der Einstellungsdatei von Murmur."
       },
-      "manage": "Manage"
+      "manage": "Verwalten"
     },
     "stats": {
-      "providerCost": "Provider cost",
-      "openrouterKeys": "OpenRouter usage for your configured keys",
-      "refresh": "Refresh",
-      "costStale": "Could not refresh provider usage. These figures may be out of date.",
-      "costLoading": "Checking OpenRouter usage…",
-      "costUnavailable": "OpenRouter usage is unavailable. Check your connection and key, then retry.",
-      "noOpenrouterKey": "Add an OpenRouter speech key in Models or a cleanup key in Cleanup to see its usage here.",
-      "costWeek": "This week",
-      "costMonth": "This month",
-      "costAll": "All time",
-      "byokValue": "OpenRouter also reports {{value}} in BYOK model usage this month. Your provider bills that separately.",
-      "costScope": "These totals cover {{count}} configured OpenRouter key(s), including use outside Murmur. Local models and direct provider keys are not counted.",
-      "totalWordsDescription": "Words in saved dictations",
-      "thisWeekDescription": "Words saved since Monday",
-      "recordedDescription": "Based on saved audio after silence filtering",
-      "recordedMinutes": "Saved audio minutes",
-      "title": "Your dictation stats",
-      "unavailableHelp": "Try again after Murmur has finished starting up.",
-      "position": "Stat {{current}} of {{total}}",
-      "swipeHint": "Drag or swipe to browse",
-      "metricCards": "Dictation stat cards",
-      "noAudioShort": "No retained audio",
-      "noAudio": "No retained recordings with audio are available, so recorded pace and minutes cannot be calculated. This week is still in progress."
+      "providerCost": "Anbieterkosten",
+      "openrouterKeys": "OpenRouter-Nutzung Ihrer eingerichteten Schlüssel",
+      "refresh": "Aktualisieren",
+      "costStale": "Die Anbieternutzung konnte nicht aktualisiert werden. Diese Werte sind möglicherweise veraltet.",
+      "costLoading": "OpenRouter-Nutzung wird geprüft…",
+      "costUnavailable": "Die OpenRouter-Nutzung ist nicht verfügbar. Prüfen Sie Verbindung und Schlüssel und versuchen Sie es erneut.",
+      "noOpenrouterKey": "Fügen Sie unter Modelle einen OpenRouter-Sprachschlüssel oder unter Textkorrektur einen Korrekturschlüssel hinzu, um die Nutzung hier zu sehen.",
+      "costWeek": "Diese Woche",
+      "costMonth": "Diesen Monat",
+      "costAll": "Gesamt",
+      "byokValue": "OpenRouter meldet diesen Monat außerdem {{value}} für BYOK-Modellnutzung. Ihr Anbieter rechnet das separat ab.",
+      "costScope": "Diese Summen umfassen {{count}} eingerichtete(n) OpenRouter-Schlüssel, einschließlich Nutzung außerhalb von Murmur. Lokale Modelle und direkte Anbieterschlüssel werden nicht gezählt.",
+      "totalWordsDescription": "Wörter in gespeicherten Diktaten",
+      "thisWeekDescription": "Seit Montag gespeicherte Wörter",
+      "recordedDescription": "Basiert auf gespeichertem Audio nach Stillefilterung",
+      "recordedMinutes": "Minuten gespeichertes Audio",
+      "title": "Ihre Diktierstatistik",
+      "unavailableHelp": "Versuchen Sie es erneut, sobald Murmur vollständig gestartet ist.",
+      "position": "Statistik {{current}} von {{total}}",
+      "swipeHint": "Ziehen oder wischen zum Durchblättern",
+      "metricCards": "Karten der Diktierstatistik",
+      "noAudioShort": "Kein aufbewahrtes Audio",
+      "noAudio": "Es sind keine aufbewahrten Aufnahmen mit Audio vorhanden, daher lassen sich Tempo und Minuten nicht berechnen. Diese Woche ist noch nicht abgeschlossen."
     }
   }
 }

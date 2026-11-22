@@ -119,9 +119,9 @@
         "requestFailed": "Không thể yêu cầu quyền. Vui lòng thử lại."
       }
     },
-    "configureEndpoint": "Use a speech endpoint",
-    "configureEndpointDescription": "Configure an online provider or a server you run in Models.",
-    "noModels": "No downloadable models are listed right now."
+    "configureEndpoint": "Dùng dịch vụ nhận dạng giọng nói",
+    "configureEndpointDescription": "Cấu hình một nhà cung cấp trực tuyến hoặc máy chủ của riêng bạn trong mục Mô hình.",
+    "noModels": "Hiện chưa có mô hình nào để tải xuống."
   },
   "modelSelector": {
     "custom": "Tùy chỉnh",
@@ -664,8 +664,8 @@
     "copy": "Sao chép",
     "clear": "Xóa",
     "noOptionsFound": "Không tìm thấy tùy chọn",
-    "download": "Download",
-    "retry": "Retry",
+    "download": "Tải xuống",
+    "retry": "Thử lại",
     "cancel": "Hủy"
   },
   "accessibility": {
@@ -734,36 +734,36 @@
         "configuration": "Yêu cầu bị từ chối. Hãy kiểm tra cài đặt nhà cung cấp và mô hình."
       },
       "failed": "Không thể chỉnh sửa văn bản bằng AI",
-      "removeKey": "Remove key",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "keyStored": "Key saved in the system credential store",
-      "keyMissing": "No key saved",
+      "removeKey": "Xóa khóa",
+      "keyStatusUnknown": "Đang kiểm tra kho thông tin xác thực của hệ thống…",
+      "keyStored": "Đã lưu khóa trong kho thông tin xác thực của hệ thống",
+      "keyMissing": "Chưa lưu khóa",
       "formality": {
-        "veryCasual": "Very casual",
-        "casual": "Casual",
-        "natural": "Natural",
-        "professional": "Professional",
-        "formal": "Formal",
-        "title": "Tone",
-        "description": "Choose punctuation and grammar polish. Every level should keep your own words."
+        "veryCasual": "Rất thoải mái",
+        "casual": "Thoải mái",
+        "natural": "Tự nhiên",
+        "professional": "Chuyên nghiệp",
+        "formal": "Trang trọng",
+        "title": "Giọng văn",
+        "description": "Chọn mức chỉnh dấu câu và ngữ pháp. Mức nào cũng giữ nguyên lời của bạn."
       },
       "basic": {
-        "title": "On this device",
-        "description": "Always runs locally, even when AI cleanup is off."
+        "title": "Trên thiết bị này",
+        "description": "Luôn chạy cục bộ, kể cả khi đã tắt chỉnh sửa văn bản bằng AI."
       },
-      "title": "AI cleanup",
-      "description": "Fixes punctuation and clear errors and splits long dictation into readable sentences, keeping your words. Cloud providers receive the transcript, not the recording.",
+      "title": "Chỉnh sửa văn bản bằng AI",
+      "description": "Sửa dấu câu và lỗi rõ ràng, chia đoạn nhập bằng giọng nói dài thành các câu dễ đọc mà vẫn giữ lời của bạn. Nhà cung cấp đám mây chỉ nhận bản chép lời, không nhận bản ghi âm.",
       "instructions": {
-        "title": "Custom instructions",
-        "description": "Optional. Tell the cleanup model anything extra."
+        "title": "Hướng dẫn tùy chỉnh",
+        "description": "Không bắt buộc. Thêm yêu cầu cho mô hình chỉnh sửa."
       },
       "model": {
-        "none": "No provider chosen"
+        "none": "Chưa chọn nhà cung cấp"
       }
     },
     "app": {
-      "loading": "Loading Murmur…",
-      "skip": "Skip to settings",
+      "loading": "Đang tải Murmur…",
+      "skip": "Chuyển đến cài đặt",
       "appearance": {
         "title": "Giao diện"
       },
@@ -786,323 +786,323 @@
     },
     "pages": {
       "dictation": {
-        "description": "Your shortcut, microphone and spoken language, plus what you see and hear while recording."
+        "description": "Phím tắt, micrô và ngôn ngữ nói của bạn, cùng những gì bạn thấy và nghe khi ghi âm."
       },
       "lectures": {
         "description": "Ghi âm bài giảng hoặc nhập tệp âm thanh. Bản chép lời sẽ xuất hiện trong lịch sử."
       },
       "models": {
-        "description": "Choose what turns your speech into text. Every saved API key is listed here too."
+        "description": "Chọn công cụ chuyển giọng nói thành văn bản. Mọi khóa API đã lưu cũng được liệt kê ở đây."
       },
       "cleanup": {
-        "description": "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions."
+        "description": "Làm gọn bản chép lời trước khi chèn: từ đệm, mô hình AI và khóa, giọng văn và hướng dẫn."
       },
       "dictionary": {
-        "description": "Names and terms Murmur should spell your way."
+        "description": "Tên riêng và thuật ngữ mà Murmur nên viết theo cách của bạn."
       },
       "insertion": {
-        "description": "How finished text reaches the app you are typing in, and what happens after."
+        "description": "Cách văn bản hoàn chỉnh được đưa vào ứng dụng bạn đang gõ và điều gì xảy ra sau đó."
       },
       "stats": {
-        "description": "Words, speaking pace, saved audio duration and provider cost."
+        "description": "Số từ, tốc độ nói, thời lượng âm thanh đã lưu và chi phí nhà cung cấp."
       },
       "history": {
-        "description": "Past dictations, retention and compressed export."
+        "description": "Các mục nhập bằng giọng nói trước đây, thời gian lưu giữ và xuất bản nén."
       },
       "privacy": {
-        "description": "What leaves this computer, what stays on it, and for how long."
+        "description": "Những gì rời khỏi máy tính này, những gì ở lại và trong bao lâu."
       },
       "app": {
         "description": "Giao diện, ngôn ngữ hiển thị, khởi động và hiệu năng."
       },
       "about": {
-        "description": "Version, credits and where Murmur keeps its files."
+        "description": "Phiên bản, ghi công và nơi Murmur lưu tệp của mình."
       },
       "debug": {
-        "description": "Diagnostics for troubleshooting."
+        "description": "Thông tin chẩn đoán để khắc phục sự cố."
       }
     },
     "onboarding": {
-      "checking": "Checking permissions…",
-      "checkFailed": "Permission checks failed. Use the permission action below to retry. Your system settings have not been changed.",
-      "microphoneWaiting": "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
-      "recheck": "Check again",
-      "accessibilityWaiting": "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically."
+      "checking": "Đang kiểm tra quyền…",
+      "checkFailed": "Kiểm tra quyền thất bại. Dùng thao tác cấp quyền bên dưới để thử lại. Cài đặt hệ thống của bạn chưa bị thay đổi.",
+      "microphoneWaiting": "Bật quyền truy cập micrô trong cài đặt hệ thống rồi quay lại đây. Murmur sẽ tự động kiểm tra lại.",
+      "recheck": "Kiểm tra lại",
+      "accessibilityWaiting": "Bật Murmur trong cài đặt trợ năng của hệ thống rồi quay lại đây. Murmur sẽ tự động kiểm tra lại."
     },
     "models": {
-      "downloadNamed": "Download {{model}}",
-      "browse": "Browse {{count}} models to download",
+      "downloadNamed": "Tải xuống {{model}}",
+      "browse": "Duyệt {{count}} mô hình để tải xuống",
       "local": {
-        "title": "On-device models"
+        "title": "Mô hình trên thiết bị"
       },
       "cleanup": {
-        "title": "Cleanup model",
-        "on": "AI cleanup is on",
-        "off": "AI cleanup is off",
-        "change": "Change in Cleanup"
+        "title": "Mô hình chỉnh sửa",
+        "on": "Chỉnh sửa văn bản bằng AI đang bật",
+        "off": "Chỉnh sửa văn bản bằng AI đang tắt",
+        "change": "Thay đổi trong Xử lý sau"
       }
     },
     "dictionary": {
-      "saveError": "Could not save this dictionary entry.",
-      "search": "Search saved words",
-      "count": "{{count}} terms saved",
-      "noMatches": "No matching words.",
-      "title": "Your words",
-      "description": "Used by on-device recognition and by AI cleanup to spell unusual names and terms."
+      "saveError": "Không thể lưu mục từ điển này.",
+      "search": "Tìm từ đã lưu",
+      "count": "Đã lưu {{count}} thuật ngữ",
+      "noMatches": "Không có từ phù hợp.",
+      "title": "Từ của bạn",
+      "description": "Được nhận dạng trên thiết bị và chỉnh sửa văn bản bằng AI dùng để viết đúng tên riêng và thuật ngữ ít gặp."
     },
     "history": {
       "limit": {
         "confirmMessage": "Giữ lại {{count}} mục nhập bằng giọng nói gần nhất? Các mục cũ hơn chưa đánh dấu sao và bản ghi âm của chúng sẽ bị xoá vĩnh viễn.",
-        "confirmTitle": "Reduce history limit"
+        "confirmTitle": "Giảm giới hạn lịch sử"
       },
       "retention": {
-        "confirmMessage": "Changing retention may permanently delete existing recordings and transcripts that exceed the new limit. Continue?",
-        "confirmTitle": "Change history retention"
+        "confirmMessage": "Thay đổi thời gian lưu giữ có thể xóa vĩnh viễn các bản ghi âm và bản chép lời vượt quá giới hạn mới. Tiếp tục?",
+        "confirmTitle": "Thay đổi thời gian lưu giữ lịch sử"
       },
-      "playbackError": "Recording playback is unavailable. Try Play again or recover the transcript above.",
-      "saveError": "Could not change whether this dictation is kept. Try again.",
-      "folderError": "Could not open the recordings folder. Your transcripts are still available here.",
+      "playbackError": "Không phát được bản ghi âm. Hãy thử Phát lại hoặc khôi phục bản chép lời ở trên.",
+      "saveError": "Không thể thay đổi việc giữ lại mục này. Hãy thử lại.",
+      "folderError": "Không thể mở thư mục bản ghi âm. Bản chép lời của bạn vẫn có ở đây.",
       "archive": {
-        "partial": "Archived {{count}} dictations, but {{missing}} recordings were already missing.",
-        "complete": "Archived {{count}} dictations. Originals are unchanged.",
-        "error": "Could not export history.",
-        "working": "Creating archive…",
-        "action": "Export compressed archive",
-        "note": "Lossless compression keeps the original WAV audio. The archive is not encrypted, and exporting never deletes local history."
+        "partial": "Đã lưu trữ {{count}} mục, nhưng {{missing}} bản ghi âm đã bị thiếu từ trước.",
+        "complete": "Đã lưu trữ {{count}} mục. Bản gốc không thay đổi.",
+        "error": "Không thể xuất lịch sử.",
+        "working": "Đang tạo tệp lưu trữ…",
+        "action": "Xuất tệp lưu trữ nén",
+        "note": "Nén không mất dữ liệu giữ nguyên âm thanh WAV gốc. Tệp lưu trữ không được mã hóa và việc xuất không bao giờ xóa lịch sử cục bộ."
       },
-      "loadError": "Could not load history. Your saved dictations have not been removed.",
-      "retryLoad": "Retry loading",
+      "loadError": "Không thể tải lịch sử. Các mục đã lưu của bạn chưa bị xóa.",
+      "retryLoad": "Tải lại",
       "storage": {
-        "title": "Storage and archive",
-        "description": "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive."
+        "title": "Dung lượng và lưu trữ",
+        "description": "Chọn thời gian giữ bản ghi âm và bản chép lời. Khi cần lưu trữ lâu dài, hãy xuất một bản sao nén chứa cả văn bản gốc và văn bản đã chỉnh sửa."
       },
-      "copied": "Copied displayed transcript.",
-      "deleteMessage": "This permanently removes the raw and cleaned text and its recording.",
-      "deleteTitle": "Delete dictation?",
-      "retryFinished": "Transcription request finished. Check this entry for the result.",
-      "raw": "Raw transcript",
-      "cleaned": "Cleaned transcript",
+      "copied": "Đã sao chép bản chép lời đang hiển thị.",
+      "deleteMessage": "Thao tác này xóa vĩnh viễn văn bản gốc, văn bản đã chỉnh sửa và bản ghi âm của mục.",
+      "deleteTitle": "Xóa mục nhập bằng giọng nói?",
+      "retryFinished": "Yêu cầu chép lời đã xong. Hãy xem kết quả trong mục này.",
+      "raw": "Bản chép lời gốc",
+      "cleaned": "Bản chép lời đã chỉnh sửa",
       "processed": "Bản chép lời đã xử lý",
-      "showCleaned": "Show cleaned text",
+      "showCleaned": "Hiện văn bản đã chỉnh sửa",
       "showProcessed": "Hiện văn bản đã xử lý",
-      "showRaw": "Show raw text",
+      "showRaw": "Hiện văn bản gốc",
       "rawFallback": "Mục này không dùng được tính năng chỉnh sửa văn bản bằng AI.",
       "stats": {
-        "noPreviousWeek": "No previous week to compare",
-        "totalWords": "Retained words",
-        "thisWeek": "This week",
-        "recordedPace": "Recorded pace",
-        "wpm": "wpm",
-        "minutes": "min",
-        "retainedOnly": "Based on retained history. Deleted dictations are not counted.",
-        "stale": "Could not refresh statistics. These figures may be out of date.",
-        "loading": "Loading statistics…",
-        "unavailable": "Statistics are unavailable right now.",
-        "weeklyWords": "Words each week",
-        "vsPrevious": "vs last full week",
-        "weekBar": "{{date}}: {{count}} words",
-        "weeklyPace": "Recorded pace each week",
-        "weekPaceUnavailable": "{{date}}: no recording data",
-        "weekPaceValue": "{{date}}: {{wpm}} words per minute",
-        "method": "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress."
+        "noPreviousWeek": "Không có tuần trước để so sánh",
+        "totalWords": "Số từ được giữ lại",
+        "thisWeek": "Tuần này",
+        "recordedPace": "Tốc độ ghi âm",
+        "wpm": "từ/phút",
+        "minutes": "phút",
+        "retainedOnly": "Dựa trên lịch sử được giữ lại. Các mục đã xóa không được tính.",
+        "stale": "Không thể làm mới thống kê. Số liệu này có thể đã cũ.",
+        "loading": "Đang tải thống kê…",
+        "unavailable": "Hiện không có thống kê.",
+        "weeklyWords": "Số từ mỗi tuần",
+        "vsPrevious": "so với tuần đầy đủ trước",
+        "weekBar": "{{date}}: {{count}} từ",
+        "weeklyPace": "Tốc độ ghi âm mỗi tuần",
+        "weekPaceUnavailable": "{{date}}: không có dữ liệu ghi âm",
+        "weekPaceValue": "{{date}}: {{wpm}} từ mỗi phút",
+        "method": "Tốc độ dựa trên âm thanh đã lưu của {{covered}}/{{count}} bản ghi âm. Khoảng lặng bị lọc khi ghi không được tính. Tuần này vẫn đang diễn ra."
       }
     },
     "lectures": {
-      "saved": "Lecture transcript saved in History",
-      "imported": "Audio transcript saved in History",
-      "importFailed": "Import or transcription failed: {{error}}",
-      "recordTitle": "Record a lecture",
-      "recordDescription": "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
-      "finish": "Finish and transcribe",
-      "record": "Record lecture",
-      "recordingSince": "Recording since {{time}}",
-      "earlier": "earlier",
-      "progress": "Transcribing {{completed}} of {{total}} parts",
-      "working": "Working…",
-      "importTitle": "Transcribe an audio file",
-      "importDescription": "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
-      "choose": "Choose audio file",
-      "privacy": "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode."
+      "saved": "Đã lưu bản chép lời bài giảng vào Lịch sử",
+      "imported": "Đã lưu bản chép lời âm thanh vào Lịch sử",
+      "importFailed": "Nhập hoặc chép lời thất bại: {{error}}",
+      "recordTitle": "Ghi âm bài giảng",
+      "recordDescription": "Ghi từ micrô của bạn. Âm thanh được lưu trong khi ghi, rồi được chép lời khi bạn kết thúc.",
+      "finish": "Kết thúc và chép lời",
+      "record": "Ghi âm bài giảng",
+      "recordingSince": "Đang ghi từ {{time}}",
+      "earlier": "trước đó",
+      "progress": "Đang chép lời phần {{completed}}/{{total}}",
+      "working": "Đang xử lý…",
+      "importTitle": "Chép lời tệp âm thanh",
+      "importDescription": "Chọn một bản ghi âm để thêm vào Lịch sử. Murmur dùng nhà cung cấp nhận dạng giọng nói và chỉnh sửa bạn đã chọn.",
+      "choose": "Chọn tệp âm thanh",
+      "privacy": "Âm thanh gốc và bản chép lời tuân theo cài đặt lưu giữ của Lịch sử. Nhà cung cấp đám mây chỉ nhận âm thanh khi bạn chọn chế độ nhận dạng qua dịch vụ."
     },
     "dictation": {
-      "resetMicrophone": "Reset microphone to default",
+      "resetMicrophone": "Đặt lại micrô về mặc định",
       "indicator": {
-        "visibility": "Show recording indicator",
-        "description": "A visible alternative to sound cues. Availability depends on the desktop and its permissions."
+        "visibility": "Hiện chỉ báo ghi âm",
+        "description": "Lựa chọn trực quan thay cho âm báo. Khả năng hiển thị tùy thuộc vào môi trường máy tính và quyền của nó."
       },
-      "previewSounds": "Preview sound theme: start then stop",
+      "previewSounds": "Nghe thử chủ đề âm thanh: bắt đầu rồi dừng",
       "status": {
-        "hold": "Hold {{shortcut}} to dictate; release to finish",
-        "toggle": "Press {{shortcut}} to start; press again to finish",
-        "holdOrToggle": "Hold {{shortcut}}, or tap to start and tap again to finish",
-        "speechCloud": "Audio is sent to {{host}} for transcription",
-        "speechLocal": "Audio stays on this device ({{model}})",
-        "noModel": "no model selected",
-        "cleanupOff": "AI cleanup is off",
-        "cleanupLocal": "AI cleanup runs locally with {{provider}}",
-        "cleanupCloud": "Transcript text is sent to {{provider}} for cleanup",
-        "unavailable": "Microphone status unavailable",
-        "chooseModel": "Choose a recognition model to start",
-        "checking": "Checking dictation status…",
-        "change": "Change models",
-        "captureOnly": "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
-        "release": "Release the shortcut to finish.",
-        "pressAgain": "Press the shortcut again to finish.",
-        "releaseOrPress": "Release if holding, or tap the shortcut again to finish."
+        "hold": "Giữ {{shortcut}} để nói, thả ra để kết thúc",
+        "toggle": "Nhấn {{shortcut}} để bắt đầu, nhấn lần nữa để kết thúc",
+        "holdOrToggle": "Giữ {{shortcut}}, hoặc nhấn để bắt đầu và nhấn lần nữa để kết thúc",
+        "speechCloud": "Âm thanh được gửi tới {{host}} để chép lời",
+        "speechLocal": "Âm thanh ở lại trên thiết bị này ({{model}})",
+        "noModel": "chưa chọn mô hình",
+        "cleanupOff": "Chỉnh sửa văn bản bằng AI đang tắt",
+        "cleanupLocal": "Chỉnh sửa văn bản bằng AI chạy cục bộ với {{provider}}",
+        "cleanupCloud": "Bản chép lời được gửi tới {{provider}} để chỉnh sửa",
+        "unavailable": "Không có trạng thái micrô",
+        "chooseModel": "Chọn một mô hình nhận dạng để bắt đầu",
+        "checking": "Đang kiểm tra trạng thái nhập bằng giọng nói…",
+        "change": "Đổi mô hình",
+        "captureOnly": "Đã tắt thu âm từ micrô. Nhận dạng hoặc chỉnh sửa có thể vẫn đang chạy, hãy xem chỉ báo ghi âm hoặc Lịch sử để biết kết quả.",
+        "release": "Thả phím tắt để kết thúc.",
+        "pressAgain": "Nhấn phím tắt lần nữa để kết thúc.",
+        "releaseOrPress": "Thả ra nếu đang giữ, hoặc nhấn phím tắt lần nữa để kết thúc."
       },
       "shortcut": {
-        "title": "Shortcut"
+        "title": "Phím tắt"
       },
       "microphone": {
         "title": "Micrô"
       },
       "sounds": {
-        "title": "Sounds",
+        "title": "Âm thanh",
         "theme": "Âm thanh",
-        "themeDescription": "Recording cues use your system output and volume."
+        "themeDescription": "Âm báo ghi âm dùng đầu ra và âm lượng của hệ thống."
       },
       "language": {
-        "title": "Spoken language",
-        "model": "Options depend on the active model, {{model}}."
+        "title": "Ngôn ngữ nói",
+        "model": "Các tùy chọn phụ thuộc vào mô hình đang dùng, {{model}}."
       }
     },
     "download": {
-      "pending": "Downloading…",
-      "multiple": "{{count}} downloading…"
+      "pending": "Đang tải xuống…",
+      "multiple": "Đang tải xuống {{count}} mục…"
     },
     "about": {
       "versionDescription": "Phiên bản hiện tại của Murmur",
       "ggml": {
-        "details": "Murmur uses transcribe.cpp and ggml for local speech recognition. Thanks to Georgi Gerganov and contributors."
+        "details": "Murmur dùng transcribe.cpp và ggml để nhận dạng giọng nói cục bộ. Cảm ơn Georgi Gerganov và những người đóng góp."
       }
     },
     "general": {
       "status": {
-        "recording": "Recording now",
-        "idle": "Not recording"
+        "recording": "Đang ghi âm",
+        "idle": "Không ghi âm"
       },
       "indicator": {
-        "title": "Recording indicator"
+        "title": "Chỉ báo ghi âm"
       }
     },
     "insertion": {
       "method": {
-        "title": "Inserting text",
-        "description": "If transcripts appear in History but not in your app, try another method here."
+        "title": "Chèn văn bản",
+        "description": "Nếu bản chép lời có trong Lịch sử nhưng không xuất hiện trong ứng dụng, hãy thử phương thức khác ở đây."
       },
       "after": {
-        "title": "After inserting"
+        "title": "Sau khi chèn"
       }
     },
     "keys": {
-      "removed": "Removed the key for {{name}}",
-      "title": "Saved API keys",
-      "description": "Keys are kept in your system credential store, never in Murmur's settings file.",
-      "unavailable": "Credential-store status is unavailable. Saved keys have not been removed.",
-      "loading": "Checking the credential store…",
-      "none": "No API keys saved.",
-      "speech": "Speech recognition",
-      "cleanup": "AI cleanup",
-      "remove": "Remove"
+      "removed": "Đã xóa khóa của {{name}}",
+      "title": "Khóa API đã lưu",
+      "description": "Khóa được giữ trong kho thông tin xác thực của hệ thống, không bao giờ nằm trong tệp cài đặt của Murmur.",
+      "unavailable": "Không lấy được trạng thái kho thông tin xác thực. Các khóa đã lưu chưa bị xóa.",
+      "loading": "Đang kiểm tra kho thông tin xác thực…",
+      "none": "Chưa lưu khóa API nào.",
+      "speech": "Nhận dạng giọng nói",
+      "cleanup": "Chỉnh sửa văn bản bằng AI",
+      "remove": "Xóa"
     },
     "stt": {
-      "inUse": "In use",
-      "keySaved": "Speech API key saved",
-      "keyRemoved": "Speech API key removed",
-      "saved": "Speech source saved",
-      "refreshFailed": "Speech source was saved, but settings could not be reloaded. Retry loading settings.",
-      "title": "Speech recognition",
-      "description": "Choose where your speech is turned into text.",
-      "source": "Transcription source",
+      "inUse": "Đang dùng",
+      "keySaved": "Đã lưu khóa API nhận dạng giọng nói",
+      "keyRemoved": "Đã xóa khóa API nhận dạng giọng nói",
+      "saved": "Đã lưu nguồn nhận dạng giọng nói",
+      "refreshFailed": "Đã lưu nguồn nhận dạng giọng nói, nhưng không thể tải lại cài đặt. Hãy thử tải lại cài đặt.",
+      "title": "Nhận dạng giọng nói",
+      "description": "Chọn nơi chuyển giọng nói của bạn thành văn bản.",
+      "source": "Nguồn chép lời",
       "local": {
-        "title": "On this device",
-        "description": "Pick or download a model below. Audio never leaves this computer."
+        "title": "Trên thiết bị này",
+        "description": "Chọn hoặc tải xuống một mô hình bên dưới. Âm thanh không bao giờ rời khỏi máy tính này."
       },
       "endpoint": {
-        "title": "Cloud API or your own server",
-        "description": "OpenAI, Groq or any OpenAI-compatible service. Needs an API key unless it runs locally.",
-        "notice": "Each recording is sent to this service, which may charge for usage. Murmur never switches to another service on its own."
+        "title": "API đám mây hoặc máy chủ của bạn",
+        "description": "OpenAI, Groq hoặc bất kỳ dịch vụ nào tương thích OpenAI. Cần khóa API trừ khi dịch vụ chạy cục bộ.",
+        "notice": "Mỗi bản ghi âm được gửi tới dịch vụ này và dịch vụ có thể tính phí sử dụng. Murmur không bao giờ tự chuyển sang dịch vụ khác."
       },
-      "service": "Service",
-      "presetOther": "or enter any compatible server below",
-      "baseUrl": "API base URL",
-      "baseUrlHelp": "For a server on this computer, try http://127.0.0.1:8000/v1. A full /audio/transcriptions URL also works.",
-      "model": "Model ID",
-      "modelHelp": "Use the model name your speech server accepts.",
+      "service": "Dịch vụ",
+      "presetOther": "hoặc nhập máy chủ tương thích bất kỳ bên dưới",
+      "baseUrl": "URL gốc của API",
+      "baseUrlHelp": "Với máy chủ trên máy tính này, hãy thử http://127.0.0.1:8000/v1. URL /audio/transcriptions đầy đủ cũng dùng được.",
+      "model": "ID mô hình",
+      "modelHelp": "Dùng tên mô hình mà máy chủ nhận dạng giọng nói của bạn chấp nhận.",
       "apiKey": "Khóa API",
-      "apiKeyPlaceholder": "Paste your key",
-      "saveKey": "Save key",
-      "removeKey": "Remove",
-      "keySavedWithSource": "Your key is saved with the URL and model when you press Save.",
-      "keyStored": "A key is saved for this endpoint in the system credential store.",
-      "noKey": "No key saved. Leave it empty only for a server that does not need one.",
-      "keyStatusError": "Could not check the system credential store. Retry below.",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "retryKeyCheck": "Retry key check",
-      "retryRefresh": "Retry loading settings",
-      "saving": "Saving…",
-      "save": "Tạo Prompt"
+      "apiKeyPlaceholder": "Dán khóa của bạn",
+      "saveKey": "Lưu khóa",
+      "removeKey": "Xóa",
+      "keySavedWithSource": "Khóa của bạn được lưu cùng URL và mô hình khi bạn nhấn Lưu.",
+      "keyStored": "Đã có khóa cho dịch vụ này trong kho thông tin xác thực của hệ thống.",
+      "noKey": "Chưa lưu khóa. Chỉ để trống nếu máy chủ không cần khóa.",
+      "keyStatusError": "Không thể kiểm tra kho thông tin xác thực của hệ thống. Hãy thử lại bên dưới.",
+      "keyStatusUnknown": "Đang kiểm tra kho thông tin xác thực của hệ thống…",
+      "retryKeyCheck": "Kiểm tra khóa lại",
+      "retryRefresh": "Tải lại cài đặt",
+      "saving": "Đang lưu…",
+      "save": "Lưu"
     },
     "privacy": {
-      "loading": "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
-      "change": "Change",
-      "reporting": "Anonymous usage and errors",
-      "reportingSwitch": "Share anonymous usage and errors",
-      "reportingNotice": "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
-      "reportingUnconfigured": "Reporting is not configured in this build. Nothing is sent.",
-      "reportingSaveError": "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+      "loading": "Không thể dùng cài đặt quyền riêng tư khi cấu hình đang tải. Nhấn Thử lại để kiểm tra lại.",
+      "change": "Thay đổi",
+      "reporting": "Dữ liệu sử dụng và lỗi ẩn danh",
+      "reportingSwitch": "Chia sẻ dữ liệu sử dụng và lỗi ẩn danh",
+      "reportingNotice": "Chỉ gồm số lượt xem màn hình/thao tác lưu trên máy chủ tự vận hành và các loại lỗi cố định. Không theo dõi người dùng, không có bản ghi âm, bản chép lời, từ trong từ điển hay khóa API. Tắt cho đến khi chủ sở hữu cấu hình dịch vụ nhận. Do Not Track và Global Privacy Control được ưu tiên hơn công tắc này. Số liệu hết hạn sau 30 ngày, lỗi sau 14 ngày.",
+      "reportingUnconfigured": "Bản dựng này chưa cấu hình báo cáo. Không có gì được gửi.",
+      "reportingSaveError": "Không thể lưu tùy chọn báo cáo. Báo cáo sẽ tắt cho đến khi đọc được tùy chọn.",
       "leaves": {
-        "title": "What leaves this computer",
-        "description": "Your voice and text only go to services you choose. Murmur never switches to one on its own."
+        "title": "Những gì rời khỏi máy tính này",
+        "description": "Giọng nói và văn bản của bạn chỉ được gửi tới dịch vụ bạn chọn. Murmur không bao giờ tự chuyển sang dịch vụ khác."
       },
       "speech": {
-        "title": "Your voice",
-        "cloud": "Each recording is sent to {{host}} to be transcribed.",
-        "local": "Transcribed on this computer. Recordings are never uploaded."
+        "title": "Giọng nói của bạn",
+        "cloud": "Mỗi bản ghi âm được gửi tới {{host}} để chép lời.",
+        "local": "Được chép lời trên máy tính này. Bản ghi âm không bao giờ được tải lên."
       },
       "cleanup": {
-        "title": "Your transcripts",
-        "off": "AI cleanup is off, so transcripts stay here.",
-        "local": "Cleaned up on this computer by {{provider}}.",
-        "cloud": "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not."
+        "title": "Bản chép lời của bạn",
+        "off": "Chỉnh sửa văn bản bằng AI đang tắt nên bản chép lời ở lại đây.",
+        "local": "Được {{provider}} chỉnh sửa trên máy tính này.",
+        "cloud": "Bản chép lời và từ trong từ điển của bạn được gửi tới {{provider}} để chỉnh sửa. Âm thanh thì không."
       },
       "stored": {
-        "title": "What stays on this computer"
+        "title": "Những gì ở lại trên máy tính này"
       },
       "history": {
-        "title": "Recordings and transcripts",
-        "detail": "Kept: {{period}}. Starred dictations are always kept."
+        "title": "Bản ghi âm và bản chép lời",
+        "detail": "Giữ: {{period}}. Các mục được gắn sao luôn được giữ lại."
       },
       "keys": {
-        "title": "API keys",
-        "detail": "{{count}} saved in your system credential store, never in Murmur's settings file."
+        "title": "Khóa API",
+        "detail": "Đã lưu {{count}} khóa trong kho thông tin xác thực của hệ thống, không bao giờ trong tệp cài đặt của Murmur."
       },
-      "manage": "Manage"
+      "manage": "Quản lý"
     },
     "stats": {
-      "providerCost": "Provider cost",
-      "openrouterKeys": "OpenRouter usage for your configured keys",
-      "refresh": "Refresh",
-      "costStale": "Could not refresh provider usage. These figures may be out of date.",
-      "costLoading": "Checking OpenRouter usage…",
-      "costUnavailable": "OpenRouter usage is unavailable. Check your connection and key, then retry.",
-      "noOpenrouterKey": "Add an OpenRouter speech key in Models or a cleanup key in Cleanup to see its usage here.",
-      "costWeek": "This week",
-      "costMonth": "This month",
-      "costAll": "All time",
-      "byokValue": "OpenRouter also reports {{value}} in BYOK model usage this month. Your provider bills that separately.",
-      "costScope": "These totals cover {{count}} configured OpenRouter key(s), including use outside Murmur. Local models and direct provider keys are not counted.",
-      "totalWordsDescription": "Words in saved dictations",
-      "thisWeekDescription": "Words saved since Monday",
-      "recordedDescription": "Based on saved audio after silence filtering",
-      "recordedMinutes": "Saved audio minutes",
-      "title": "Your dictation stats",
-      "unavailableHelp": "Try again after Murmur has finished starting up.",
-      "position": "Stat {{current}} of {{total}}",
-      "swipeHint": "Drag or swipe to browse",
-      "metricCards": "Dictation stat cards",
-      "noAudioShort": "No retained audio",
-      "noAudio": "No retained recordings with audio are available, so recorded pace and minutes cannot be calculated. This week is still in progress."
+      "providerCost": "Chi phí nhà cung cấp",
+      "openrouterKeys": "Mức sử dụng OpenRouter của các khóa bạn đã cấu hình",
+      "refresh": "Làm mới",
+      "costStale": "Không thể làm mới mức sử dụng của nhà cung cấp. Số liệu này có thể đã cũ.",
+      "costLoading": "Đang kiểm tra mức sử dụng OpenRouter…",
+      "costUnavailable": "Không lấy được mức sử dụng OpenRouter. Hãy kiểm tra kết nối và khóa, rồi thử lại.",
+      "noOpenrouterKey": "Thêm khóa OpenRouter cho nhận dạng giọng nói trong Mô hình hoặc khóa chỉnh sửa trong Xử lý sau để xem mức sử dụng ở đây.",
+      "costWeek": "Tuần này",
+      "costMonth": "Tháng này",
+      "costAll": "Toàn thời gian",
+      "byokValue": "OpenRouter cũng ghi nhận {{value}} mức sử dụng mô hình BYOK trong tháng này. Nhà cung cấp của bạn tính phí khoản đó riêng.",
+      "costScope": "Các tổng này bao gồm {{count}} khóa OpenRouter đã cấu hình, kể cả mức sử dụng ngoài Murmur. Mô hình cục bộ và khóa nhà cung cấp trực tiếp không được tính.",
+      "totalWordsDescription": "Số từ trong các mục đã lưu",
+      "thisWeekDescription": "Số từ đã lưu từ thứ Hai",
+      "recordedDescription": "Dựa trên âm thanh đã lưu sau khi lọc khoảng lặng",
+      "recordedMinutes": "Số phút âm thanh đã lưu",
+      "title": "Thống kê nhập bằng giọng nói",
+      "unavailableHelp": "Hãy thử lại khi Murmur đã khởi động xong.",
+      "position": "Thống kê {{current}}/{{total}}",
+      "swipeHint": "Kéo hoặc vuốt để xem",
+      "metricCards": "Thẻ thống kê nhập bằng giọng nói",
+      "noAudioShort": "Không có âm thanh được giữ lại",
+      "noAudio": "Không có bản ghi âm nào được giữ lại kèm âm thanh, nên không thể tính tốc độ và số phút ghi âm. Tuần này vẫn đang diễn ra."
     }
   }
 }

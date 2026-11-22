@@ -119,9 +119,9 @@
         "requestFailed": "権限のリクエストに失敗しました。もう一度お試しください。"
       }
     },
-    "configureEndpoint": "Use a speech endpoint",
-    "configureEndpointDescription": "Configure an online provider or a server you run in Models.",
-    "noModels": "No downloadable models are listed right now."
+    "configureEndpoint": "音声エンドポイントを使用",
+    "configureEndpointDescription": "オンラインの提供元または自分で運用するサーバーを「モデル」で設定します。",
+    "noModels": "現在ダウンロードできるモデルはありません。"
   },
   "modelSelector": {
     "custom": "カスタム",
@@ -664,8 +664,8 @@
     "copy": "コピー",
     "clear": "クリア",
     "noOptionsFound": "オプションが見つかりません",
-    "download": "Download",
-    "retry": "Retry",
+    "download": "ダウンロード",
+    "retry": "再試行",
     "cancel": "キャンセル"
   },
   "accessibility": {
@@ -734,36 +734,36 @@
         "configuration": "リクエストが拒否されました。提供元とモデルの設定を確認してください。"
       },
       "failed": "AI による文章修正に失敗しました",
-      "removeKey": "Remove key",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "keyStored": "Key saved in the system credential store",
-      "keyMissing": "No key saved",
+      "removeKey": "キーを削除",
+      "keyStatusUnknown": "システムの資格情報ストアを確認中…",
+      "keyStored": "キーはシステムの資格情報ストアに保存されています",
+      "keyMissing": "キーが保存されていません",
       "formality": {
-        "veryCasual": "Very casual",
-        "casual": "Casual",
-        "natural": "Natural",
-        "professional": "Professional",
-        "formal": "Formal",
-        "title": "Tone",
-        "description": "Choose punctuation and grammar polish. Every level should keep your own words."
+        "veryCasual": "とてもくだけた",
+        "casual": "くだけた",
+        "natural": "自然",
+        "professional": "ビジネス",
+        "formal": "フォーマル",
+        "title": "トーン",
+        "description": "句読点と文法をどこまで整えるかを選びます。どのレベルでもあなたの言葉はそのまま残ります。"
       },
       "basic": {
-        "title": "On this device",
-        "description": "Always runs locally, even when AI cleanup is off."
+        "title": "このデバイス上",
+        "description": "AI による文章修正がオフでも、常にローカルで実行されます。"
       },
-      "title": "AI cleanup",
-      "description": "Fixes punctuation and clear errors and splits long dictation into readable sentences, keeping your words. Cloud providers receive the transcript, not the recording.",
+      "title": "AI による文章修正",
+      "description": "あなたの言葉を残したまま、句読点や明らかな誤りを直し、長い音声入力を読みやすい文に分けます。クラウドの提供元が受け取るのは文字起こしで、録音ではありません。",
       "instructions": {
-        "title": "Custom instructions",
-        "description": "Optional. Tell the cleanup model anything extra."
+        "title": "カスタム指示",
+        "description": "任意。文章修正モデルへの追加の指示を入力します。"
       },
       "model": {
-        "none": "No provider chosen"
+        "none": "提供元が選択されていません"
       }
     },
     "app": {
-      "loading": "Loading Murmur…",
-      "skip": "Skip to settings",
+      "loading": "Murmur を読み込み中…",
+      "skip": "設定へスキップ",
       "appearance": {
         "title": "外観"
       },
@@ -786,323 +786,323 @@
     },
     "pages": {
       "dictation": {
-        "description": "Your shortcut, microphone and spoken language, plus what you see and hear while recording."
+        "description": "ショートカット、マイク、話す言語、録音中に表示・再生される内容を設定します。"
       },
       "lectures": {
         "description": "講義を録音するか音声を読み込むと、文字起こしの結果が履歴に保存されます。"
       },
       "models": {
-        "description": "Choose what turns your speech into text. Every saved API key is listed here too."
+        "description": "音声をテキストに変換する方法を選びます。保存済みの API キーもすべてここに表示されます。"
       },
       "cleanup": {
-        "description": "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions."
+        "description": "挿入前に文字起こしを整えます。フィラー語、AI モデルとキー、トーン、指示を設定します。"
       },
       "dictionary": {
-        "description": "Names and terms Murmur should spell your way."
+        "description": "Murmur に指定どおりに表記させたい名前や用語です。"
       },
       "insertion": {
-        "description": "How finished text reaches the app you are typing in, and what happens after."
+        "description": "完成したテキストを入力中のアプリへ届ける方法と、その後の動作を設定します。"
       },
       "stats": {
-        "description": "Words, speaking pace, saved audio duration and provider cost."
+        "description": "単語数、話す速さ、保存済み音声の長さ、提供元の費用。"
       },
       "history": {
-        "description": "Past dictations, retention and compressed export."
+        "description": "過去の音声入力、保持期間、圧縮エクスポート。"
       },
       "privacy": {
-        "description": "What leaves this computer, what stays on it, and for how long."
+        "description": "このコンピューターから送信されるもの、ここに残るもの、その保持期間。"
       },
       "app": {
         "description": "外観、表示言語、起動、パフォーマンスを設定します。"
       },
       "about": {
-        "description": "Version, credits and where Murmur keeps its files."
+        "description": "バージョン、クレジット、Murmur のファイルの保存場所。"
       },
       "debug": {
-        "description": "Diagnostics for troubleshooting."
+        "description": "トラブルシューティング用の診断情報。"
       }
     },
     "onboarding": {
-      "checking": "Checking permissions…",
-      "checkFailed": "Permission checks failed. Use the permission action below to retry. Your system settings have not been changed.",
-      "microphoneWaiting": "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
-      "recheck": "Check again",
-      "accessibilityWaiting": "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically."
+      "checking": "権限を確認中…",
+      "checkFailed": "権限を確認できませんでした。下の権限の操作から再試行してください。システム設定は変更されていません。",
+      "microphoneWaiting": "システム設定でマイクへのアクセスを有効にしてから、ここに戻ってください。Murmur が自動的に再確認します。",
+      "recheck": "再確認",
+      "accessibilityWaiting": "システムのアクセシビリティ設定で Murmur を有効にしてから、ここに戻ってください。Murmur が自動的に再確認します。"
     },
     "models": {
-      "downloadNamed": "Download {{model}}",
-      "browse": "Browse {{count}} models to download",
+      "downloadNamed": "{{model}} をダウンロード",
+      "browse": "ダウンロード可能な {{count}} 個のモデルを表示",
       "local": {
-        "title": "On-device models"
+        "title": "デバイス上のモデル"
       },
       "cleanup": {
-        "title": "Cleanup model",
-        "on": "AI cleanup is on",
-        "off": "AI cleanup is off",
-        "change": "Change in Cleanup"
+        "title": "文章修正モデル",
+        "on": "AI による文章修正はオンです",
+        "off": "AI による文章修正はオフです",
+        "change": "「後処理」で変更"
       }
     },
     "dictionary": {
-      "saveError": "Could not save this dictionary entry.",
-      "search": "Search saved words",
-      "count": "{{count}} terms saved",
-      "noMatches": "No matching words.",
-      "title": "Your words",
-      "description": "Used by on-device recognition and by AI cleanup to spell unusual names and terms."
+      "saveError": "この辞書項目を保存できませんでした。",
+      "search": "保存した単語を検索",
+      "count": "{{count}} 件の用語を保存済み",
+      "noMatches": "一致する単語はありません。",
+      "title": "あなたの単語",
+      "description": "デバイス上の音声認識と AI による文章修正で、珍しい名前や用語を正しく表記するために使われます。"
     },
     "history": {
       "limit": {
         "confirmMessage": "直近の音声入力を {{count}} 件保持しますか？それより古く、スターが付いていない項目と録音は完全に削除されます。",
-        "confirmTitle": "Reduce history limit"
+        "confirmTitle": "履歴の上限を減らす"
       },
       "retention": {
-        "confirmMessage": "Changing retention may permanently delete existing recordings and transcripts that exceed the new limit. Continue?",
-        "confirmTitle": "Change history retention"
+        "confirmMessage": "保持期間を変更すると、新しい上限を超える既存の録音と文字起こしが完全に削除される場合があります。続けますか？",
+        "confirmTitle": "履歴の保持期間を変更"
       },
-      "playbackError": "Recording playback is unavailable. Try Play again or recover the transcript above.",
-      "saveError": "Could not change whether this dictation is kept. Try again.",
-      "folderError": "Could not open the recordings folder. Your transcripts are still available here.",
+      "playbackError": "録音を再生できません。もう一度「再生」を試すか、上の文字起こしを復元してください。",
+      "saveError": "この音声入力の保持設定を変更できませんでした。もう一度お試しください。",
+      "folderError": "録音フォルダーを開けませんでした。文字起こしは引き続きここで確認できます。",
       "archive": {
-        "partial": "Archived {{count}} dictations, but {{missing}} recordings were already missing.",
-        "complete": "Archived {{count}} dictations. Originals are unchanged.",
-        "error": "Could not export history.",
-        "working": "Creating archive…",
-        "action": "Export compressed archive",
-        "note": "Lossless compression keeps the original WAV audio. The archive is not encrypted, and exporting never deletes local history."
+        "partial": "{{count}} 件の音声入力をアーカイブしましたが、{{missing}} 件の録音はすでに見つかりませんでした。",
+        "complete": "{{count}} 件の音声入力をアーカイブしました。元のデータは変更されていません。",
+        "error": "履歴をエクスポートできませんでした。",
+        "working": "アーカイブを作成中…",
+        "action": "圧縮アーカイブをエクスポート",
+        "note": "可逆圧縮のため元の WAV 音声はそのまま保たれます。アーカイブは暗号化されません。エクスポートしてもローカルの履歴は削除されません。"
       },
-      "loadError": "Could not load history. Your saved dictations have not been removed.",
-      "retryLoad": "Retry loading",
+      "loadError": "履歴を読み込めませんでした。保存済みの音声入力は削除されていません。",
+      "retryLoad": "再読み込み",
       "storage": {
-        "title": "Storage and archive",
-        "description": "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive."
+        "title": "保存とアーカイブ",
+        "description": "録音と文字起こしを保持する期間を選びます。長期保存したいときは、元のテキストと修正後のテキストを含む圧縮コピーをいつでもエクスポートできます。"
       },
-      "copied": "Copied displayed transcript.",
-      "deleteMessage": "This permanently removes the raw and cleaned text and its recording.",
-      "deleteTitle": "Delete dictation?",
-      "retryFinished": "Transcription request finished. Check this entry for the result.",
-      "raw": "Raw transcript",
-      "cleaned": "Cleaned transcript",
+      "copied": "表示中の文字起こしをコピーしました。",
+      "deleteMessage": "元のテキスト、修正後のテキスト、録音が完全に削除されます。",
+      "deleteTitle": "音声入力を削除しますか？",
+      "retryFinished": "文字起こしのリクエストが完了しました。この項目で結果を確認してください。",
+      "raw": "元の文字起こし",
+      "cleaned": "修正後の文字起こし",
       "processed": "処理済みの文字起こし",
-      "showCleaned": "Show cleaned text",
+      "showCleaned": "修正後のテキストを表示",
       "showProcessed": "処理済みテキストを表示",
-      "showRaw": "Show raw text",
+      "showRaw": "元のテキストを表示",
       "rawFallback": "この項目では AI による文章修正を利用できませんでした。",
       "stats": {
-        "noPreviousWeek": "No previous week to compare",
-        "totalWords": "Retained words",
-        "thisWeek": "This week",
-        "recordedPace": "Recorded pace",
-        "wpm": "wpm",
-        "minutes": "min",
-        "retainedOnly": "Based on retained history. Deleted dictations are not counted.",
-        "stale": "Could not refresh statistics. These figures may be out of date.",
-        "loading": "Loading statistics…",
-        "unavailable": "Statistics are unavailable right now.",
-        "weeklyWords": "Words each week",
-        "vsPrevious": "vs last full week",
-        "weekBar": "{{date}}: {{count}} words",
-        "weeklyPace": "Recorded pace each week",
-        "weekPaceUnavailable": "{{date}}: no recording data",
-        "weekPaceValue": "{{date}}: {{wpm}} words per minute",
-        "method": "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress."
+        "noPreviousWeek": "比較できる前週がありません",
+        "totalWords": "保持中の単語数",
+        "thisWeek": "今週",
+        "recordedPace": "録音時の速さ",
+        "wpm": "語/分",
+        "minutes": "分",
+        "retainedOnly": "保持中の履歴に基づきます。削除した音声入力は含まれません。",
+        "stale": "統計を更新できませんでした。数値が古い可能性があります。",
+        "loading": "統計を読み込み中…",
+        "unavailable": "現在、統計を利用できません。",
+        "weeklyWords": "週ごとの単語数",
+        "vsPrevious": "前の 1 週間と比較",
+        "weekBar": "{{date}}: {{count}} 語",
+        "weeklyPace": "週ごとの録音時の速さ",
+        "weekPaceUnavailable": "{{date}}: 録音データなし",
+        "weekPaceValue": "{{date}}: 毎分 {{wpm}} 語",
+        "method": "速さは {{count}} 件中 {{covered}} 件の録音の保存済み音声から算出しています。録音中に除去された無音は含まれません。今週はまだ集計中です。"
       }
     },
     "lectures": {
-      "saved": "Lecture transcript saved in History",
-      "imported": "Audio transcript saved in History",
-      "importFailed": "Import or transcription failed: {{error}}",
-      "recordTitle": "Record a lecture",
-      "recordDescription": "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
-      "finish": "Finish and transcribe",
-      "record": "Record lecture",
-      "recordingSince": "Recording since {{time}}",
-      "earlier": "earlier",
-      "progress": "Transcribing {{completed}} of {{total}} parts",
-      "working": "Working…",
-      "importTitle": "Transcribe an audio file",
-      "importDescription": "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
-      "choose": "Choose audio file",
-      "privacy": "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode."
+      "saved": "講義の文字起こしを履歴に保存しました",
+      "imported": "音声の文字起こしを履歴に保存しました",
+      "importFailed": "読み込みまたは文字起こしに失敗しました: {{error}}",
+      "recordTitle": "講義を録音",
+      "recordDescription": "マイクから録音します。音声は録音中に保存され、終了すると文字起こしされます。",
+      "finish": "終了して文字起こし",
+      "record": "講義を録音",
+      "recordingSince": "{{time}} から録音中",
+      "earlier": "先ほど",
+      "progress": "{{total}} 個中 {{completed}} 個のパートを文字起こし中",
+      "working": "処理中…",
+      "importTitle": "音声ファイルを文字起こし",
+      "importDescription": "録音を選ぶと履歴に追加されます。Murmur は選択中の音声認識と文章修正の提供元を使用します。",
+      "choose": "音声ファイルを選択",
+      "privacy": "元の音声と文字起こしは履歴の保持設定に従います。クラウドの提供元が音声を受け取るのは、エンドポイントの音声モードを選んだ場合のみです。"
     },
     "dictation": {
-      "resetMicrophone": "Reset microphone to default",
+      "resetMicrophone": "マイクを既定に戻す",
       "indicator": {
-        "visibility": "Show recording indicator",
-        "description": "A visible alternative to sound cues. Availability depends on the desktop and its permissions."
+        "visibility": "録音インジケーターを表示",
+        "description": "効果音の代わりに目で確認できる表示です。利用できるかどうかはデスクトップ環境と権限によります。"
       },
-      "previewSounds": "Preview sound theme: start then stop",
+      "previewSounds": "サウンドテーマを試聴: 開始と停止",
       "status": {
-        "hold": "Hold {{shortcut}} to dictate; release to finish",
-        "toggle": "Press {{shortcut}} to start; press again to finish",
-        "holdOrToggle": "Hold {{shortcut}}, or tap to start and tap again to finish",
-        "speechCloud": "Audio is sent to {{host}} for transcription",
-        "speechLocal": "Audio stays on this device ({{model}})",
-        "noModel": "no model selected",
-        "cleanupOff": "AI cleanup is off",
-        "cleanupLocal": "AI cleanup runs locally with {{provider}}",
-        "cleanupCloud": "Transcript text is sent to {{provider}} for cleanup",
-        "unavailable": "Microphone status unavailable",
-        "chooseModel": "Choose a recognition model to start",
-        "checking": "Checking dictation status…",
-        "change": "Change models",
-        "captureOnly": "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
-        "release": "Release the shortcut to finish.",
-        "pressAgain": "Press the shortcut again to finish.",
-        "releaseOrPress": "Release if holding, or tap the shortcut again to finish."
+        "hold": "{{shortcut}} を押している間に話し、離すと終了します",
+        "toggle": "{{shortcut}} を押して開始し、もう一度押すと終了します",
+        "holdOrToggle": "{{shortcut}} を押し続けるか、タップで開始してもう一度タップで終了します",
+        "speechCloud": "音声は文字起こしのため {{host}} に送信されます",
+        "speechLocal": "音声はこのデバイスから出ません（{{model}}）",
+        "noModel": "モデルが選択されていません",
+        "cleanupOff": "AI による文章修正はオフです",
+        "cleanupLocal": "AI による文章修正は {{provider}} でローカル実行されます",
+        "cleanupCloud": "文字起こしのテキストは文章修正のため {{provider}} に送信されます",
+        "unavailable": "マイクの状態を取得できません",
+        "chooseModel": "開始するには認識モデルを選択してください",
+        "checking": "音声入力の状態を確認中…",
+        "change": "モデルを変更",
+        "captureOnly": "マイクの録音はオフです。認識や文章修正がまだ実行中の可能性があります。結果は録音インジケーターまたは履歴で確認してください。",
+        "release": "ショートカットを離すと終了します。",
+        "pressAgain": "もう一度ショートカットを押すと終了します。",
+        "releaseOrPress": "押し続けている場合は離し、そうでなければもう一度ショートカットをタップすると終了します。"
       },
       "shortcut": {
-        "title": "Shortcut"
+        "title": "ショートカット"
       },
       "microphone": {
         "title": "マイク"
       },
       "sounds": {
-        "title": "Sounds",
+        "title": "サウンド",
         "theme": "サウンド",
-        "themeDescription": "Recording cues use your system output and volume."
+        "themeDescription": "録音の効果音はシステムの出力先と音量を使用します。"
       },
       "language": {
-        "title": "Spoken language",
-        "model": "Options depend on the active model, {{model}}."
+        "title": "話す言語",
+        "model": "選択肢は使用中のモデル（{{model}}）によって異なります。"
       }
     },
     "download": {
-      "pending": "Downloading…",
-      "multiple": "{{count}} downloading…"
+      "pending": "ダウンロード中…",
+      "multiple": "{{count}} 件をダウンロード中…"
     },
     "about": {
       "versionDescription": "Murmur の現在のバージョン",
       "ggml": {
-        "details": "Murmur uses transcribe.cpp and ggml for local speech recognition. Thanks to Georgi Gerganov and contributors."
+        "details": "Murmur はローカルの音声認識に transcribe.cpp と ggml を使用しています。Georgi Gerganov 氏と貢献者の皆さんに感謝します。"
       }
     },
     "general": {
       "status": {
-        "recording": "Recording now",
-        "idle": "Not recording"
+        "recording": "録音中",
+        "idle": "録音していません"
       },
       "indicator": {
-        "title": "Recording indicator"
+        "title": "録音インジケーター"
       }
     },
     "insertion": {
       "method": {
-        "title": "Inserting text",
-        "description": "If transcripts appear in History but not in your app, try another method here."
+        "title": "テキストの挿入",
+        "description": "文字起こしが履歴には表示されるのにアプリに入力されない場合は、ここで別の方法を試してください。"
       },
       "after": {
-        "title": "After inserting"
+        "title": "挿入後"
       }
     },
     "keys": {
-      "removed": "Removed the key for {{name}}",
-      "title": "Saved API keys",
-      "description": "Keys are kept in your system credential store, never in Murmur's settings file.",
-      "unavailable": "Credential-store status is unavailable. Saved keys have not been removed.",
-      "loading": "Checking the credential store…",
-      "none": "No API keys saved.",
-      "speech": "Speech recognition",
-      "cleanup": "AI cleanup",
-      "remove": "Remove"
+      "removed": "{{name}} のキーを削除しました",
+      "title": "保存済みの API キー",
+      "description": "キーはシステムの資格情報ストアに保管され、Murmur の設定ファイルには保存されません。",
+      "unavailable": "資格情報ストアの状態を取得できません。保存済みのキーは削除されていません。",
+      "loading": "資格情報ストアを確認中…",
+      "none": "保存済みの API キーはありません。",
+      "speech": "音声認識",
+      "cleanup": "AI による文章修正",
+      "remove": "削除"
     },
     "stt": {
-      "inUse": "In use",
-      "keySaved": "Speech API key saved",
-      "keyRemoved": "Speech API key removed",
-      "saved": "Speech source saved",
-      "refreshFailed": "Speech source was saved, but settings could not be reloaded. Retry loading settings.",
-      "title": "Speech recognition",
-      "description": "Choose where your speech is turned into text.",
-      "source": "Transcription source",
+      "inUse": "使用中",
+      "keySaved": "音声認識の API キーを保存しました",
+      "keyRemoved": "音声認識の API キーを削除しました",
+      "saved": "音声の入力元を保存しました",
+      "refreshFailed": "音声の入力元は保存されましたが、設定を再読み込みできませんでした。設定の読み込みを再試行してください。",
+      "title": "音声認識",
+      "description": "音声をテキストに変換する場所を選びます。",
+      "source": "文字起こしの方式",
       "local": {
-        "title": "On this device",
-        "description": "Pick or download a model below. Audio never leaves this computer."
+        "title": "このデバイス上",
+        "description": "下でモデルを選ぶかダウンロードします。音声がこのコンピューターから出ることはありません。"
       },
       "endpoint": {
-        "title": "Cloud API or your own server",
-        "description": "OpenAI, Groq or any OpenAI-compatible service. Needs an API key unless it runs locally.",
-        "notice": "Each recording is sent to this service, which may charge for usage. Murmur never switches to another service on its own."
+        "title": "クラウド API または自前のサーバー",
+        "description": "OpenAI、Groq、または OpenAI 互換の任意のサービス。ローカルで動作する場合を除き API キーが必要です。",
+        "notice": "各録音はこのサービスに送信され、利用料金がかかる場合があります。Murmur が勝手に別のサービスへ切り替えることはありません。"
       },
-      "service": "Service",
-      "presetOther": "or enter any compatible server below",
-      "baseUrl": "API base URL",
-      "baseUrlHelp": "For a server on this computer, try http://127.0.0.1:8000/v1. A full /audio/transcriptions URL also works.",
-      "model": "Model ID",
-      "modelHelp": "Use the model name your speech server accepts.",
+      "service": "サービス",
+      "presetOther": "または下に互換サーバーを入力",
+      "baseUrl": "API ベース URL",
+      "baseUrlHelp": "このコンピューター上のサーバーなら http://127.0.0.1:8000/v1 を試してください。/audio/transcriptions までの完全な URL も使えます。",
+      "model": "モデル ID",
+      "modelHelp": "音声サーバーが受け付けるモデル名を入力してください。",
       "apiKey": "API キー",
-      "apiKeyPlaceholder": "Paste your key",
-      "saveKey": "Save key",
-      "removeKey": "Remove",
-      "keySavedWithSource": "Your key is saved with the URL and model when you press Save.",
-      "keyStored": "A key is saved for this endpoint in the system credential store.",
-      "noKey": "No key saved. Leave it empty only for a server that does not need one.",
-      "keyStatusError": "Could not check the system credential store. Retry below.",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "retryKeyCheck": "Retry key check",
-      "retryRefresh": "Retry loading settings",
-      "saving": "Saving…",
-      "save": "プロンプトを作成"
+      "apiKeyPlaceholder": "キーを貼り付け",
+      "saveKey": "キーを保存",
+      "removeKey": "削除",
+      "keySavedWithSource": "「保存」を押すと、キーは URL とモデルと一緒に保存されます。",
+      "keyStored": "このエンドポイントのキーはシステムの資格情報ストアに保存されています。",
+      "noKey": "キーが保存されていません。キーが不要なサーバーの場合のみ空欄のままにしてください。",
+      "keyStatusError": "システムの資格情報ストアを確認できませんでした。下から再試行してください。",
+      "keyStatusUnknown": "システムの資格情報ストアを確認中…",
+      "retryKeyCheck": "キーを再確認",
+      "retryRefresh": "設定を再読み込み",
+      "saving": "保存中…",
+      "save": "保存"
     },
     "privacy": {
-      "loading": "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
-      "change": "Change",
-      "reporting": "Anonymous usage and errors",
-      "reportingSwitch": "Share anonymous usage and errors",
-      "reportingNotice": "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
-      "reportingUnconfigured": "Reporting is not configured in this build. Nothing is sent.",
-      "reportingSaveError": "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+      "loading": "設定の読み込み中はプライバシー設定を利用できません。「再試行」で再確認してください。",
+      "change": "変更",
+      "reporting": "匿名の利用状況とエラー",
+      "reportingSwitch": "匿名の利用状況とエラーを共有",
+      "reportingNotice": "セルフホストでの画面/操作の回数と、決められたエラーの種類のみです。訪問者の追跡、録音、文字起こし、辞書の単語、API キーは含まれません。所有者のエンドポイントが設定されるまではオフです。Do Not Track と Global Privacy Control はこのスイッチより優先されます。回数は 30 日後、エラーは 14 日後に破棄されます。",
+      "reportingUnconfigured": "このビルドではレポートが設定されていません。何も送信されません。",
+      "reportingSaveError": "レポートの設定を保存できませんでした。設定を読み込めるまでレポートはオフのままです。",
       "leaves": {
-        "title": "What leaves this computer",
-        "description": "Your voice and text only go to services you choose. Murmur never switches to one on its own."
+        "title": "このコンピューターから送信されるもの",
+        "description": "音声とテキストは、あなたが選んだサービスにのみ送信されます。Murmur が勝手にサービスを切り替えることはありません。"
       },
       "speech": {
-        "title": "Your voice",
-        "cloud": "Each recording is sent to {{host}} to be transcribed.",
-        "local": "Transcribed on this computer. Recordings are never uploaded."
+        "title": "あなたの音声",
+        "cloud": "各録音は文字起こしのため {{host}} に送信されます。",
+        "local": "このコンピューター上で文字起こしされます。録音がアップロードされることはありません。"
       },
       "cleanup": {
-        "title": "Your transcripts",
-        "off": "AI cleanup is off, so transcripts stay here.",
-        "local": "Cleaned up on this computer by {{provider}}.",
-        "cloud": "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not."
+        "title": "あなたの文字起こし",
+        "off": "AI による文章修正はオフのため、文字起こしはここに残ります。",
+        "local": "このコンピューター上で {{provider}} により修正されます。",
+        "cloud": "文字起こしのテキストと辞書の単語は文章修正のため {{provider}} に送信されます。音声は送信されません。"
       },
       "stored": {
-        "title": "What stays on this computer"
+        "title": "このコンピューターに残るもの"
       },
       "history": {
-        "title": "Recordings and transcripts",
-        "detail": "Kept: {{period}}. Starred dictations are always kept."
+        "title": "録音と文字起こし",
+        "detail": "保持期間: {{period}}。スター付きの音声入力は常に保持されます。"
       },
       "keys": {
-        "title": "API keys",
-        "detail": "{{count}} saved in your system credential store, never in Murmur's settings file."
+        "title": "API キー",
+        "detail": "{{count}} 件がシステムの資格情報ストアに保存されています。Murmur の設定ファイルには保存されません。"
       },
-      "manage": "Manage"
+      "manage": "管理"
     },
     "stats": {
-      "providerCost": "Provider cost",
-      "openrouterKeys": "OpenRouter usage for your configured keys",
-      "refresh": "Refresh",
-      "costStale": "Could not refresh provider usage. These figures may be out of date.",
-      "costLoading": "Checking OpenRouter usage…",
-      "costUnavailable": "OpenRouter usage is unavailable. Check your connection and key, then retry.",
-      "noOpenrouterKey": "Add an OpenRouter speech key in Models or a cleanup key in Cleanup to see its usage here.",
-      "costWeek": "This week",
-      "costMonth": "This month",
-      "costAll": "All time",
-      "byokValue": "OpenRouter also reports {{value}} in BYOK model usage this month. Your provider bills that separately.",
-      "costScope": "These totals cover {{count}} configured OpenRouter key(s), including use outside Murmur. Local models and direct provider keys are not counted.",
-      "totalWordsDescription": "Words in saved dictations",
-      "thisWeekDescription": "Words saved since Monday",
-      "recordedDescription": "Based on saved audio after silence filtering",
-      "recordedMinutes": "Saved audio minutes",
-      "title": "Your dictation stats",
-      "unavailableHelp": "Try again after Murmur has finished starting up.",
-      "position": "Stat {{current}} of {{total}}",
-      "swipeHint": "Drag or swipe to browse",
-      "metricCards": "Dictation stat cards",
-      "noAudioShort": "No retained audio",
-      "noAudio": "No retained recordings with audio are available, so recorded pace and minutes cannot be calculated. This week is still in progress."
+      "providerCost": "提供元の費用",
+      "openrouterKeys": "設定済みキーの OpenRouter 利用状況",
+      "refresh": "更新",
+      "costStale": "提供元の利用状況を更新できませんでした。数値が古い可能性があります。",
+      "costLoading": "OpenRouter の利用状況を確認中…",
+      "costUnavailable": "OpenRouter の利用状況を取得できません。接続とキーを確認して再試行してください。",
+      "noOpenrouterKey": "「モデル」で OpenRouter の音声キーを、または「後処理」で文章修正のキーを追加すると、ここに利用状況が表示されます。",
+      "costWeek": "今週",
+      "costMonth": "今月",
+      "costAll": "全期間",
+      "byokValue": "OpenRouter は今月の BYOK モデル利用分として {{value}} も報告しています。これは提供元から別途請求されます。",
+      "costScope": "この合計は設定済みの OpenRouter キー {{count}} 件分で、Murmur 以外での利用も含みます。ローカルモデルと提供元の直接キーは含まれません。",
+      "totalWordsDescription": "保存済みの音声入力の単語数",
+      "thisWeekDescription": "月曜日以降に保存された単語数",
+      "recordedDescription": "無音を除去した後の保存済み音声に基づきます",
+      "recordedMinutes": "保存済み音声の分数",
+      "title": "音声入力の統計",
+      "unavailableHelp": "Murmur の起動が完了してから再度お試しください。",
+      "position": "統計 {{current}} / {{total}}",
+      "swipeHint": "ドラッグまたはスワイプで切り替え",
+      "metricCards": "音声入力の統計カード",
+      "noAudioShort": "保持中の音声なし",
+      "noAudio": "音声付きの録音が保持されていないため、録音時の速さと分数を計算できません。今週はまだ集計中です。"
     }
   }
 }

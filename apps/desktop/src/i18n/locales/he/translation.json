@@ -119,9 +119,9 @@
         "requestFailed": "בקשת ההרשאה נכשלה. נסה שוב."
       }
     },
-    "configureEndpoint": "Use a speech endpoint",
-    "configureEndpointDescription": "Configure an online provider or a server you run in Models.",
-    "noModels": "No downloadable models are listed right now."
+    "configureEndpoint": "שימוש בשירות דיבור",
+    "configureEndpointDescription": "אפשר להגדיר במסך המודלים ספק מקוון או שרת משלך.",
+    "noModels": "אין כרגע מודלים זמינים להורדה."
   },
   "modelSelector": {
     "custom": "מותאם אישית",
@@ -664,8 +664,8 @@
     "copy": "העתק",
     "clear": "נקה",
     "noOptionsFound": "לא נמצאו אפשרויות",
-    "download": "Download",
-    "retry": "Retry",
+    "download": "הורדה",
+    "retry": "ניסיון חוזר",
     "cancel": "ביטול"
   },
   "accessibility": {
@@ -734,36 +734,36 @@
         "configuration": "הבקשה נדחתה. יש לבדוק את הגדרות הספק והמודל."
       },
       "failed": "עריכת הטקסט באמצעות בינה מלאכותית נכשלה",
-      "removeKey": "Remove key",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "keyStored": "Key saved in the system credential store",
-      "keyMissing": "No key saved",
+      "removeKey": "הסרת המפתח",
+      "keyStatusUnknown": "בודק את מאגר האישורים של המערכת…",
+      "keyStored": "המפתח נשמר במאגר האישורים של המערכת",
+      "keyMissing": "לא נשמר מפתח",
       "formality": {
-        "veryCasual": "Very casual",
-        "casual": "Casual",
-        "natural": "Natural",
-        "professional": "Professional",
-        "formal": "Formal",
-        "title": "Tone",
-        "description": "Choose punctuation and grammar polish. Every level should keep your own words."
+        "veryCasual": "יומיומי מאוד",
+        "casual": "יומיומי",
+        "natural": "טבעי",
+        "professional": "מקצועי",
+        "formal": "רשמי",
+        "title": "סגנון",
+        "description": "בחירת רמת הליטוש של הפיסוק והדקדוק. כל רמה שומרת על המילים שלך."
       },
       "basic": {
-        "title": "On this device",
-        "description": "Always runs locally, even when AI cleanup is off."
+        "title": "במכשיר הזה",
+        "description": "פועל תמיד באופן מקומי, גם כשעריכת הטקסט באמצעות בינה מלאכותית כבויה."
       },
-      "title": "AI cleanup",
-      "description": "Fixes punctuation and clear errors and splits long dictation into readable sentences, keeping your words. Cloud providers receive the transcript, not the recording.",
+      "title": "עריכת טקסט באמצעות בינה מלאכותית",
+      "description": "מתקנת פיסוק ושגיאות ברורות ומחלקת הכתבות ארוכות למשפטים קריאים, בלי לשנות את המילים שלך. ספקי ענן מקבלים את התמלול, לא את ההקלטה.",
       "instructions": {
-        "title": "Custom instructions",
-        "description": "Optional. Tell the cleanup model anything extra."
+        "title": "הוראות מותאמות אישית",
+        "description": "אופציונלי. אפשר לתת למודל העריכה הוראות נוספות."
       },
       "model": {
-        "none": "No provider chosen"
+        "none": "לא נבחר ספק"
       }
     },
     "app": {
-      "loading": "Loading Murmur…",
-      "skip": "Skip to settings",
+      "loading": "Murmur נטען…",
+      "skip": "דילוג להגדרות",
       "appearance": {
         "title": "מראה"
       },
@@ -786,323 +786,323 @@
     },
     "pages": {
       "dictation": {
-        "description": "Your shortcut, microphone and spoken language, plus what you see and hear while recording."
+        "description": "קיצור המקשים, המיקרופון ושפת הדיבור, וגם מה שרואים ושומעים בזמן ההקלטה."
       },
       "lectures": {
         "description": "הקלט הרצאה או ייבא קובץ שמע. התמלול יופיע בהיסטוריה."
       },
       "models": {
-        "description": "Choose what turns your speech into text. Every saved API key is listed here too."
+        "description": "בחירת הרכיב שהופך את הדיבור שלך לטקסט. כל מפתחות ה-API השמורים מופיעים כאן."
       },
       "cleanup": {
-        "description": "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions."
+        "description": "ליטוש התמלולים לפני ההוספה: מילות מילוי, מודל הבינה המלאכותית והמפתח, סגנון והוראות."
       },
       "dictionary": {
-        "description": "Names and terms Murmur should spell your way."
+        "description": "שמות ומונחים ש-Murmur צריך לאיית בדרך שלך."
       },
       "insertion": {
-        "description": "How finished text reaches the app you are typing in, and what happens after."
+        "description": "איך הטקסט המוכן מגיע ליישום שבו מקלידים, ומה קורה אחר כך."
       },
       "stats": {
-        "description": "Words, speaking pace, saved audio duration and provider cost."
+        "description": "מילים, קצב דיבור, משך השמע השמור ועלות הספקים."
       },
       "history": {
-        "description": "Past dictations, retention and compressed export."
+        "description": "הכתבות קודמות, משך שמירה וייצוא דחוס."
       },
       "privacy": {
-        "description": "What leaves this computer, what stays on it, and for how long."
+        "description": "מה יוצא מהמחשב הזה, מה נשאר בו ולכמה זמן."
       },
       "app": {
         "description": "מראה, שפת ממשק, הפעלה וביצועים."
       },
       "about": {
-        "description": "Version, credits and where Murmur keeps its files."
+        "description": "גרסה, קרדיטים והמיקום שבו Murmur שומר את הקבצים שלו."
       },
       "debug": {
-        "description": "Diagnostics for troubleshooting."
+        "description": "מידע אבחוני לפתרון בעיות."
       }
     },
     "onboarding": {
-      "checking": "Checking permissions…",
-      "checkFailed": "Permission checks failed. Use the permission action below to retry. Your system settings have not been changed.",
-      "microphoneWaiting": "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
-      "recheck": "Check again",
-      "accessibilityWaiting": "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically."
+      "checking": "בודק הרשאות…",
+      "checkFailed": "בדיקת ההרשאות נכשלה. אפשר לנסות שוב באמצעות פעולת ההרשאה שלמטה. הגדרות המערכת לא שונו.",
+      "microphoneWaiting": "יש להפעיל גישה למיקרופון בהגדרות המערכת ולחזור לכאן. Murmur יבדוק שוב באופן אוטומטי.",
+      "recheck": "בדיקה חוזרת",
+      "accessibilityWaiting": "יש להפעיל את Murmur בהגדרות הנגישות של המערכת ולחזור לכאן. Murmur יבדוק שוב באופן אוטומטי."
     },
     "models": {
-      "downloadNamed": "Download {{model}}",
-      "browse": "Browse {{count}} models to download",
+      "downloadNamed": "הורדת {{model}}",
+      "browse": "עיון ב-{{count}} מודלים להורדה",
       "local": {
-        "title": "On-device models"
+        "title": "מודלים במכשיר"
       },
       "cleanup": {
-        "title": "Cleanup model",
-        "on": "AI cleanup is on",
-        "off": "AI cleanup is off",
-        "change": "Change in Cleanup"
+        "title": "מודל עריכה",
+        "on": "עריכת הטקסט באמצעות בינה מלאכותית פועלת",
+        "off": "עריכת הטקסט באמצעות בינה מלאכותית כבויה",
+        "change": "שינוי במסך העריכה"
       }
     },
     "dictionary": {
-      "saveError": "Could not save this dictionary entry.",
-      "search": "Search saved words",
-      "count": "{{count}} terms saved",
-      "noMatches": "No matching words.",
-      "title": "Your words",
-      "description": "Used by on-device recognition and by AI cleanup to spell unusual names and terms."
+      "saveError": "לא ניתן לשמור את רשומת המילון הזו.",
+      "search": "חיפוש במילים השמורות",
+      "count": "{{count}} מונחים שמורים",
+      "noMatches": "אין מילים תואמות.",
+      "title": "המילים שלך",
+      "description": "משמש את הזיהוי במכשיר ואת עריכת הטקסט באמצעות בינה מלאכותית כדי לאיית נכון שמות ומונחים חריגים."
     },
     "history": {
       "limit": {
         "confirmMessage": "לשמור את {{count}} ההכתבות האחרונות? הכתבות קודמות שלא סומנו בכוכב וההקלטות שלהן יימחקו לצמיתות.",
-        "confirmTitle": "Reduce history limit"
+        "confirmTitle": "הקטנת מגבלת ההיסטוריה"
       },
       "retention": {
-        "confirmMessage": "Changing retention may permanently delete existing recordings and transcripts that exceed the new limit. Continue?",
-        "confirmTitle": "Change history retention"
+        "confirmMessage": "שינוי משך השמירה עלול למחוק לצמיתות הקלטות ותמלולים קיימים שחורגים מהמגבלה החדשה. להמשיך?",
+        "confirmTitle": "שינוי משך השמירה של ההיסטוריה"
       },
-      "playbackError": "Recording playback is unavailable. Try Play again or recover the transcript above.",
-      "saveError": "Could not change whether this dictation is kept. Try again.",
-      "folderError": "Could not open the recordings folder. Your transcripts are still available here.",
+      "playbackError": "לא ניתן להשמיע את ההקלטה. אפשר ללחוץ שוב על הפעלה או לשחזר את התמלול שלמעלה.",
+      "saveError": "לא ניתן לשנות אם ההכתבה הזו תישמר. אפשר לנסות שוב.",
+      "folderError": "לא ניתן לפתוח את תיקיית ההקלטות. התמלולים עדיין זמינים כאן.",
       "archive": {
-        "partial": "Archived {{count}} dictations, but {{missing}} recordings were already missing.",
-        "complete": "Archived {{count}} dictations. Originals are unchanged.",
-        "error": "Could not export history.",
-        "working": "Creating archive…",
-        "action": "Export compressed archive",
-        "note": "Lossless compression keeps the original WAV audio. The archive is not encrypted, and exporting never deletes local history."
+        "partial": "{{count}} הכתבות הועברו לארכיון, אבל {{missing}} הקלטות כבר היו חסרות.",
+        "complete": "{{count}} הכתבות הועברו לארכיון. המקור לא השתנה.",
+        "error": "לא ניתן לייצא את ההיסטוריה.",
+        "working": "יוצר ארכיון…",
+        "action": "ייצוא ארכיון דחוס",
+        "note": "דחיסה ללא אובדן שומרת את שמע ה-WAV המקורי. הארכיון אינו מוצפן, והייצוא אף פעם לא מוחק את ההיסטוריה המקומית."
       },
-      "loadError": "Could not load history. Your saved dictations have not been removed.",
-      "retryLoad": "Retry loading",
+      "loadError": "לא ניתן לטעון את ההיסטוריה. ההכתבות השמורות לא נמחקו.",
+      "retryLoad": "טעינה חוזרת",
       "storage": {
-        "title": "Storage and archive",
-        "description": "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive."
+        "title": "אחסון וארכיון",
+        "description": "בחירת משך השמירה של הקלטות ותמלולים. אפשר לייצא בכל עת עותק דחוס עם הטקסט הגולמי והטקסט הערוך לשמירה ארוכת טווח."
       },
-      "copied": "Copied displayed transcript.",
-      "deleteMessage": "This permanently removes the raw and cleaned text and its recording.",
-      "deleteTitle": "Delete dictation?",
-      "retryFinished": "Transcription request finished. Check this entry for the result.",
-      "raw": "Raw transcript",
-      "cleaned": "Cleaned transcript",
+      "copied": "התמלול המוצג הועתק.",
+      "deleteMessage": "הפעולה מוחקת לצמיתות את הטקסט הגולמי, את הטקסט הערוך ואת ההקלטה.",
+      "deleteTitle": "למחוק את ההכתבה?",
+      "retryFinished": "בקשת התמלול הסתיימה. התוצאה מופיעה ברשומה הזו.",
+      "raw": "תמלול גולמי",
+      "cleaned": "תמלול ערוך",
       "processed": "תמלול מעובד",
-      "showCleaned": "Show cleaned text",
+      "showCleaned": "הצגת הטקסט הערוך",
       "showProcessed": "הצגת הטקסט המעובד",
-      "showRaw": "Show raw text",
+      "showRaw": "הצגת הטקסט הגולמי",
       "rawFallback": "לא היה אפשר לערוך את הרשומה הזאת באמצעות בינה מלאכותית.",
       "stats": {
-        "noPreviousWeek": "No previous week to compare",
-        "totalWords": "Retained words",
-        "thisWeek": "This week",
-        "recordedPace": "Recorded pace",
-        "wpm": "wpm",
-        "minutes": "min",
-        "retainedOnly": "Based on retained history. Deleted dictations are not counted.",
-        "stale": "Could not refresh statistics. These figures may be out of date.",
-        "loading": "Loading statistics…",
-        "unavailable": "Statistics are unavailable right now.",
-        "weeklyWords": "Words each week",
-        "vsPrevious": "vs last full week",
-        "weekBar": "{{date}}: {{count}} words",
-        "weeklyPace": "Recorded pace each week",
-        "weekPaceUnavailable": "{{date}}: no recording data",
-        "weekPaceValue": "{{date}}: {{wpm}} words per minute",
-        "method": "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress."
+        "noPreviousWeek": "אין שבוע קודם להשוואה",
+        "totalWords": "מילים שמורות",
+        "thisWeek": "השבוע",
+        "recordedPace": "קצב מוקלט",
+        "wpm": "מ׳/דקה",
+        "minutes": "דק׳",
+        "retainedOnly": "על סמך ההיסטוריה השמורה. הכתבות שנמחקו לא נספרות.",
+        "stale": "לא ניתן לרענן את הסטטיסטיקה. ייתכן שהנתונים אינם עדכניים.",
+        "loading": "טוען סטטיסטיקה…",
+        "unavailable": "הסטטיסטיקה אינה זמינה כרגע.",
+        "weeklyWords": "מילים בכל שבוע",
+        "vsPrevious": "לעומת השבוע המלא האחרון",
+        "weekBar": "{{date}}: {{count}} מילים",
+        "weeklyPace": "קצב מוקלט בכל שבוע",
+        "weekPaceUnavailable": "{{date}}: אין נתוני הקלטה",
+        "weekPaceValue": "{{date}}: {{wpm}} מילים לדקה",
+        "method": "הקצב מחושב לפי השמע השמור של {{covered}} מתוך {{count}} הקלטות. שקט שסונן בזמן ההקלטה לא נספר. השבוע עדיין לא הסתיים."
       }
     },
     "lectures": {
-      "saved": "Lecture transcript saved in History",
-      "imported": "Audio transcript saved in History",
-      "importFailed": "Import or transcription failed: {{error}}",
-      "recordTitle": "Record a lecture",
-      "recordDescription": "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
-      "finish": "Finish and transcribe",
-      "record": "Record lecture",
-      "recordingSince": "Recording since {{time}}",
-      "earlier": "earlier",
-      "progress": "Transcribing {{completed}} of {{total}} parts",
-      "working": "Working…",
-      "importTitle": "Transcribe an audio file",
-      "importDescription": "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
-      "choose": "Choose audio file",
-      "privacy": "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode."
+      "saved": "תמלול ההרצאה נשמר בהיסטוריה",
+      "imported": "תמלול השמע נשמר בהיסטוריה",
+      "importFailed": "הייבוא או התמלול נכשלו: {{error}}",
+      "recordTitle": "הקלטת הרצאה",
+      "recordDescription": "הקלטה מהמיקרופון. השמע נשמר תוך כדי ההקלטה ומתומלל בסיומה.",
+      "finish": "סיום ותמלול",
+      "record": "הקלטת הרצאה",
+      "recordingSince": "מקליט מאז {{time}}",
+      "earlier": "קודם",
+      "progress": "מתמלל חלק {{completed}} מתוך {{total}}",
+      "working": "מעבד…",
+      "importTitle": "תמלול קובץ שמע",
+      "importDescription": "יש לבחור הקלטה כדי להוסיף אותה להיסטוריה. Murmur משתמש בספקי הדיבור והעריכה שבחרת.",
+      "choose": "בחירת קובץ שמע",
+      "privacy": "שמע גולמי ותמלולים כפופים להגדרות השמירה של ההיסטוריה. ספקי ענן מקבלים שמע רק כשבוחרים שירות חיצוני לזיהוי הדיבור."
     },
     "dictation": {
-      "resetMicrophone": "Reset microphone to default",
+      "resetMicrophone": "איפוס המיקרופון לברירת המחדל",
       "indicator": {
-        "visibility": "Show recording indicator",
-        "description": "A visible alternative to sound cues. Availability depends on the desktop and its permissions."
+        "visibility": "הצגת מחוון הקלטה",
+        "description": "חלופה חזותית לצלילי ההתראה. הזמינות תלויה בשולחן העבודה ובהרשאות שלו."
       },
-      "previewSounds": "Preview sound theme: start then stop",
+      "previewSounds": "השמעת ערכת הצלילים: התחלה ואז סיום",
       "status": {
-        "hold": "Hold {{shortcut}} to dictate; release to finish",
-        "toggle": "Press {{shortcut}} to start; press again to finish",
-        "holdOrToggle": "Hold {{shortcut}}, or tap to start and tap again to finish",
-        "speechCloud": "Audio is sent to {{host}} for transcription",
-        "speechLocal": "Audio stays on this device ({{model}})",
-        "noModel": "no model selected",
-        "cleanupOff": "AI cleanup is off",
-        "cleanupLocal": "AI cleanup runs locally with {{provider}}",
-        "cleanupCloud": "Transcript text is sent to {{provider}} for cleanup",
-        "unavailable": "Microphone status unavailable",
-        "chooseModel": "Choose a recognition model to start",
-        "checking": "Checking dictation status…",
-        "change": "Change models",
-        "captureOnly": "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
-        "release": "Release the shortcut to finish.",
-        "pressAgain": "Press the shortcut again to finish.",
-        "releaseOrPress": "Release if holding, or tap the shortcut again to finish."
+        "hold": "יש להחזיק את {{shortcut}} כדי להכתיב ולשחרר כדי לסיים",
+        "toggle": "יש ללחוץ על {{shortcut}} כדי להתחיל וללחוץ שוב כדי לסיים",
+        "holdOrToggle": "יש להחזיק את {{shortcut}}, או להקיש כדי להתחיל ולהקיש שוב כדי לסיים",
+        "speechCloud": "השמע נשלח אל {{host}} לתמלול",
+        "speechLocal": "השמע נשאר במכשיר הזה ({{model}})",
+        "noModel": "לא נבחר מודל",
+        "cleanupOff": "עריכת הטקסט באמצעות בינה מלאכותית כבויה",
+        "cleanupLocal": "עריכת הטקסט באמצעות בינה מלאכותית פועלת מקומית עם {{provider}}",
+        "cleanupCloud": "הטקסט המתומלל נשלח אל {{provider}} לעריכה",
+        "unavailable": "מצב המיקרופון אינו זמין",
+        "chooseModel": "יש לבחור מודל זיהוי כדי להתחיל",
+        "checking": "בודק את מצב ההכתבה…",
+        "change": "שינוי מודלים",
+        "captureOnly": "קליטת המיקרופון כבויה. ייתכן שהזיהוי או העריכה עדיין פועלים. התוצאה תופיע במחוון ההקלטה או בהיסטוריה.",
+        "release": "יש לשחרר את קיצור המקשים כדי לסיים.",
+        "pressAgain": "יש ללחוץ שוב על קיצור המקשים כדי לסיים.",
+        "releaseOrPress": "יש לשחרר אם מחזיקים, או להקיש שוב על קיצור המקשים כדי לסיים."
       },
       "shortcut": {
-        "title": "Shortcut"
+        "title": "קיצור מקשים"
       },
       "microphone": {
         "title": "מיקרופון"
       },
       "sounds": {
-        "title": "Sounds",
+        "title": "צלילים",
         "theme": "שמע",
-        "themeDescription": "Recording cues use your system output and volume."
+        "themeDescription": "צלילי ההקלטה משתמשים בפלט השמע ובעוצמת הקול של המערכת."
       },
       "language": {
-        "title": "Spoken language",
-        "model": "Options depend on the active model, {{model}}."
+        "title": "שפת הדיבור",
+        "model": "האפשרויות תלויות במודל הפעיל, {{model}}."
       }
     },
     "download": {
-      "pending": "Downloading…",
-      "multiple": "{{count}} downloading…"
+      "pending": "מוריד…",
+      "multiple": "{{count}} בהורדה…"
     },
     "about": {
       "versionDescription": "הגרסה הנוכחית של Murmur",
       "ggml": {
-        "details": "Murmur uses transcribe.cpp and ggml for local speech recognition. Thanks to Georgi Gerganov and contributors."
+        "details": "Murmur משתמש ב-transcribe.cpp וב-ggml לזיהוי דיבור מקומי. תודה לגאורגי גרגנוב ולכל התורמים."
       }
     },
     "general": {
       "status": {
-        "recording": "Recording now",
-        "idle": "Not recording"
+        "recording": "מקליט עכשיו",
+        "idle": "לא מקליט"
       },
       "indicator": {
-        "title": "Recording indicator"
+        "title": "מחוון הקלטה"
       }
     },
     "insertion": {
       "method": {
-        "title": "Inserting text",
-        "description": "If transcripts appear in History but not in your app, try another method here."
+        "title": "הוספת טקסט",
+        "description": "אם התמלולים מופיעים בהיסטוריה אבל לא ביישום שלך, כדאי לנסות כאן שיטה אחרת."
       },
       "after": {
-        "title": "After inserting"
+        "title": "אחרי ההוספה"
       }
     },
     "keys": {
-      "removed": "Removed the key for {{name}}",
-      "title": "Saved API keys",
-      "description": "Keys are kept in your system credential store, never in Murmur's settings file.",
-      "unavailable": "Credential-store status is unavailable. Saved keys have not been removed.",
-      "loading": "Checking the credential store…",
-      "none": "No API keys saved.",
-      "speech": "Speech recognition",
-      "cleanup": "AI cleanup",
-      "remove": "Remove"
+      "removed": "המפתח של {{name}} הוסר",
+      "title": "מפתחות API שמורים",
+      "description": "המפתחות נשמרים במאגר האישורים של המערכת, אף פעם לא בקובץ ההגדרות של Murmur.",
+      "unavailable": "מצב מאגר האישורים אינו זמין. המפתחות השמורים לא הוסרו.",
+      "loading": "בודק את מאגר האישורים…",
+      "none": "לא נשמרו מפתחות API.",
+      "speech": "זיהוי דיבור",
+      "cleanup": "עריכת טקסט באמצעות בינה מלאכותית",
+      "remove": "הסרה"
     },
     "stt": {
-      "inUse": "In use",
-      "keySaved": "Speech API key saved",
-      "keyRemoved": "Speech API key removed",
-      "saved": "Speech source saved",
-      "refreshFailed": "Speech source was saved, but settings could not be reloaded. Retry loading settings.",
-      "title": "Speech recognition",
-      "description": "Choose where your speech is turned into text.",
-      "source": "Transcription source",
+      "inUse": "בשימוש",
+      "keySaved": "מפתח ה-API לדיבור נשמר",
+      "keyRemoved": "מפתח ה-API לדיבור הוסר",
+      "saved": "מקור הדיבור נשמר",
+      "refreshFailed": "מקור הדיבור נשמר, אבל לא ניתן לטעון מחדש את ההגדרות. יש לנסות לטעון אותן שוב.",
+      "title": "זיהוי דיבור",
+      "description": "בחירת המקום שבו הדיבור שלך הופך לטקסט.",
+      "source": "מקור התמלול",
       "local": {
-        "title": "On this device",
-        "description": "Pick or download a model below. Audio never leaves this computer."
+        "title": "במכשיר הזה",
+        "description": "יש לבחור או להוריד מודל למטה. השמע אף פעם לא יוצא מהמחשב הזה."
       },
       "endpoint": {
-        "title": "Cloud API or your own server",
-        "description": "OpenAI, Groq or any OpenAI-compatible service. Needs an API key unless it runs locally.",
-        "notice": "Each recording is sent to this service, which may charge for usage. Murmur never switches to another service on its own."
+        "title": "API בענן או שרת משלך",
+        "description": "OpenAI, Groq או כל שירות תואם OpenAI. נדרש מפתח API, אלא אם השירות פועל מקומית.",
+        "notice": "כל הקלטה נשלחת לשירות הזה, שעשוי לגבות תשלום על השימוש. Murmur אף פעם לא עובר לשירות אחר מעצמו."
       },
-      "service": "Service",
-      "presetOther": "or enter any compatible server below",
-      "baseUrl": "API base URL",
-      "baseUrlHelp": "For a server on this computer, try http://127.0.0.1:8000/v1. A full /audio/transcriptions URL also works.",
-      "model": "Model ID",
-      "modelHelp": "Use the model name your speech server accepts.",
+      "service": "שירות",
+      "presetOther": "או להזין למטה כל שרת תואם",
+      "baseUrl": "URL הבסיס של ה-API",
+      "baseUrlHelp": "לשרת במחשב הזה אפשר לנסות http://127.0.0.1:8000/v1. גם URL מלא של /audio/transcriptions עובד.",
+      "model": "מזהה המודל",
+      "modelHelp": "יש להשתמש בשם המודל ששרת הדיבור שלך מקבל.",
       "apiKey": "מפתח API",
-      "apiKeyPlaceholder": "Paste your key",
-      "saveKey": "Save key",
-      "removeKey": "Remove",
-      "keySavedWithSource": "Your key is saved with the URL and model when you press Save.",
-      "keyStored": "A key is saved for this endpoint in the system credential store.",
-      "noKey": "No key saved. Leave it empty only for a server that does not need one.",
-      "keyStatusError": "Could not check the system credential store. Retry below.",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "retryKeyCheck": "Retry key check",
-      "retryRefresh": "Retry loading settings",
-      "saving": "Saving…",
-      "save": "צור פרומפט"
+      "apiKeyPlaceholder": "הדבקת המפתח",
+      "saveKey": "שמירת המפתח",
+      "removeKey": "הסרה",
+      "keySavedWithSource": "המפתח נשמר יחד עם ה-URL והמודל כשלוחצים על שמירה.",
+      "keyStored": "שמור מפתח לשירות הזה במאגר האישורים של המערכת.",
+      "noKey": "לא נשמר מפתח. אפשר להשאיר ריק רק עבור שרת שלא דורש מפתח.",
+      "keyStatusError": "לא ניתן לבדוק את מאגר האישורים של המערכת. אפשר לנסות שוב למטה.",
+      "keyStatusUnknown": "בודק את מאגר האישורים של המערכת…",
+      "retryKeyCheck": "בדיקת המפתח שוב",
+      "retryRefresh": "טעינת ההגדרות שוב",
+      "saving": "שומר…",
+      "save": "שמירה"
     },
     "privacy": {
-      "loading": "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
-      "change": "Change",
-      "reporting": "Anonymous usage and errors",
-      "reportingSwitch": "Share anonymous usage and errors",
-      "reportingNotice": "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
-      "reportingUnconfigured": "Reporting is not configured in this build. Nothing is sent.",
-      "reportingSaveError": "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+      "loading": "הגדרות הפרטיות אינן זמינות בזמן טעינת התצורה. אפשר ללחוץ על ניסיון חוזר כדי לבדוק שוב.",
+      "change": "שינוי",
+      "reporting": "שימוש ושגיאות באופן אנונימי",
+      "reportingSwitch": "שיתוף נתוני שימוש ושגיאות באופן אנונימי",
+      "reportingNotice": "רק ספירות של מסכים ופעולות באירוח עצמי וקטגוריות שגיאה קבועות. ללא מעקב אחר מבקרים, הקלטות, תמלולים, מילות מילון או מפתחות API. כבוי עד שהבעלים מגדיר שרת. Do Not Track ו-Global Privacy Control גוברים על המתג הזה. הספירות פגות אחרי 30 יום והשגיאות אחרי 14 יום.",
+      "reportingUnconfigured": "הדיווח לא הוגדר בגרסה הזו. שום דבר לא נשלח.",
+      "reportingSaveError": "לא ניתן לשמור את העדפת הדיווח. הדיווח נשאר כבוי עד שאפשר יהיה לקרוא את ההעדפה.",
       "leaves": {
-        "title": "What leaves this computer",
-        "description": "Your voice and text only go to services you choose. Murmur never switches to one on its own."
+        "title": "מה יוצא מהמחשב הזה",
+        "description": "הקול והטקסט שלך נשלחים רק לשירותים שבחרת. Murmur אף פעם לא עובר לשירות אחר מעצמו."
       },
       "speech": {
-        "title": "Your voice",
-        "cloud": "Each recording is sent to {{host}} to be transcribed.",
-        "local": "Transcribed on this computer. Recordings are never uploaded."
+        "title": "הקול שלך",
+        "cloud": "כל הקלטה נשלחת אל {{host}} לתמלול.",
+        "local": "התמלול מתבצע במחשב הזה. ההקלטות אף פעם לא מועלות."
       },
       "cleanup": {
-        "title": "Your transcripts",
-        "off": "AI cleanup is off, so transcripts stay here.",
-        "local": "Cleaned up on this computer by {{provider}}.",
-        "cloud": "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not."
+        "title": "התמלולים שלך",
+        "off": "עריכת הטקסט באמצעות בינה מלאכותית כבויה, ולכן התמלולים נשארים כאן.",
+        "local": "העריכה מתבצעת במחשב הזה באמצעות {{provider}}.",
+        "cloud": "הטקסט המתומלל ומילות המילון שלך נשלחים אל {{provider}} לעריכה. השמע לא נשלח."
       },
       "stored": {
-        "title": "What stays on this computer"
+        "title": "מה נשאר במחשב הזה"
       },
       "history": {
-        "title": "Recordings and transcripts",
-        "detail": "Kept: {{period}}. Starred dictations are always kept."
+        "title": "הקלטות ותמלולים",
+        "detail": "משך השמירה: {{period}}. הכתבות מסומנות בכוכב נשמרות תמיד."
       },
       "keys": {
-        "title": "API keys",
-        "detail": "{{count}} saved in your system credential store, never in Murmur's settings file."
+        "title": "מפתחות API",
+        "detail": "{{count}} שמורים במאגר האישורים של המערכת, אף פעם לא בקובץ ההגדרות של Murmur."
       },
-      "manage": "Manage"
+      "manage": "ניהול"
     },
     "stats": {
-      "providerCost": "Provider cost",
-      "openrouterKeys": "OpenRouter usage for your configured keys",
-      "refresh": "Refresh",
-      "costStale": "Could not refresh provider usage. These figures may be out of date.",
-      "costLoading": "Checking OpenRouter usage…",
-      "costUnavailable": "OpenRouter usage is unavailable. Check your connection and key, then retry.",
-      "noOpenrouterKey": "Add an OpenRouter speech key in Models or a cleanup key in Cleanup to see its usage here.",
-      "costWeek": "This week",
-      "costMonth": "This month",
-      "costAll": "All time",
-      "byokValue": "OpenRouter also reports {{value}} in BYOK model usage this month. Your provider bills that separately.",
-      "costScope": "These totals cover {{count}} configured OpenRouter key(s), including use outside Murmur. Local models and direct provider keys are not counted.",
-      "totalWordsDescription": "Words in saved dictations",
-      "thisWeekDescription": "Words saved since Monday",
-      "recordedDescription": "Based on saved audio after silence filtering",
-      "recordedMinutes": "Saved audio minutes",
-      "title": "Your dictation stats",
-      "unavailableHelp": "Try again after Murmur has finished starting up.",
-      "position": "Stat {{current}} of {{total}}",
-      "swipeHint": "Drag or swipe to browse",
-      "metricCards": "Dictation stat cards",
-      "noAudioShort": "No retained audio",
-      "noAudio": "No retained recordings with audio are available, so recorded pace and minutes cannot be calculated. This week is still in progress."
+      "providerCost": "עלות הספקים",
+      "openrouterKeys": "שימוש ב-OpenRouter עם המפתחות שהגדרת",
+      "refresh": "רענון",
+      "costStale": "לא ניתן לרענן את נתוני השימוש בספקים. ייתכן שהנתונים אינם עדכניים.",
+      "costLoading": "בודק את השימוש ב-OpenRouter…",
+      "costUnavailable": "נתוני השימוש ב-OpenRouter אינם זמינים. יש לבדוק את החיבור ואת המפתח ולנסות שוב.",
+      "noOpenrouterKey": "כדי לראות כאן את השימוש, יש להוסיף מפתח דיבור של OpenRouter במסך המודלים או מפתח עריכה במסך העריכה.",
+      "costWeek": "השבוע",
+      "costMonth": "החודש",
+      "costAll": "מאז ומעולם",
+      "byokValue": "OpenRouter מדווח גם על {{value}} בשימוש במודלי BYOK החודש. הספק שלך מחייב על כך בנפרד.",
+      "costScope": "הסכומים כוללים {{count}} מפתחות OpenRouter מוגדרים, כולל שימוש מחוץ ל-Murmur. מודלים מקומיים ומפתחות ישירים של ספקים לא נספרים.",
+      "totalWordsDescription": "מילים בהכתבות שמורות",
+      "thisWeekDescription": "מילים שנשמרו מאז יום שני",
+      "recordedDescription": "על סמך השמע השמור אחרי סינון השקט",
+      "recordedMinutes": "דקות של שמע שמור",
+      "title": "סטטיסטיקת ההכתבה שלך",
+      "unavailableHelp": "אפשר לנסות שוב אחרי ש-Murmur יסיים לעלות.",
+      "position": "נתון {{current}} מתוך {{total}}",
+      "swipeHint": "אפשר לגרור או להחליק כדי לדפדף",
+      "metricCards": "כרטיסי סטטיסטיקת הכתבה",
+      "noAudioShort": "אין שמע שמור",
+      "noAudio": "אין הקלטות שמורות עם שמע, ולכן אי אפשר לחשב קצב ודקות מוקלטות. השבוע עדיין לא הסתיים."
     }
   }
 }

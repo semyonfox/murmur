@@ -119,9 +119,9 @@
         "requestFailed": "Kunne ikke anmode om tilladelse. Prøv igen."
       }
     },
-    "configureEndpoint": "Use a speech endpoint",
-    "configureEndpointDescription": "Configure an online provider or a server you run in Models.",
-    "noModels": "No downloadable models are listed right now."
+    "configureEndpoint": "Brug en taletjeneste",
+    "configureEndpointDescription": "Konfigurer en onlineudbyder eller din egen server under Modeller.",
+    "noModels": "Der er ingen modeller at downloade lige nu."
   },
   "modelSelector": {
     "custom": "Brugerdefineret",
@@ -668,7 +668,7 @@
     "clear": "Ryd",
     "noOptionsFound": "Ingen muligheder fundet",
     "download": "Download",
-    "retry": "Retry",
+    "retry": "Prøv igen",
     "cancel": "Annuller"
   },
   "accessibility": {
@@ -734,36 +734,36 @@
         "configuration": "Anmodningen blev afvist. Kontrollér indstillingerne for udbyderen og modellen."
       },
       "failed": "Tekstrettelse med AI mislykkedes",
-      "removeKey": "Remove key",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "keyStored": "Key saved in the system credential store",
-      "keyMissing": "No key saved",
+      "removeKey": "Fjern nøgle",
+      "keyStatusUnknown": "Kontrollerer systemets lager til loginoplysninger…",
+      "keyStored": "Nøglen er gemt i systemets lager til loginoplysninger",
+      "keyMissing": "Ingen nøgle gemt",
       "formality": {
-        "veryCasual": "Very casual",
-        "casual": "Casual",
-        "natural": "Natural",
-        "professional": "Professional",
-        "formal": "Formal",
+        "veryCasual": "Meget uformel",
+        "casual": "Uformel",
+        "natural": "Naturlig",
+        "professional": "Professionel",
+        "formal": "Formel",
         "title": "Tone",
-        "description": "Choose punctuation and grammar polish. Every level should keep your own words."
+        "description": "Vælg hvor meget tegnsætning og grammatik skal pudses af. Alle niveauer bevarer dine egne ord."
       },
       "basic": {
-        "title": "On this device",
-        "description": "Always runs locally, even when AI cleanup is off."
+        "title": "På denne enhed",
+        "description": "Kører altid lokalt, også når tekstrettelse med AI er slået fra."
       },
-      "title": "AI cleanup",
-      "description": "Fixes punctuation and clear errors and splits long dictation into readable sentences, keeping your words. Cloud providers receive the transcript, not the recording.",
+      "title": "Tekstrettelse med AI",
+      "description": "Retter tegnsætning og tydelige fejl og deler lang diktering op i læsbare sætninger, uden at ændre dine ord. Cloududbydere modtager transskriptionen, ikke optagelsen.",
       "instructions": {
-        "title": "Custom instructions",
-        "description": "Optional. Tell the cleanup model anything extra."
+        "title": "Egne instruktioner",
+        "description": "Valgfrit. Fortæl rettelsesmodellen hvad den ellers skal vide."
       },
       "model": {
-        "none": "No provider chosen"
+        "none": "Ingen udbyder valgt"
       }
     },
     "app": {
-      "loading": "Loading Murmur…",
-      "skip": "Skip to settings",
+      "loading": "Indlæser Murmur…",
+      "skip": "Gå til indstillinger",
       "appearance": {
         "title": "Udseende"
       },
@@ -786,323 +786,323 @@
     },
     "pages": {
       "dictation": {
-        "description": "Your shortcut, microphone and spoken language, plus what you see and hear while recording."
+        "description": "Din genvej, mikrofon og talesprog, plus hvad du ser og hører under optagelse."
       },
       "lectures": {
         "description": "Optag en forelæsning eller importér en lydfil. Transskriptionen vises i historikken."
       },
       "models": {
-        "description": "Choose what turns your speech into text. Every saved API key is listed here too."
+        "description": "Vælg hvad der gør din tale til tekst. Alle gemte API-nøgler vises også her."
       },
       "cleanup": {
-        "description": "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions."
+        "description": "Ret transskriptioner før de indsættes: fyldord, AI-model og nøgle, tone og instruktioner."
       },
       "dictionary": {
-        "description": "Names and terms Murmur should spell your way."
+        "description": "Navne og termer som Murmur skal stave på din måde."
       },
       "insertion": {
-        "description": "How finished text reaches the app you are typing in, and what happens after."
+        "description": "Hvordan den færdige tekst når frem til den app, du skriver i, og hvad der sker bagefter."
       },
       "stats": {
-        "description": "Words, speaking pace, saved audio duration and provider cost."
+        "description": "Ord, taletempo, varighed af gemt lyd og udbyderomkostninger."
       },
       "history": {
-        "description": "Past dictations, retention and compressed export."
+        "description": "Tidligere dikteringer, opbevaring og komprimeret eksport."
       },
       "privacy": {
-        "description": "What leaves this computer, what stays on it, and for how long."
+        "description": "Hvad der forlader denne computer, hvad der bliver på den, og hvor længe."
       },
       "app": {
         "description": "Udseende, sprog, opstart og ydeevne."
       },
       "about": {
-        "description": "Version, credits and where Murmur keeps its files."
+        "description": "Version, tak og hvor Murmur gemmer sine filer."
       },
       "debug": {
-        "description": "Diagnostics for troubleshooting."
+        "description": "Diagnosticering til fejlfinding."
       }
     },
     "onboarding": {
-      "checking": "Checking permissions…",
-      "checkFailed": "Permission checks failed. Use the permission action below to retry. Your system settings have not been changed.",
-      "microphoneWaiting": "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
-      "recheck": "Check again",
-      "accessibilityWaiting": "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically."
+      "checking": "Kontrollerer tilladelser…",
+      "checkFailed": "Kontrollen af tilladelser mislykkedes. Brug tilladelsesknappen nedenfor for at prøve igen. Dine systemindstillinger er ikke blevet ændret.",
+      "microphoneWaiting": "Giv adgang til mikrofonen i systemindstillingerne, og vend så tilbage hertil. Murmur kontrollerer igen automatisk.",
+      "recheck": "Kontrollér igen",
+      "accessibilityWaiting": "Slå Murmur til i systemets indstillinger for tilgængelighed, og vend så tilbage hertil. Murmur kontrollerer igen automatisk."
     },
     "models": {
       "downloadNamed": "Download {{model}}",
-      "browse": "Browse {{count}} models to download",
+      "browse": "Gennemse {{count}} modeller til download",
       "local": {
-        "title": "On-device models"
+        "title": "Modeller på enheden"
       },
       "cleanup": {
-        "title": "Cleanup model",
-        "on": "AI cleanup is on",
-        "off": "AI cleanup is off",
-        "change": "Change in Cleanup"
+        "title": "Rettelsesmodel",
+        "on": "Tekstrettelse med AI er slået til",
+        "off": "Tekstrettelse med AI er slået fra",
+        "change": "Skift under Tekstrettelse"
       }
     },
     "dictionary": {
-      "saveError": "Could not save this dictionary entry.",
-      "search": "Search saved words",
-      "count": "{{count}} terms saved",
-      "noMatches": "No matching words.",
-      "title": "Your words",
-      "description": "Used by on-device recognition and by AI cleanup to spell unusual names and terms."
+      "saveError": "Ordbogsposten kunne ikke gemmes.",
+      "search": "Søg i gemte ord",
+      "count": "{{count}} termer gemt",
+      "noMatches": "Ingen matchende ord.",
+      "title": "Dine ord",
+      "description": "Bruges af genkendelse på enheden og af tekstrettelse med AI til at stave usædvanlige navne og termer."
     },
     "history": {
       "limit": {
         "confirmMessage": "Behold de seneste {{count}} dikteringer? Ældre dikteringer uden stjerne og deres optagelser slettes permanent.",
-        "confirmTitle": "Reduce history limit"
+        "confirmTitle": "Sænk grænsen for historik"
       },
       "retention": {
-        "confirmMessage": "Changing retention may permanently delete existing recordings and transcripts that exceed the new limit. Continue?",
-        "confirmTitle": "Change history retention"
+        "confirmMessage": "Hvis du ændrer opbevaringen, kan eksisterende optagelser og transskriptioner, der overskrider den nye grænse, blive slettet permanent. Vil du fortsætte?",
+        "confirmTitle": "Skift opbevaring af historik"
       },
-      "playbackError": "Recording playback is unavailable. Try Play again or recover the transcript above.",
-      "saveError": "Could not change whether this dictation is kept. Try again.",
-      "folderError": "Could not open the recordings folder. Your transcripts are still available here.",
+      "playbackError": "Afspilning af optagelsen er ikke tilgængelig. Prøv Afspil igen, eller gendan transskriptionen ovenfor.",
+      "saveError": "Kunne ikke ændre, om denne diktering bevares. Prøv igen.",
+      "folderError": "Mappen med optagelser kunne ikke åbnes. Dine transskriptioner er stadig tilgængelige her.",
       "archive": {
-        "partial": "Archived {{count}} dictations, but {{missing}} recordings were already missing.",
-        "complete": "Archived {{count}} dictations. Originals are unchanged.",
-        "error": "Could not export history.",
-        "working": "Creating archive…",
-        "action": "Export compressed archive",
-        "note": "Lossless compression keeps the original WAV audio. The archive is not encrypted, and exporting never deletes local history."
+        "partial": "{{count}} dikteringer arkiveret, men {{missing}} optagelser manglede allerede.",
+        "complete": "{{count}} dikteringer arkiveret. Originalerne er uændrede.",
+        "error": "Historikken kunne ikke eksporteres.",
+        "working": "Opretter arkiv…",
+        "action": "Eksportér komprimeret arkiv",
+        "note": "Tabsfri komprimering bevarer den originale WAV-lyd. Arkivet er ikke krypteret, og eksport sletter aldrig den lokale historik."
       },
-      "loadError": "Could not load history. Your saved dictations have not been removed.",
-      "retryLoad": "Retry loading",
+      "loadError": "Historikken kunne ikke indlæses. Dine gemte dikteringer er ikke blevet fjernet.",
+      "retryLoad": "Indlæs igen",
       "storage": {
-        "title": "Storage and archive",
-        "description": "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive."
+        "title": "Lagring og arkiv",
+        "description": "Vælg hvor længe optagelser og transskriptioner skal gemmes. Eksportér en komprimeret kopi med både rå og rettet tekst, når du vil have et langtidsarkiv."
       },
-      "copied": "Copied displayed transcript.",
-      "deleteMessage": "This permanently removes the raw and cleaned text and its recording.",
-      "deleteTitle": "Delete dictation?",
-      "retryFinished": "Transcription request finished. Check this entry for the result.",
-      "raw": "Raw transcript",
-      "cleaned": "Cleaned transcript",
+      "copied": "Den viste transskription er kopieret.",
+      "deleteMessage": "Dette fjerner permanent den rå og den rettede tekst og optagelsen.",
+      "deleteTitle": "Slet diktering?",
+      "retryFinished": "Transskriptionsanmodningen er færdig. Se resultatet i denne post.",
+      "raw": "Rå transskription",
+      "cleaned": "Rettet transskription",
       "processed": "Behandlet transskription",
-      "showCleaned": "Show cleaned text",
+      "showCleaned": "Vis rettet tekst",
       "showProcessed": "Vis behandlet tekst",
-      "showRaw": "Show raw text",
+      "showRaw": "Vis rå tekst",
       "rawFallback": "Tekstrettelse med AI var ikke tilgængelig for dette element.",
       "stats": {
-        "noPreviousWeek": "No previous week to compare",
-        "totalWords": "Retained words",
-        "thisWeek": "This week",
-        "recordedPace": "Recorded pace",
-        "wpm": "wpm",
+        "noPreviousWeek": "Ingen tidligere uge at sammenligne med",
+        "totalWords": "Bevarede ord",
+        "thisWeek": "Denne uge",
+        "recordedPace": "Målt tempo",
+        "wpm": "ord/min",
         "minutes": "min",
-        "retainedOnly": "Based on retained history. Deleted dictations are not counted.",
-        "stale": "Could not refresh statistics. These figures may be out of date.",
-        "loading": "Loading statistics…",
-        "unavailable": "Statistics are unavailable right now.",
-        "weeklyWords": "Words each week",
-        "vsPrevious": "vs last full week",
-        "weekBar": "{{date}}: {{count}} words",
-        "weeklyPace": "Recorded pace each week",
-        "weekPaceUnavailable": "{{date}}: no recording data",
-        "weekPaceValue": "{{date}}: {{wpm}} words per minute",
-        "method": "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress."
+        "retainedOnly": "Baseret på bevaret historik. Slettede dikteringer tælles ikke med.",
+        "stale": "Statistikken kunne ikke opdateres. Tallene kan være forældede.",
+        "loading": "Indlæser statistik…",
+        "unavailable": "Statistik er ikke tilgængelig lige nu.",
+        "weeklyWords": "Ord pr. uge",
+        "vsPrevious": "i forhold til seneste hele uge",
+        "weekBar": "{{date}}: {{count}} ord",
+        "weeklyPace": "Målt tempo pr. uge",
+        "weekPaceUnavailable": "{{date}}: ingen optagelsesdata",
+        "weekPaceValue": "{{date}}: {{wpm}} ord i minuttet",
+        "method": "Tempoet bruger den gemte lyd for {{covered}} af {{count}} optagelser. Stilhed, der blev filtreret fra under optagelsen, tæller ikke med. Denne uge er stadig i gang."
       }
     },
     "lectures": {
-      "saved": "Lecture transcript saved in History",
-      "imported": "Audio transcript saved in History",
-      "importFailed": "Import or transcription failed: {{error}}",
-      "recordTitle": "Record a lecture",
-      "recordDescription": "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
-      "finish": "Finish and transcribe",
-      "record": "Record lecture",
-      "recordingSince": "Recording since {{time}}",
-      "earlier": "earlier",
-      "progress": "Transcribing {{completed}} of {{total}} parts",
-      "working": "Working…",
-      "importTitle": "Transcribe an audio file",
-      "importDescription": "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
-      "choose": "Choose audio file",
-      "privacy": "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode."
+      "saved": "Transskription af forelæsningen gemt i historikken",
+      "imported": "Transskription af lyden gemt i historikken",
+      "importFailed": "Import eller transskription mislykkedes: {{error}}",
+      "recordTitle": "Optag en forelæsning",
+      "recordDescription": "Optag fra din mikrofon. Lyden gemmes undervejs og transskriberes, når du er færdig.",
+      "finish": "Afslut og transskribér",
+      "record": "Optag forelæsning",
+      "recordingSince": "Optager siden {{time}}",
+      "earlier": "tidligere",
+      "progress": "Transskriberer del {{completed}} af {{total}}",
+      "working": "Arbejder…",
+      "importTitle": "Transskribér en lydfil",
+      "importDescription": "Vælg en optagelse for at føje den til historikken. Murmur bruger dine valgte udbydere til tale og tekstrettelse.",
+      "choose": "Vælg lydfil",
+      "privacy": "Rå lyd og transskriptioner følger dine indstillinger for opbevaring af historik. Cloududbydere modtager kun lyd, når du vælger en taletilstand med ekstern tjeneste."
     },
     "dictation": {
-      "resetMicrophone": "Reset microphone to default",
+      "resetMicrophone": "Nulstil mikrofon til standard",
       "indicator": {
-        "visibility": "Show recording indicator",
-        "description": "A visible alternative to sound cues. Availability depends on the desktop and its permissions."
+        "visibility": "Vis optageindikator",
+        "description": "Et synligt alternativ til lydsignaler. Tilgængeligheden afhænger af skrivebordsmiljøet og dets tilladelser."
       },
-      "previewSounds": "Preview sound theme: start then stop",
+      "previewSounds": "Afspil lydtema: start og derefter stop",
       "status": {
-        "hold": "Hold {{shortcut}} to dictate; release to finish",
-        "toggle": "Press {{shortcut}} to start; press again to finish",
-        "holdOrToggle": "Hold {{shortcut}}, or tap to start and tap again to finish",
-        "speechCloud": "Audio is sent to {{host}} for transcription",
-        "speechLocal": "Audio stays on this device ({{model}})",
-        "noModel": "no model selected",
-        "cleanupOff": "AI cleanup is off",
-        "cleanupLocal": "AI cleanup runs locally with {{provider}}",
-        "cleanupCloud": "Transcript text is sent to {{provider}} for cleanup",
-        "unavailable": "Microphone status unavailable",
-        "chooseModel": "Choose a recognition model to start",
-        "checking": "Checking dictation status…",
-        "change": "Change models",
-        "captureOnly": "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
-        "release": "Release the shortcut to finish.",
-        "pressAgain": "Press the shortcut again to finish.",
-        "releaseOrPress": "Release if holding, or tap the shortcut again to finish."
+        "hold": "Hold {{shortcut}} nede for at diktere, og slip for at afslutte",
+        "toggle": "Tryk på {{shortcut}} for at starte, og tryk igen for at afslutte",
+        "holdOrToggle": "Hold {{shortcut}} nede, eller tryk for at starte og tryk igen for at afslutte",
+        "speechCloud": "Lyden sendes til {{host}} til transskription",
+        "speechLocal": "Lyden bliver på denne enhed ({{model}})",
+        "noModel": "ingen model valgt",
+        "cleanupOff": "Tekstrettelse med AI er slået fra",
+        "cleanupLocal": "Tekstrettelse med AI kører lokalt med {{provider}}",
+        "cleanupCloud": "Transskriptionsteksten sendes til {{provider}} til rettelse",
+        "unavailable": "Mikrofonstatus er ikke tilgængelig",
+        "chooseModel": "Vælg en genkendelsesmodel for at starte",
+        "checking": "Kontrollerer dikteringsstatus…",
+        "change": "Skift modeller",
+        "captureOnly": "Mikrofonoptagelsen er stoppet. Genkendelse eller tekstrettelse kører muligvis stadig. Se resultatet på optageindikatoren eller i historikken.",
+        "release": "Slip genvejen for at afslutte.",
+        "pressAgain": "Tryk på genvejen igen for at afslutte.",
+        "releaseOrPress": "Slip, hvis du holder den nede, eller tryk på genvejen igen for at afslutte."
       },
       "shortcut": {
-        "title": "Shortcut"
+        "title": "Genvej"
       },
       "microphone": {
         "title": "Mikrofon"
       },
       "sounds": {
-        "title": "Sounds",
+        "title": "Lyde",
         "theme": "Lyd",
-        "themeDescription": "Recording cues use your system output and volume."
+        "themeDescription": "Optagesignaler bruger systemets lydudgang og lydstyrke."
       },
       "language": {
-        "title": "Spoken language",
-        "model": "Options depend on the active model, {{model}}."
+        "title": "Talesprog",
+        "model": "Mulighederne afhænger af den aktive model, {{model}}."
       }
     },
     "download": {
-      "pending": "Downloading…",
-      "multiple": "{{count}} downloading…"
+      "pending": "Downloader…",
+      "multiple": "{{count}} downloader…"
     },
     "about": {
       "versionDescription": "Nuværende version af Murmur",
       "ggml": {
-        "details": "Murmur uses transcribe.cpp and ggml for local speech recognition. Thanks to Georgi Gerganov and contributors."
+        "details": "Murmur bruger transcribe.cpp og ggml til lokal talegenkendelse. Tak til Georgi Gerganov og bidragyderne."
       }
     },
     "general": {
       "status": {
-        "recording": "Recording now",
-        "idle": "Not recording"
+        "recording": "Optager nu",
+        "idle": "Optager ikke"
       },
       "indicator": {
-        "title": "Recording indicator"
+        "title": "Optageindikator"
       }
     },
     "insertion": {
       "method": {
-        "title": "Inserting text",
-        "description": "If transcripts appear in History but not in your app, try another method here."
+        "title": "Indsættelse af tekst",
+        "description": "Hvis transskriptioner vises i historikken, men ikke i din app, så prøv en anden metode her."
       },
       "after": {
-        "title": "After inserting"
+        "title": "Efter indsættelse"
       }
     },
     "keys": {
-      "removed": "Removed the key for {{name}}",
-      "title": "Saved API keys",
-      "description": "Keys are kept in your system credential store, never in Murmur's settings file.",
-      "unavailable": "Credential-store status is unavailable. Saved keys have not been removed.",
-      "loading": "Checking the credential store…",
-      "none": "No API keys saved.",
-      "speech": "Speech recognition",
-      "cleanup": "AI cleanup",
-      "remove": "Remove"
+      "removed": "Nøglen til {{name}} er fjernet",
+      "title": "Gemte API-nøgler",
+      "description": "Nøgler gemmes i systemets lager til loginoplysninger, aldrig i Murmurs indstillingsfil.",
+      "unavailable": "Status for lageret til loginoplysninger er ikke tilgængelig. Gemte nøgler er ikke blevet fjernet.",
+      "loading": "Kontrollerer lageret til loginoplysninger…",
+      "none": "Ingen API-nøgler gemt.",
+      "speech": "Talegenkendelse",
+      "cleanup": "Tekstrettelse med AI",
+      "remove": "Fjern"
     },
     "stt": {
-      "inUse": "In use",
-      "keySaved": "Speech API key saved",
-      "keyRemoved": "Speech API key removed",
-      "saved": "Speech source saved",
-      "refreshFailed": "Speech source was saved, but settings could not be reloaded. Retry loading settings.",
-      "title": "Speech recognition",
-      "description": "Choose where your speech is turned into text.",
-      "source": "Transcription source",
+      "inUse": "I brug",
+      "keySaved": "API-nøgle til tale gemt",
+      "keyRemoved": "API-nøgle til tale fjernet",
+      "saved": "Talekilde gemt",
+      "refreshFailed": "Talekilden blev gemt, men indstillingerne kunne ikke genindlæses. Prøv at indlæse indstillingerne igen.",
+      "title": "Talegenkendelse",
+      "description": "Vælg hvor din tale bliver til tekst.",
+      "source": "Transskriptionskilde",
       "local": {
-        "title": "On this device",
-        "description": "Pick or download a model below. Audio never leaves this computer."
+        "title": "På denne enhed",
+        "description": "Vælg eller download en model nedenfor. Lyden forlader aldrig denne computer."
       },
       "endpoint": {
-        "title": "Cloud API or your own server",
-        "description": "OpenAI, Groq or any OpenAI-compatible service. Needs an API key unless it runs locally.",
-        "notice": "Each recording is sent to this service, which may charge for usage. Murmur never switches to another service on its own."
+        "title": "Cloud-API eller din egen server",
+        "description": "OpenAI, Groq eller enhver OpenAI-kompatibel tjeneste. Kræver en API-nøgle, medmindre den kører lokalt.",
+        "notice": "Hver optagelse sendes til denne tjeneste, som kan tage betaling for brug. Murmur skifter aldrig selv til en anden tjeneste."
       },
-      "service": "Service",
-      "presetOther": "or enter any compatible server below",
-      "baseUrl": "API base URL",
-      "baseUrlHelp": "For a server on this computer, try http://127.0.0.1:8000/v1. A full /audio/transcriptions URL also works.",
-      "model": "Model ID",
-      "modelHelp": "Use the model name your speech server accepts.",
+      "service": "Tjeneste",
+      "presetOther": "eller angiv en kompatibel server nedenfor",
+      "baseUrl": "API-basis-URL",
+      "baseUrlHelp": "For en server på denne computer kan du prøve http://127.0.0.1:8000/v1. En fuld /audio/transcriptions-URL virker også.",
+      "model": "Model-ID",
+      "modelHelp": "Brug det modelnavn, din taleserver accepterer.",
       "apiKey": "API-nøgle",
-      "apiKeyPlaceholder": "Paste your key",
-      "saveKey": "Save key",
-      "removeKey": "Remove",
-      "keySavedWithSource": "Your key is saved with the URL and model when you press Save.",
-      "keyStored": "A key is saved for this endpoint in the system credential store.",
-      "noKey": "No key saved. Leave it empty only for a server that does not need one.",
-      "keyStatusError": "Could not check the system credential store. Retry below.",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "retryKeyCheck": "Retry key check",
-      "retryRefresh": "Retry loading settings",
-      "saving": "Saving…",
-      "save": "Opret prompt"
+      "apiKeyPlaceholder": "Indsæt din nøgle",
+      "saveKey": "Gem nøgle",
+      "removeKey": "Fjern",
+      "keySavedWithSource": "Din nøgle gemmes sammen med URL og model, når du trykker på Gem.",
+      "keyStored": "Der er gemt en nøgle til denne tjeneste i systemets lager til loginoplysninger.",
+      "noKey": "Ingen nøgle gemt. Lad feltet være tomt kun for en server, der ikke kræver en.",
+      "keyStatusError": "Systemets lager til loginoplysninger kunne ikke kontrolleres. Prøv igen nedenfor.",
+      "keyStatusUnknown": "Kontrollerer systemets lager til loginoplysninger…",
+      "retryKeyCheck": "Kontrollér nøgle igen",
+      "retryRefresh": "Indlæs indstillinger igen",
+      "saving": "Gemmer…",
+      "save": "Gem"
     },
     "privacy": {
-      "loading": "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
-      "change": "Change",
-      "reporting": "Anonymous usage and errors",
-      "reportingSwitch": "Share anonymous usage and errors",
-      "reportingNotice": "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
-      "reportingUnconfigured": "Reporting is not configured in this build. Nothing is sent.",
-      "reportingSaveError": "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+      "loading": "Privatlivsindstillinger er ikke tilgængelige, mens konfigurationen indlæses. Brug Prøv igen for at kontrollere igen.",
+      "change": "Skift",
+      "reporting": "Anonym brug og fejl",
+      "reportingSwitch": "Del anonyme data om brug og fejl",
+      "reportingNotice": "Kun optællinger af skærme og handlinger og faste fejlkategorier på en selvhostet server. Ingen sporing af besøgende, optagelser, transskriptioner, ordbogsord eller API-nøgler. Slået fra, indtil ejeren har konfigureret en modtagetjeneste. Do Not Track og Global Privacy Control tilsidesætter denne kontakt. Optællinger udløber efter 30 dage, fejl efter 14 dage.",
+      "reportingUnconfigured": "Rapportering er ikke konfigureret i denne version. Der sendes intet.",
+      "reportingSaveError": "Rapporteringsindstillingen kunne ikke gemmes. Rapportering forbliver slået fra, indtil indstillingen kan læses.",
       "leaves": {
-        "title": "What leaves this computer",
-        "description": "Your voice and text only go to services you choose. Murmur never switches to one on its own."
+        "title": "Hvad der forlader denne computer",
+        "description": "Din stemme og tekst sendes kun til tjenester, du vælger. Murmur skifter aldrig selv til en anden."
       },
       "speech": {
-        "title": "Your voice",
-        "cloud": "Each recording is sent to {{host}} to be transcribed.",
-        "local": "Transcribed on this computer. Recordings are never uploaded."
+        "title": "Din stemme",
+        "cloud": "Hver optagelse sendes til {{host}} for at blive transskriberet.",
+        "local": "Transskriberes på denne computer. Optagelser uploades aldrig."
       },
       "cleanup": {
-        "title": "Your transcripts",
-        "off": "AI cleanup is off, so transcripts stay here.",
-        "local": "Cleaned up on this computer by {{provider}}.",
-        "cloud": "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not."
+        "title": "Dine transskriptioner",
+        "off": "Tekstrettelse med AI er slået fra, så transskriptioner bliver her.",
+        "local": "Rettes på denne computer af {{provider}}.",
+        "cloud": "Transskriptionsteksten og dine ordbogsord sendes til {{provider}} til rettelse. Lyden gør ikke."
       },
       "stored": {
-        "title": "What stays on this computer"
+        "title": "Hvad der bliver på denne computer"
       },
       "history": {
-        "title": "Recordings and transcripts",
-        "detail": "Kept: {{period}}. Starred dictations are always kept."
+        "title": "Optagelser og transskriptioner",
+        "detail": "Gemmes: {{period}}. Dikteringer med stjerne gemmes altid."
       },
       "keys": {
-        "title": "API keys",
-        "detail": "{{count}} saved in your system credential store, never in Murmur's settings file."
+        "title": "API-nøgler",
+        "detail": "{{count}} gemt i systemets lager til loginoplysninger, aldrig i Murmurs indstillingsfil."
       },
-      "manage": "Manage"
+      "manage": "Administrer"
     },
     "stats": {
-      "providerCost": "Provider cost",
-      "openrouterKeys": "OpenRouter usage for your configured keys",
-      "refresh": "Refresh",
-      "costStale": "Could not refresh provider usage. These figures may be out of date.",
-      "costLoading": "Checking OpenRouter usage…",
-      "costUnavailable": "OpenRouter usage is unavailable. Check your connection and key, then retry.",
-      "noOpenrouterKey": "Add an OpenRouter speech key in Models or a cleanup key in Cleanup to see its usage here.",
-      "costWeek": "This week",
-      "costMonth": "This month",
-      "costAll": "All time",
-      "byokValue": "OpenRouter also reports {{value}} in BYOK model usage this month. Your provider bills that separately.",
-      "costScope": "These totals cover {{count}} configured OpenRouter key(s), including use outside Murmur. Local models and direct provider keys are not counted.",
-      "totalWordsDescription": "Words in saved dictations",
-      "thisWeekDescription": "Words saved since Monday",
-      "recordedDescription": "Based on saved audio after silence filtering",
-      "recordedMinutes": "Saved audio minutes",
-      "title": "Your dictation stats",
-      "unavailableHelp": "Try again after Murmur has finished starting up.",
-      "position": "Stat {{current}} of {{total}}",
-      "swipeHint": "Drag or swipe to browse",
-      "metricCards": "Dictation stat cards",
-      "noAudioShort": "No retained audio",
-      "noAudio": "No retained recordings with audio are available, so recorded pace and minutes cannot be calculated. This week is still in progress."
+      "providerCost": "Udbyderomkostninger",
+      "openrouterKeys": "OpenRouter-forbrug for dine konfigurerede nøgler",
+      "refresh": "Opdater",
+      "costStale": "Udbyderforbruget kunne ikke opdateres. Tallene kan være forældede.",
+      "costLoading": "Kontrollerer OpenRouter-forbrug…",
+      "costUnavailable": "OpenRouter-forbrug er ikke tilgængeligt. Kontrollér forbindelsen og nøglen, og prøv igen.",
+      "noOpenrouterKey": "Tilføj en OpenRouter-talenøgle under Modeller eller en rettelsesnøgle under Tekstrettelse for at se forbruget her.",
+      "costWeek": "Denne uge",
+      "costMonth": "Denne måned",
+      "costAll": "Altid",
+      "byokValue": "OpenRouter rapporterer også {{value}} i BYOK-modelforbrug denne måned. Din udbyder fakturerer det separat.",
+      "costScope": "Disse totaler dækker {{count}} konfigurerede OpenRouter-nøgle(r), inklusive brug uden for Murmur. Lokale modeller og direkte udbydernøgler tælles ikke med.",
+      "totalWordsDescription": "Ord i gemte dikteringer",
+      "thisWeekDescription": "Ord gemt siden mandag",
+      "recordedDescription": "Baseret på gemt lyd efter filtrering af stilhed",
+      "recordedMinutes": "Minutter gemt lyd",
+      "title": "Din dikteringsstatistik",
+      "unavailableHelp": "Prøv igen, når Murmur er startet helt op.",
+      "position": "Statistik {{current}} af {{total}}",
+      "swipeHint": "Træk eller swipe for at bladre",
+      "metricCards": "Kort med dikteringsstatistik",
+      "noAudioShort": "Ingen bevaret lyd",
+      "noAudio": "Der er ingen bevarede optagelser med lyd, så målt tempo og minutter kan ikke beregnes. Denne uge er stadig i gang."
     }
   }
 }

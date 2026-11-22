@@ -119,9 +119,9 @@
         "requestFailed": "Machtiging aanvragen mislukt. Probeer het opnieuw."
       }
     },
-    "configureEndpoint": "Use a speech endpoint",
-    "configureEndpointDescription": "Configure an online provider or a server you run in Models.",
-    "noModels": "No downloadable models are listed right now."
+    "configureEndpoint": "Een spraakendpoint gebruiken",
+    "configureEndpointDescription": "Stel bij Modellen een online aanbieder of je eigen server in.",
+    "noModels": "Er zijn op dit moment geen downloadbare modellen."
   },
   "modelSelector": {
     "custom": "Aangepast",
@@ -667,8 +667,8 @@
     "copy": "Kopiëren",
     "clear": "Wissen",
     "noOptionsFound": "Geen opties gevonden",
-    "download": "Download",
-    "retry": "Retry",
+    "download": "Downloaden",
+    "retry": "Opnieuw proberen",
     "cancel": "Annuleren"
   },
   "accessibility": {
@@ -734,36 +734,36 @@
         "configuration": "Het verzoek is geweigerd. Controleer de instellingen van de aanbieder en het model."
       },
       "failed": "Tekstcorrectie met AI mislukt",
-      "removeKey": "Remove key",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "keyStored": "Key saved in the system credential store",
-      "keyMissing": "No key saved",
+      "removeKey": "Sleutel verwijderen",
+      "keyStatusUnknown": "Sleutelopslag van het systeem controleren…",
+      "keyStored": "Sleutel opgeslagen in de sleutelopslag van het systeem",
+      "keyMissing": "Geen sleutel opgeslagen",
       "formality": {
-        "veryCasual": "Very casual",
-        "casual": "Casual",
-        "natural": "Natural",
-        "professional": "Professional",
-        "formal": "Formal",
-        "title": "Tone",
-        "description": "Choose punctuation and grammar polish. Every level should keep your own words."
+        "veryCasual": "Heel informeel",
+        "casual": "Informeel",
+        "natural": "Natuurlijk",
+        "professional": "Professioneel",
+        "formal": "Formeel",
+        "title": "Toon",
+        "description": "Kies hoeveel interpunctie en grammatica worden bijgewerkt. Elk niveau houdt je eigen woorden."
       },
       "basic": {
-        "title": "On this device",
-        "description": "Always runs locally, even when AI cleanup is off."
+        "title": "Op dit apparaat",
+        "description": "Draait altijd lokaal, ook als AI-tekstcorrectie uit staat."
       },
-      "title": "AI cleanup",
-      "description": "Fixes punctuation and clear errors and splits long dictation into readable sentences, keeping your words. Cloud providers receive the transcript, not the recording.",
+      "title": "AI-tekstcorrectie",
+      "description": "Herstelt interpunctie en duidelijke fouten en deelt lange dictaten op in leesbare zinnen, met behoud van je woorden. Cloudaanbieders ontvangen de transcriptie, niet de opname.",
       "instructions": {
-        "title": "Custom instructions",
-        "description": "Optional. Tell the cleanup model anything extra."
+        "title": "Eigen instructies",
+        "description": "Optioneel. Geef het correctiemodel extra aanwijzingen."
       },
       "model": {
-        "none": "No provider chosen"
+        "none": "Geen aanbieder gekozen"
       }
     },
     "app": {
-      "loading": "Loading Murmur…",
-      "skip": "Skip to settings",
+      "loading": "Murmur laden…",
+      "skip": "Naar instellingen",
       "appearance": {
         "title": "Weergave"
       },
@@ -786,323 +786,323 @@
     },
     "pages": {
       "dictation": {
-        "description": "Your shortcut, microphone and spoken language, plus what you see and hear while recording."
+        "description": "Je sneltoets, microfoon en gesproken taal, en wat je ziet en hoort tijdens het opnemen."
       },
       "lectures": {
         "description": "Neem een college op of importeer een audiobestand. De transcriptie verschijnt in de geschiedenis."
       },
       "models": {
-        "description": "Choose what turns your speech into text. Every saved API key is listed here too."
+        "description": "Kies wat je spraak omzet in tekst. Alle opgeslagen API-sleutels staan hier ook."
       },
       "cleanup": {
-        "description": "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions."
+        "description": "Transcripties opschonen voordat ze worden ingevoegd: stopwoorden, het AI-model en de sleutel, toon en instructies."
       },
       "dictionary": {
-        "description": "Names and terms Murmur should spell your way."
+        "description": "Namen en termen die Murmur op jouw manier moet spellen."
       },
       "insertion": {
-        "description": "How finished text reaches the app you are typing in, and what happens after."
+        "description": "Hoe de tekst in de app komt waarin je typt, en wat er daarna gebeurt."
       },
       "stats": {
-        "description": "Words, speaking pace, saved audio duration and provider cost."
+        "description": "Woorden, spreektempo, duur van opgeslagen audio en kosten bij aanbieders."
       },
       "history": {
-        "description": "Past dictations, retention and compressed export."
+        "description": "Eerdere dictaten, bewaartermijn en gecomprimeerde export."
       },
       "privacy": {
-        "description": "What leaves this computer, what stays on it, and for how long."
+        "description": "Wat deze computer verlaat, wat erop blijft en hoe lang."
       },
       "app": {
         "description": "Weergave, taal van de interface, opstarten en prestaties."
       },
       "about": {
-        "description": "Version, credits and where Murmur keeps its files."
+        "description": "Versie, dankwoord en waar Murmur zijn bestanden bewaart."
       },
       "debug": {
-        "description": "Diagnostics for troubleshooting."
+        "description": "Diagnose voor het oplossen van problemen."
       }
     },
     "onboarding": {
-      "checking": "Checking permissions…",
-      "checkFailed": "Permission checks failed. Use the permission action below to retry. Your system settings have not been changed.",
-      "microphoneWaiting": "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
-      "recheck": "Check again",
-      "accessibilityWaiting": "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically."
+      "checking": "Rechten controleren…",
+      "checkFailed": "Het controleren van de rechten is mislukt. Gebruik de actie hieronder om het opnieuw te proberen. Je systeeminstellingen zijn niet gewijzigd.",
+      "microphoneWaiting": "Geef microfoontoegang in de systeeminstellingen en kom dan terug. Murmur controleert het automatisch opnieuw.",
+      "recheck": "Opnieuw controleren",
+      "accessibilityWaiting": "Schakel Murmur in bij de toegankelijkheidsinstellingen van het systeem en kom dan terug. Murmur controleert het automatisch opnieuw."
     },
     "models": {
-      "downloadNamed": "Download {{model}}",
-      "browse": "Browse {{count}} models to download",
+      "downloadNamed": "{{model}} downloaden",
+      "browse": "Bekijk {{count}} modellen om te downloaden",
       "local": {
-        "title": "On-device models"
+        "title": "Modellen op het apparaat"
       },
       "cleanup": {
-        "title": "Cleanup model",
-        "on": "AI cleanup is on",
-        "off": "AI cleanup is off",
-        "change": "Change in Cleanup"
+        "title": "Correctiemodel",
+        "on": "AI-tekstcorrectie staat aan",
+        "off": "AI-tekstcorrectie staat uit",
+        "change": "Wijzigen bij Tekstcorrectie"
       }
     },
     "dictionary": {
-      "saveError": "Could not save this dictionary entry.",
-      "search": "Search saved words",
-      "count": "{{count}} terms saved",
-      "noMatches": "No matching words.",
-      "title": "Your words",
-      "description": "Used by on-device recognition and by AI cleanup to spell unusual names and terms."
+      "saveError": "Dit woord kon niet worden opgeslagen in het woordenboek.",
+      "search": "Opgeslagen woorden zoeken",
+      "count": "{{count}} termen opgeslagen",
+      "noMatches": "Geen overeenkomende woorden.",
+      "title": "Jouw woorden",
+      "description": "Gebruikt door herkenning op het apparaat en door AI-tekstcorrectie om ongewone namen en termen goed te spellen."
     },
     "history": {
       "limit": {
         "confirmMessage": "De laatste {{count}} dictaten bewaren? Oudere dictaten zonder ster en hun opnames worden permanent verwijderd.",
-        "confirmTitle": "Reduce history limit"
+        "confirmTitle": "Geschiedenislimiet verlagen"
       },
       "retention": {
-        "confirmMessage": "Changing retention may permanently delete existing recordings and transcripts that exceed the new limit. Continue?",
-        "confirmTitle": "Change history retention"
+        "confirmMessage": "Als je de bewaartermijn wijzigt, kunnen bestaande opnames en transcripties die buiten de nieuwe limiet vallen permanent worden verwijderd. Doorgaan?",
+        "confirmTitle": "Bewaartermijn van geschiedenis wijzigen"
       },
-      "playbackError": "Recording playback is unavailable. Try Play again or recover the transcript above.",
-      "saveError": "Could not change whether this dictation is kept. Try again.",
-      "folderError": "Could not open the recordings folder. Your transcripts are still available here.",
+      "playbackError": "De opname kan niet worden afgespeeld. Probeer opnieuw af te spelen of herstel de transcriptie hierboven.",
+      "saveError": "Kon niet wijzigen of dit dictaat bewaard blijft. Probeer het opnieuw.",
+      "folderError": "Kon de map met opnames niet openen. Je transcripties zijn hier nog steeds beschikbaar.",
       "archive": {
-        "partial": "Archived {{count}} dictations, but {{missing}} recordings were already missing.",
-        "complete": "Archived {{count}} dictations. Originals are unchanged.",
-        "error": "Could not export history.",
-        "working": "Creating archive…",
-        "action": "Export compressed archive",
-        "note": "Lossless compression keeps the original WAV audio. The archive is not encrypted, and exporting never deletes local history."
+        "partial": "{{count}} dictaten gearchiveerd, maar {{missing}} opnames ontbraken al.",
+        "complete": "{{count}} dictaten gearchiveerd. De originelen zijn ongewijzigd.",
+        "error": "Kon de geschiedenis niet exporteren.",
+        "working": "Archief maken…",
+        "action": "Gecomprimeerd archief exporteren",
+        "note": "Verliesvrije compressie behoudt de originele WAV-audio. Het archief is niet versleuteld en exporteren verwijdert nooit lokale geschiedenis."
       },
-      "loadError": "Could not load history. Your saved dictations have not been removed.",
-      "retryLoad": "Retry loading",
+      "loadError": "Kon de geschiedenis niet laden. Je opgeslagen dictaten zijn niet verwijderd.",
+      "retryLoad": "Opnieuw laden",
       "storage": {
-        "title": "Storage and archive",
-        "description": "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive."
+        "title": "Opslag en archief",
+        "description": "Kies hoe lang opnames en transcripties bewaard blijven. Exporteer een gecomprimeerde kopie met zowel ruwe als gecorrigeerde tekst wanneer je een archief voor de lange termijn wilt."
       },
-      "copied": "Copied displayed transcript.",
-      "deleteMessage": "This permanently removes the raw and cleaned text and its recording.",
-      "deleteTitle": "Delete dictation?",
-      "retryFinished": "Transcription request finished. Check this entry for the result.",
-      "raw": "Raw transcript",
-      "cleaned": "Cleaned transcript",
+      "copied": "Weergegeven transcriptie gekopieerd.",
+      "deleteMessage": "Hiermee worden de ruwe en gecorrigeerde tekst en de opname permanent verwijderd.",
+      "deleteTitle": "Dictaat verwijderen?",
+      "retryFinished": "Transcriptieverzoek voltooid. Bekijk dit item voor het resultaat.",
+      "raw": "Ruwe transcriptie",
+      "cleaned": "Gecorrigeerde transcriptie",
       "processed": "Verwerkte transcriptie",
-      "showCleaned": "Show cleaned text",
+      "showCleaned": "Gecorrigeerde tekst tonen",
       "showProcessed": "Verwerkte tekst tonen",
-      "showRaw": "Show raw text",
+      "showRaw": "Ruwe tekst tonen",
       "rawFallback": "Tekstcorrectie met AI was niet beschikbaar voor dit item.",
       "stats": {
-        "noPreviousWeek": "No previous week to compare",
-        "totalWords": "Retained words",
-        "thisWeek": "This week",
-        "recordedPace": "Recorded pace",
+        "noPreviousWeek": "Geen vorige week om mee te vergelijken",
+        "totalWords": "Bewaarde woorden",
+        "thisWeek": "Deze week",
+        "recordedPace": "Opgenomen tempo",
         "wpm": "wpm",
         "minutes": "min",
-        "retainedOnly": "Based on retained history. Deleted dictations are not counted.",
-        "stale": "Could not refresh statistics. These figures may be out of date.",
-        "loading": "Loading statistics…",
-        "unavailable": "Statistics are unavailable right now.",
-        "weeklyWords": "Words each week",
-        "vsPrevious": "vs last full week",
-        "weekBar": "{{date}}: {{count}} words",
-        "weeklyPace": "Recorded pace each week",
-        "weekPaceUnavailable": "{{date}}: no recording data",
-        "weekPaceValue": "{{date}}: {{wpm}} words per minute",
-        "method": "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress."
+        "retainedOnly": "Gebaseerd op bewaarde geschiedenis. Verwijderde dictaten tellen niet mee.",
+        "stale": "Kon de statistieken niet vernieuwen. Deze cijfers kunnen verouderd zijn.",
+        "loading": "Statistieken laden…",
+        "unavailable": "Statistieken zijn op dit moment niet beschikbaar.",
+        "weeklyWords": "Woorden per week",
+        "vsPrevious": "t.o.v. vorige volle week",
+        "weekBar": "{{date}}: {{count}} woorden",
+        "weeklyPace": "Opgenomen tempo per week",
+        "weekPaceUnavailable": "{{date}}: geen opnamegegevens",
+        "weekPaceValue": "{{date}}: {{wpm}} woorden per minuut",
+        "method": "Het tempo gebruikt de opgeslagen audio van {{covered}} van {{count}} opnames. Stilte die tijdens het opnemen is weggefilterd telt niet mee. Deze week is nog bezig."
       }
     },
     "lectures": {
-      "saved": "Lecture transcript saved in History",
-      "imported": "Audio transcript saved in History",
-      "importFailed": "Import or transcription failed: {{error}}",
-      "recordTitle": "Record a lecture",
-      "recordDescription": "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
-      "finish": "Finish and transcribe",
-      "record": "Record lecture",
-      "recordingSince": "Recording since {{time}}",
-      "earlier": "earlier",
-      "progress": "Transcribing {{completed}} of {{total}} parts",
-      "working": "Working…",
-      "importTitle": "Transcribe an audio file",
-      "importDescription": "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
-      "choose": "Choose audio file",
-      "privacy": "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode."
+      "saved": "Collegetranscriptie opgeslagen in Geschiedenis",
+      "imported": "Audiotranscriptie opgeslagen in Geschiedenis",
+      "importFailed": "Importeren of transcriberen mislukt: {{error}}",
+      "recordTitle": "Een college opnemen",
+      "recordDescription": "Neem op met je microfoon. De audio wordt tijdens het opnemen opgeslagen en getranscribeerd wanneer je klaar bent.",
+      "finish": "Stoppen en transcriberen",
+      "record": "College opnemen",
+      "recordingSince": "Opname sinds {{time}}",
+      "earlier": "eerder",
+      "progress": "Deel {{completed}} van {{total}} transcriberen",
+      "working": "Bezig…",
+      "importTitle": "Een audiobestand transcriberen",
+      "importDescription": "Kies een opname om toe te voegen aan Geschiedenis. Murmur gebruikt je gekozen spraak- en correctieaanbieders.",
+      "choose": "Audiobestand kiezen",
+      "privacy": "Ruwe audio en transcripties volgen je bewaarinstellingen voor Geschiedenis. Cloudaanbieders ontvangen alleen audio als je een spraakmodus met endpoint kiest."
     },
     "dictation": {
-      "resetMicrophone": "Reset microphone to default",
+      "resetMicrophone": "Microfoon terugzetten naar standaard",
       "indicator": {
-        "visibility": "Show recording indicator",
-        "description": "A visible alternative to sound cues. Availability depends on the desktop and its permissions."
+        "visibility": "Opname-indicator tonen",
+        "description": "Een zichtbaar alternatief voor geluidssignalen. Beschikbaarheid hangt af van de desktop en de rechten."
       },
-      "previewSounds": "Preview sound theme: start then stop",
+      "previewSounds": "Geluidsthema beluisteren: start en daarna stop",
       "status": {
-        "hold": "Hold {{shortcut}} to dictate; release to finish",
-        "toggle": "Press {{shortcut}} to start; press again to finish",
-        "holdOrToggle": "Hold {{shortcut}}, or tap to start and tap again to finish",
-        "speechCloud": "Audio is sent to {{host}} for transcription",
-        "speechLocal": "Audio stays on this device ({{model}})",
-        "noModel": "no model selected",
-        "cleanupOff": "AI cleanup is off",
-        "cleanupLocal": "AI cleanup runs locally with {{provider}}",
-        "cleanupCloud": "Transcript text is sent to {{provider}} for cleanup",
-        "unavailable": "Microphone status unavailable",
-        "chooseModel": "Choose a recognition model to start",
-        "checking": "Checking dictation status…",
-        "change": "Change models",
-        "captureOnly": "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
-        "release": "Release the shortcut to finish.",
-        "pressAgain": "Press the shortcut again to finish.",
-        "releaseOrPress": "Release if holding, or tap the shortcut again to finish."
+        "hold": "Houd {{shortcut}} ingedrukt om te dicteren en laat los om te stoppen",
+        "toggle": "Druk op {{shortcut}} om te starten en nogmaals om te stoppen",
+        "holdOrToggle": "Houd {{shortcut}} ingedrukt, of tik om te starten en tik nogmaals om te stoppen",
+        "speechCloud": "Audio wordt voor transcriptie naar {{host}} gestuurd",
+        "speechLocal": "Audio blijft op dit apparaat ({{model}})",
+        "noModel": "geen model gekozen",
+        "cleanupOff": "AI-tekstcorrectie staat uit",
+        "cleanupLocal": "AI-tekstcorrectie draait lokaal met {{provider}}",
+        "cleanupCloud": "De transcriptietekst wordt voor correctie naar {{provider}} gestuurd",
+        "unavailable": "Status van microfoon niet beschikbaar",
+        "chooseModel": "Kies een herkenningsmodel om te beginnen",
+        "checking": "Dicteerstatus controleren…",
+        "change": "Modellen wijzigen",
+        "captureOnly": "De microfoon neemt niet meer op. Herkenning of correctie kan nog bezig zijn. Bekijk de opname-indicator of Geschiedenis voor het resultaat.",
+        "release": "Laat de sneltoets los om te stoppen.",
+        "pressAgain": "Druk nogmaals op de sneltoets om te stoppen.",
+        "releaseOrPress": "Laat los als je hem ingedrukt houdt, of tik nogmaals op de sneltoets om te stoppen."
       },
       "shortcut": {
-        "title": "Shortcut"
+        "title": "Sneltoets"
       },
       "microphone": {
         "title": "Microfoon"
       },
       "sounds": {
-        "title": "Sounds",
+        "title": "Geluiden",
         "theme": "Geluid",
-        "themeDescription": "Recording cues use your system output and volume."
+        "themeDescription": "Opnamesignalen gebruiken je systeemuitvoer en volume."
       },
       "language": {
-        "title": "Spoken language",
-        "model": "Options depend on the active model, {{model}}."
+        "title": "Gesproken taal",
+        "model": "De opties hangen af van het actieve model, {{model}}."
       }
     },
     "download": {
-      "pending": "Downloading…",
-      "multiple": "{{count}} downloading…"
+      "pending": "Downloaden…",
+      "multiple": "{{count}} worden gedownload…"
     },
     "about": {
       "versionDescription": "Huidige versie van Murmur",
       "ggml": {
-        "details": "Murmur uses transcribe.cpp and ggml for local speech recognition. Thanks to Georgi Gerganov and contributors."
+        "details": "Murmur gebruikt transcribe.cpp en ggml voor lokale spraakherkenning. Met dank aan Georgi Gerganov en alle bijdragers."
       }
     },
     "general": {
       "status": {
-        "recording": "Recording now",
-        "idle": "Not recording"
+        "recording": "Neemt nu op",
+        "idle": "Neemt niet op"
       },
       "indicator": {
-        "title": "Recording indicator"
+        "title": "Opname-indicator"
       }
     },
     "insertion": {
       "method": {
-        "title": "Inserting text",
-        "description": "If transcripts appear in History but not in your app, try another method here."
+        "title": "Tekst invoegen",
+        "description": "Verschijnen transcripties wel in Geschiedenis maar niet in je app? Probeer hier een andere methode."
       },
       "after": {
-        "title": "After inserting"
+        "title": "Na het invoegen"
       }
     },
     "keys": {
-      "removed": "Removed the key for {{name}}",
-      "title": "Saved API keys",
-      "description": "Keys are kept in your system credential store, never in Murmur's settings file.",
-      "unavailable": "Credential-store status is unavailable. Saved keys have not been removed.",
-      "loading": "Checking the credential store…",
-      "none": "No API keys saved.",
-      "speech": "Speech recognition",
-      "cleanup": "AI cleanup",
-      "remove": "Remove"
+      "removed": "Sleutel voor {{name}} verwijderd",
+      "title": "Opgeslagen API-sleutels",
+      "description": "Sleutels worden bewaard in de sleutelopslag van je systeem, nooit in het instellingenbestand van Murmur.",
+      "unavailable": "De status van de sleutelopslag is niet beschikbaar. Opgeslagen sleutels zijn niet verwijderd.",
+      "loading": "Sleutelopslag controleren…",
+      "none": "Geen API-sleutels opgeslagen.",
+      "speech": "Spraakherkenning",
+      "cleanup": "AI-tekstcorrectie",
+      "remove": "Verwijderen"
     },
     "stt": {
-      "inUse": "In use",
-      "keySaved": "Speech API key saved",
-      "keyRemoved": "Speech API key removed",
-      "saved": "Speech source saved",
-      "refreshFailed": "Speech source was saved, but settings could not be reloaded. Retry loading settings.",
-      "title": "Speech recognition",
-      "description": "Choose where your speech is turned into text.",
-      "source": "Transcription source",
+      "inUse": "In gebruik",
+      "keySaved": "Spraak-API-sleutel opgeslagen",
+      "keyRemoved": "Spraak-API-sleutel verwijderd",
+      "saved": "Spraakbron opgeslagen",
+      "refreshFailed": "De spraakbron is opgeslagen, maar de instellingen konden niet opnieuw worden geladen. Laad de instellingen opnieuw.",
+      "title": "Spraakherkenning",
+      "description": "Kies waar je spraak wordt omgezet in tekst.",
+      "source": "Transcriptiebron",
       "local": {
-        "title": "On this device",
-        "description": "Pick or download a model below. Audio never leaves this computer."
+        "title": "Op dit apparaat",
+        "description": "Kies of download hieronder een model. Audio verlaat deze computer nooit."
       },
       "endpoint": {
-        "title": "Cloud API or your own server",
-        "description": "OpenAI, Groq or any OpenAI-compatible service. Needs an API key unless it runs locally.",
-        "notice": "Each recording is sent to this service, which may charge for usage. Murmur never switches to another service on its own."
+        "title": "Cloud-API of je eigen server",
+        "description": "OpenAI, Groq of een andere OpenAI-compatibele dienst. Vereist een API-sleutel, tenzij hij lokaal draait.",
+        "notice": "Elke opname wordt naar deze dienst gestuurd, die kosten kan rekenen voor gebruik. Murmur stapt nooit uit zichzelf over op een andere dienst."
       },
-      "service": "Service",
-      "presetOther": "or enter any compatible server below",
-      "baseUrl": "API base URL",
-      "baseUrlHelp": "For a server on this computer, try http://127.0.0.1:8000/v1. A full /audio/transcriptions URL also works.",
-      "model": "Model ID",
-      "modelHelp": "Use the model name your speech server accepts.",
+      "service": "Dienst",
+      "presetOther": "of vul hieronder een compatibele server in",
+      "baseUrl": "Basis-URL van de API",
+      "baseUrlHelp": "Probeer voor een server op deze computer http://127.0.0.1:8000/v1. Een volledige /audio/transcriptions-URL werkt ook.",
+      "model": "Model-ID",
+      "modelHelp": "Gebruik de modelnaam die je spraakserver accepteert.",
       "apiKey": "API-sleutel",
-      "apiKeyPlaceholder": "Paste your key",
-      "saveKey": "Save key",
-      "removeKey": "Remove",
-      "keySavedWithSource": "Your key is saved with the URL and model when you press Save.",
-      "keyStored": "A key is saved for this endpoint in the system credential store.",
-      "noKey": "No key saved. Leave it empty only for a server that does not need one.",
-      "keyStatusError": "Could not check the system credential store. Retry below.",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "retryKeyCheck": "Retry key check",
-      "retryRefresh": "Retry loading settings",
-      "saving": "Saving…",
-      "save": "Prompt maken"
+      "apiKeyPlaceholder": "Plak je sleutel",
+      "saveKey": "Sleutel opslaan",
+      "removeKey": "Verwijderen",
+      "keySavedWithSource": "Je sleutel wordt samen met de URL en het model opgeslagen als je op Opslaan drukt.",
+      "keyStored": "Er is een sleutel voor dit endpoint opgeslagen in de sleutelopslag van het systeem.",
+      "noKey": "Geen sleutel opgeslagen. Laat dit alleen leeg voor een server die geen sleutel nodig heeft.",
+      "keyStatusError": "Kon de sleutelopslag van het systeem niet controleren. Probeer het hieronder opnieuw.",
+      "keyStatusUnknown": "Sleutelopslag van het systeem controleren…",
+      "retryKeyCheck": "Sleutel opnieuw controleren",
+      "retryRefresh": "Instellingen opnieuw laden",
+      "saving": "Opslaan…",
+      "save": "Opslaan"
     },
     "privacy": {
-      "loading": "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
-      "change": "Change",
-      "reporting": "Anonymous usage and errors",
-      "reportingSwitch": "Share anonymous usage and errors",
-      "reportingNotice": "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
-      "reportingUnconfigured": "Reporting is not configured in this build. Nothing is sent.",
-      "reportingSaveError": "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+      "loading": "Privacy-instellingen zijn niet beschikbaar terwijl de configuratie laadt. Gebruik Opnieuw proberen om het nogmaals te controleren.",
+      "change": "Wijzigen",
+      "reporting": "Anoniem gebruik en fouten",
+      "reportingSwitch": "Anoniem gebruik en fouten delen",
+      "reportingNotice": "Alleen zelf gehoste tellingen van schermen en acties en vaste foutcategorieën. Geen bezoekerstracking, opnames, transcripties, woordenboekwoorden of API-sleutels. Uit totdat er een endpoint van de eigenaar is ingesteld. Do Not Track en Global Privacy Control gaan voor deze schakelaar. Tellingen verlopen na 30 dagen, fouten na 14 dagen.",
+      "reportingUnconfigured": "Rapportage is in deze build niet ingesteld. Er wordt niets verstuurd.",
+      "reportingSaveError": "Kon de rapportagevoorkeur niet opslaan. Rapportage blijft uit totdat de voorkeur gelezen kan worden.",
       "leaves": {
-        "title": "What leaves this computer",
-        "description": "Your voice and text only go to services you choose. Murmur never switches to one on its own."
+        "title": "Wat deze computer verlaat",
+        "description": "Je stem en tekst gaan alleen naar diensten die jij kiest. Murmur stapt nooit uit zichzelf over op een andere."
       },
       "speech": {
-        "title": "Your voice",
-        "cloud": "Each recording is sent to {{host}} to be transcribed.",
-        "local": "Transcribed on this computer. Recordings are never uploaded."
+        "title": "Je stem",
+        "cloud": "Elke opname wordt naar {{host}} gestuurd om te transcriberen.",
+        "local": "Getranscribeerd op deze computer. Opnames worden nooit geüpload."
       },
       "cleanup": {
-        "title": "Your transcripts",
-        "off": "AI cleanup is off, so transcripts stay here.",
-        "local": "Cleaned up on this computer by {{provider}}.",
-        "cloud": "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not."
+        "title": "Je transcripties",
+        "off": "AI-tekstcorrectie staat uit, dus transcripties blijven hier.",
+        "local": "Op deze computer gecorrigeerd door {{provider}}.",
+        "cloud": "De transcriptietekst en je woordenboekwoorden worden voor correctie naar {{provider}} gestuurd. Audio niet."
       },
       "stored": {
-        "title": "What stays on this computer"
+        "title": "Wat op deze computer blijft"
       },
       "history": {
-        "title": "Recordings and transcripts",
-        "detail": "Kept: {{period}}. Starred dictations are always kept."
+        "title": "Opnames en transcripties",
+        "detail": "Bewaard: {{period}}. Dictaten met een ster worden altijd bewaard."
       },
       "keys": {
-        "title": "API keys",
-        "detail": "{{count}} saved in your system credential store, never in Murmur's settings file."
+        "title": "API-sleutels",
+        "detail": "{{count}} opgeslagen in de sleutelopslag van je systeem, nooit in het instellingenbestand van Murmur."
       },
-      "manage": "Manage"
+      "manage": "Beheren"
     },
     "stats": {
-      "providerCost": "Provider cost",
-      "openrouterKeys": "OpenRouter usage for your configured keys",
-      "refresh": "Refresh",
-      "costStale": "Could not refresh provider usage. These figures may be out of date.",
-      "costLoading": "Checking OpenRouter usage…",
-      "costUnavailable": "OpenRouter usage is unavailable. Check your connection and key, then retry.",
-      "noOpenrouterKey": "Add an OpenRouter speech key in Models or a cleanup key in Cleanup to see its usage here.",
-      "costWeek": "This week",
-      "costMonth": "This month",
-      "costAll": "All time",
-      "byokValue": "OpenRouter also reports {{value}} in BYOK model usage this month. Your provider bills that separately.",
-      "costScope": "These totals cover {{count}} configured OpenRouter key(s), including use outside Murmur. Local models and direct provider keys are not counted.",
-      "totalWordsDescription": "Words in saved dictations",
-      "thisWeekDescription": "Words saved since Monday",
-      "recordedDescription": "Based on saved audio after silence filtering",
-      "recordedMinutes": "Saved audio minutes",
-      "title": "Your dictation stats",
-      "unavailableHelp": "Try again after Murmur has finished starting up.",
-      "position": "Stat {{current}} of {{total}}",
-      "swipeHint": "Drag or swipe to browse",
-      "metricCards": "Dictation stat cards",
-      "noAudioShort": "No retained audio",
-      "noAudio": "No retained recordings with audio are available, so recorded pace and minutes cannot be calculated. This week is still in progress."
+      "providerCost": "Kosten bij aanbieder",
+      "openrouterKeys": "OpenRouter-gebruik voor je ingestelde sleutels",
+      "refresh": "Vernieuwen",
+      "costStale": "Kon het gebruik bij de aanbieder niet vernieuwen. Deze cijfers kunnen verouderd zijn.",
+      "costLoading": "OpenRouter-gebruik controleren…",
+      "costUnavailable": "OpenRouter-gebruik is niet beschikbaar. Controleer je verbinding en sleutel en probeer het opnieuw.",
+      "noOpenrouterKey": "Voeg een OpenRouter-spraaksleutel toe bij Modellen of een correctiesleutel bij Tekstcorrectie om het gebruik hier te zien.",
+      "costWeek": "Deze week",
+      "costMonth": "Deze maand",
+      "costAll": "Altijd",
+      "byokValue": "OpenRouter meldt deze maand ook {{value}} aan BYOK-modelgebruik. Je aanbieder rekent dat apart af.",
+      "costScope": "Deze totalen gelden voor {{count}} ingestelde OpenRouter-sleutel(s), inclusief gebruik buiten Murmur. Lokale modellen en directe sleutels van aanbieders tellen niet mee.",
+      "totalWordsDescription": "Woorden in opgeslagen dictaten",
+      "thisWeekDescription": "Woorden opgeslagen sinds maandag",
+      "recordedDescription": "Gebaseerd op opgeslagen audio na het wegfilteren van stilte",
+      "recordedMinutes": "Minuten opgeslagen audio",
+      "title": "Je dicteerstatistieken",
+      "unavailableHelp": "Probeer het opnieuw als Murmur klaar is met opstarten.",
+      "position": "Statistiek {{current}} van {{total}}",
+      "swipeHint": "Sleep of veeg om te bladeren",
+      "metricCards": "Dicteerstatistiekkaarten",
+      "noAudioShort": "Geen bewaarde audio",
+      "noAudio": "Er zijn geen bewaarde opnames met audio, dus het opgenomen tempo en de minuten kunnen niet worden berekend. Deze week is nog bezig."
     }
   }
 }

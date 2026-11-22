@@ -119,9 +119,9 @@
         "requestFailed": "請求權限失敗，請重試"
       }
     },
-    "configureEndpoint": "Use a speech endpoint",
-    "configureEndpointDescription": "Configure an online provider or a server you run in Models.",
-    "noModels": "No downloadable models are listed right now."
+    "configureEndpoint": "使用語音服務端點",
+    "configureEndpointDescription": "在「模型」中設定線上服務供應商或你自己架設的伺服器。",
+    "noModels": "目前沒有可下載的模型。"
   },
   "modelSelector": {
     "custom": "自訂",
@@ -664,8 +664,8 @@
     "copy": "複製",
     "clear": "清除",
     "noOptionsFound": "未找到選項",
-    "download": "Download",
-    "retry": "Retry",
+    "download": "下載",
+    "retry": "重試",
     "cancel": "取消"
   },
   "accessibility": {
@@ -734,36 +734,36 @@
         "configuration": "請求遭拒絕，請檢查服務供應商和模型設定。"
       },
       "failed": "AI 文字潤飾失敗",
-      "removeKey": "Remove key",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "keyStored": "Key saved in the system credential store",
-      "keyMissing": "No key saved",
+      "removeKey": "移除金鑰",
+      "keyStatusUnknown": "正在檢查系統憑證儲存區…",
+      "keyStored": "金鑰已儲存在系統憑證儲存區",
+      "keyMissing": "尚未儲存金鑰",
       "formality": {
-        "veryCasual": "Very casual",
-        "casual": "Casual",
-        "natural": "Natural",
-        "professional": "Professional",
-        "formal": "Formal",
-        "title": "Tone",
-        "description": "Choose punctuation and grammar polish. Every level should keep your own words."
+        "veryCasual": "非常隨性",
+        "casual": "隨性",
+        "natural": "自然",
+        "professional": "專業",
+        "formal": "正式",
+        "title": "語氣",
+        "description": "選擇標點和文法的潤飾程度。每個等級都會保留你的原話。"
       },
       "basic": {
-        "title": "On this device",
-        "description": "Always runs locally, even when AI cleanup is off."
+        "title": "在此裝置上",
+        "description": "一律在本機執行，即使 AI 潤飾已關閉。"
       },
-      "title": "AI cleanup",
-      "description": "Fixes punctuation and clear errors and splits long dictation into readable sentences, keeping your words. Cloud providers receive the transcript, not the recording.",
+      "title": "AI 潤飾",
+      "description": "修正標點和明顯錯誤，並把較長的聽寫拆成易讀的句子，同時保留你的原話。雲端服務供應商只會收到轉錄文字，不會收到錄音。",
       "instructions": {
-        "title": "Custom instructions",
-        "description": "Optional. Tell the cleanup model anything extra."
+        "title": "自訂指示",
+        "description": "選填。告訴潤飾模型其他額外要求。"
       },
       "model": {
-        "none": "No provider chosen"
+        "none": "尚未選擇服務供應商"
       }
     },
     "app": {
-      "loading": "Loading Murmur…",
-      "skip": "Skip to settings",
+      "loading": "正在載入 Murmur…",
+      "skip": "跳至設定",
       "appearance": {
         "title": "外觀"
       },
@@ -786,323 +786,323 @@
     },
     "pages": {
       "dictation": {
-        "description": "Your shortcut, microphone and spoken language, plus what you see and hear while recording."
+        "description": "快捷鍵、麥克風和口說語言，以及錄音時你看到和聽到的提示。"
       },
       "lectures": {
         "description": "錄製課程或匯入音訊，轉錄結果將儲存在歷史紀錄中。"
       },
       "models": {
-        "description": "Choose what turns your speech into text. Every saved API key is listed here too."
+        "description": "選擇將語音轉成文字的方式。所有已儲存的 API 金鑰也會列在這裡。"
       },
       "cleanup": {
-        "description": "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions."
+        "description": "在插入前整理轉錄文字：贅詞、AI 模型和金鑰、語氣以及指示。"
       },
       "dictionary": {
-        "description": "Names and terms Murmur should spell your way."
+        "description": "Murmur 應依照你的寫法拼寫的名稱和術語。"
       },
       "insertion": {
-        "description": "How finished text reaches the app you are typing in, and what happens after."
+        "description": "完成的文字如何進入你正在輸入的應用程式，以及之後會發生什麼。"
       },
       "stats": {
-        "description": "Words, speaking pace, saved audio duration and provider cost."
+        "description": "字數、語速、已儲存音訊長度和服務供應商費用。"
       },
       "history": {
-        "description": "Past dictations, retention and compressed export."
+        "description": "過往聽寫、保留期限和壓縮匯出。"
       },
       "privacy": {
-        "description": "What leaves this computer, what stays on it, and for how long."
+        "description": "哪些資料會離開這台電腦，哪些會留在本機，以及保留多久。"
       },
       "app": {
         "description": "設定外觀、介面語言、啟動方式和效能。"
       },
       "about": {
-        "description": "Version, credits and where Murmur keeps its files."
+        "description": "版本、致謝以及 Murmur 存放檔案的位置。"
       },
       "debug": {
-        "description": "Diagnostics for troubleshooting."
+        "description": "用於疑難排解的診斷資訊。"
       }
     },
     "onboarding": {
-      "checking": "Checking permissions…",
-      "checkFailed": "Permission checks failed. Use the permission action below to retry. Your system settings have not been changed.",
-      "microphoneWaiting": "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
-      "recheck": "Check again",
-      "accessibilityWaiting": "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically."
+      "checking": "正在檢查權限…",
+      "checkFailed": "權限檢查失敗。請使用下方的權限操作重試。你的系統設定並未變更。",
+      "microphoneWaiting": "請在系統設定中開啟麥克風存取權，然後回到這裡。Murmur 會自動重新檢查。",
+      "recheck": "重新檢查",
+      "accessibilityWaiting": "請在系統輔助使用設定中啟用 Murmur，然後回到這裡。Murmur 會自動重新檢查。"
     },
     "models": {
-      "downloadNamed": "Download {{model}}",
-      "browse": "Browse {{count}} models to download",
+      "downloadNamed": "下載 {{model}}",
+      "browse": "瀏覽 {{count}} 個可下載的模型",
       "local": {
-        "title": "On-device models"
+        "title": "裝置端模型"
       },
       "cleanup": {
-        "title": "Cleanup model",
-        "on": "AI cleanup is on",
-        "off": "AI cleanup is off",
-        "change": "Change in Cleanup"
+        "title": "潤飾模型",
+        "on": "AI 潤飾已開啟",
+        "off": "AI 潤飾已關閉",
+        "change": "在「後處理」中變更"
       }
     },
     "dictionary": {
-      "saveError": "Could not save this dictionary entry.",
-      "search": "Search saved words",
-      "count": "{{count}} terms saved",
-      "noMatches": "No matching words.",
-      "title": "Your words",
-      "description": "Used by on-device recognition and by AI cleanup to spell unusual names and terms."
+      "saveError": "無法儲存此字典項目。",
+      "search": "搜尋已儲存的字詞",
+      "count": "已儲存 {{count}} 個術語",
+      "noMatches": "沒有相符的字詞。",
+      "title": "你的字詞",
+      "description": "裝置端辨識和 AI 潤飾會用它來拼寫不常見的名稱和術語。"
     },
     "history": {
       "limit": {
         "confirmMessage": "保留最近的 {{count}} 筆聽寫紀錄？更早未加星號的紀錄及其錄音將永久刪除。",
-        "confirmTitle": "Reduce history limit"
+        "confirmTitle": "降低歷史紀錄上限"
       },
       "retention": {
-        "confirmMessage": "Changing retention may permanently delete existing recordings and transcripts that exceed the new limit. Continue?",
-        "confirmTitle": "Change history retention"
+        "confirmMessage": "變更保留期限可能會永久刪除超出新上限的現有錄音和轉錄。要繼續嗎？",
+        "confirmTitle": "變更歷史紀錄保留期限"
       },
-      "playbackError": "Recording playback is unavailable. Try Play again or recover the transcript above.",
-      "saveError": "Could not change whether this dictation is kept. Try again.",
-      "folderError": "Could not open the recordings folder. Your transcripts are still available here.",
+      "playbackError": "無法播放錄音。請再按一次播放，或復原上方的轉錄。",
+      "saveError": "無法變更是否保留此筆聽寫，請再試一次。",
+      "folderError": "無法開啟錄音資料夾。你的轉錄仍可在此查看。",
       "archive": {
-        "partial": "Archived {{count}} dictations, but {{missing}} recordings were already missing.",
-        "complete": "Archived {{count}} dictations. Originals are unchanged.",
-        "error": "Could not export history.",
-        "working": "Creating archive…",
-        "action": "Export compressed archive",
-        "note": "Lossless compression keeps the original WAV audio. The archive is not encrypted, and exporting never deletes local history."
+        "partial": "已封存 {{count}} 筆聽寫，但有 {{missing}} 個錄音先前已遺失。",
+        "complete": "已封存 {{count}} 筆聽寫。原始檔案未變更。",
+        "error": "無法匯出歷史紀錄。",
+        "working": "正在建立封存檔…",
+        "action": "匯出壓縮封存檔",
+        "note": "無損壓縮會保留原始 WAV 音訊。封存檔未加密，匯出也絕不會刪除本機歷史紀錄。"
       },
-      "loadError": "Could not load history. Your saved dictations have not been removed.",
-      "retryLoad": "Retry loading",
+      "loadError": "無法載入歷史紀錄。你已儲存的聽寫並未被移除。",
+      "retryLoad": "重新載入",
       "storage": {
-        "title": "Storage and archive",
-        "description": "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive."
+        "title": "儲存空間與封存",
+        "description": "選擇錄音和轉錄的保留時間。需要長期封存時，可隨時匯出包含原始文字與潤飾後文字的壓縮副本。"
       },
-      "copied": "Copied displayed transcript.",
-      "deleteMessage": "This permanently removes the raw and cleaned text and its recording.",
-      "deleteTitle": "Delete dictation?",
-      "retryFinished": "Transcription request finished. Check this entry for the result.",
-      "raw": "Raw transcript",
-      "cleaned": "Cleaned transcript",
+      "copied": "已複製目前顯示的轉錄。",
+      "deleteMessage": "這會永久移除原始文字、潤飾後文字及其錄音。",
+      "deleteTitle": "要刪除聽寫嗎？",
+      "retryFinished": "轉錄請求已完成。請在此筆紀錄中查看結果。",
+      "raw": "原始轉錄",
+      "cleaned": "潤飾後的轉錄",
       "processed": "處理後的轉錄",
-      "showCleaned": "Show cleaned text",
+      "showCleaned": "顯示潤飾後的文字",
       "showProcessed": "顯示處理後的文字",
-      "showRaw": "Show raw text",
+      "showRaw": "顯示原始文字",
       "rawFallback": "此筆紀錄無法使用 AI 潤飾。",
       "stats": {
-        "noPreviousWeek": "No previous week to compare",
-        "totalWords": "Retained words",
-        "thisWeek": "This week",
-        "recordedPace": "Recorded pace",
-        "wpm": "wpm",
-        "minutes": "min",
-        "retainedOnly": "Based on retained history. Deleted dictations are not counted.",
-        "stale": "Could not refresh statistics. These figures may be out of date.",
-        "loading": "Loading statistics…",
-        "unavailable": "Statistics are unavailable right now.",
-        "weeklyWords": "Words each week",
-        "vsPrevious": "vs last full week",
-        "weekBar": "{{date}}: {{count}} words",
-        "weeklyPace": "Recorded pace each week",
-        "weekPaceUnavailable": "{{date}}: no recording data",
-        "weekPaceValue": "{{date}}: {{wpm}} words per minute",
-        "method": "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress."
+        "noPreviousWeek": "沒有可比較的上一週",
+        "totalWords": "保留的字數",
+        "thisWeek": "本週",
+        "recordedPace": "錄音語速",
+        "wpm": "字/分鐘",
+        "minutes": "分鐘",
+        "retainedOnly": "根據保留的歷史紀錄。已刪除的聽寫不列入計算。",
+        "stale": "無法重新整理統計資料。這些數字可能已過時。",
+        "loading": "正在載入統計資料…",
+        "unavailable": "目前無法取得統計資料。",
+        "weeklyWords": "每週字數",
+        "vsPrevious": "與上一個完整週相比",
+        "weekBar": "{{date}}：{{count}} 字",
+        "weeklyPace": "每週錄音語速",
+        "weekPaceUnavailable": "{{date}}：沒有錄音資料",
+        "weekPaceValue": "{{date}}：每分鐘 {{wpm}} 字",
+        "method": "語速根據 {{count}} 筆錄音中 {{covered}} 筆的已儲存音訊計算。錄製時濾除的靜音不列入。本週尚未結束。"
       }
     },
     "lectures": {
-      "saved": "Lecture transcript saved in History",
-      "imported": "Audio transcript saved in History",
-      "importFailed": "Import or transcription failed: {{error}}",
-      "recordTitle": "Record a lecture",
-      "recordDescription": "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
-      "finish": "Finish and transcribe",
-      "record": "Record lecture",
-      "recordingSince": "Recording since {{time}}",
-      "earlier": "earlier",
-      "progress": "Transcribing {{completed}} of {{total}} parts",
-      "working": "Working…",
-      "importTitle": "Transcribe an audio file",
-      "importDescription": "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
-      "choose": "Choose audio file",
-      "privacy": "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode."
+      "saved": "課程轉錄已儲存至歷史紀錄",
+      "imported": "音訊轉錄已儲存至歷史紀錄",
+      "importFailed": "匯入或轉錄失敗：{{error}}",
+      "recordTitle": "錄製課程",
+      "recordDescription": "透過麥克風錄製。音訊會在錄製時儲存，結束後再進行轉錄。",
+      "finish": "結束並轉錄",
+      "record": "錄製課程",
+      "recordingSince": "自 {{time}} 起錄製中",
+      "earlier": "稍早",
+      "progress": "正在轉錄第 {{completed}} 部分，共 {{total}} 部分",
+      "working": "處理中…",
+      "importTitle": "轉錄音訊檔",
+      "importDescription": "選擇一個錄音加入歷史紀錄。Murmur 會使用你選擇的語音辨識和潤飾服務供應商。",
+      "choose": "選擇音訊檔",
+      "privacy": "原始音訊和轉錄會依照你的歷史紀錄保留設定處理。只有在你選擇語音服務端點模式時，雲端服務供應商才會收到音訊。"
     },
     "dictation": {
-      "resetMicrophone": "Reset microphone to default",
+      "resetMicrophone": "將麥克風重設為預設值",
       "indicator": {
-        "visibility": "Show recording indicator",
-        "description": "A visible alternative to sound cues. Availability depends on the desktop and its permissions."
+        "visibility": "顯示錄音指示器",
+        "description": "可取代提示音的視覺提示。是否可用取決於桌面環境及其權限。"
       },
-      "previewSounds": "Preview sound theme: start then stop",
+      "previewSounds": "試聽音效主題：開始後停止",
       "status": {
-        "hold": "Hold {{shortcut}} to dictate; release to finish",
-        "toggle": "Press {{shortcut}} to start; press again to finish",
-        "holdOrToggle": "Hold {{shortcut}}, or tap to start and tap again to finish",
-        "speechCloud": "Audio is sent to {{host}} for transcription",
-        "speechLocal": "Audio stays on this device ({{model}})",
-        "noModel": "no model selected",
-        "cleanupOff": "AI cleanup is off",
-        "cleanupLocal": "AI cleanup runs locally with {{provider}}",
-        "cleanupCloud": "Transcript text is sent to {{provider}} for cleanup",
-        "unavailable": "Microphone status unavailable",
-        "chooseModel": "Choose a recognition model to start",
-        "checking": "Checking dictation status…",
-        "change": "Change models",
-        "captureOnly": "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
-        "release": "Release the shortcut to finish.",
-        "pressAgain": "Press the shortcut again to finish.",
-        "releaseOrPress": "Release if holding, or tap the shortcut again to finish."
+        "hold": "按住 {{shortcut}} 開始聽寫，放開即結束",
+        "toggle": "按 {{shortcut}} 開始，再按一次結束",
+        "holdOrToggle": "按住 {{shortcut}}，或輕按開始、再輕按一次結束",
+        "speechCloud": "音訊會傳送至 {{host}} 進行轉錄",
+        "speechLocal": "音訊保留在此裝置上（{{model}}）",
+        "noModel": "尚未選擇模型",
+        "cleanupOff": "AI 潤飾已關閉",
+        "cleanupLocal": "AI 潤飾透過 {{provider}} 在本機執行",
+        "cleanupCloud": "轉錄文字會傳送至 {{provider}} 進行潤飾",
+        "unavailable": "無法取得麥克風狀態",
+        "chooseModel": "請選擇辨識模型以開始",
+        "checking": "正在檢查聽寫狀態…",
+        "change": "變更模型",
+        "captureOnly": "麥克風收音已關閉。辨識或潤飾可能仍在進行，請查看錄音指示器或歷史紀錄以取得結果。",
+        "release": "放開快捷鍵即可結束。",
+        "pressAgain": "再按一次快捷鍵即可結束。",
+        "releaseOrPress": "若正在按住請放開，或再輕按一次快捷鍵結束。"
       },
       "shortcut": {
-        "title": "Shortcut"
+        "title": "快捷鍵"
       },
       "microphone": {
         "title": "麥克風"
       },
       "sounds": {
-        "title": "Sounds",
+        "title": "音效",
         "theme": "聲音",
-        "themeDescription": "Recording cues use your system output and volume."
+        "themeDescription": "錄音提示音使用系統輸出裝置和音量。"
       },
       "language": {
-        "title": "Spoken language",
-        "model": "Options depend on the active model, {{model}}."
+        "title": "口說語言",
+        "model": "可用選項取決於目前的模型 {{model}}。"
       }
     },
     "download": {
-      "pending": "Downloading…",
-      "multiple": "{{count}} downloading…"
+      "pending": "正在下載…",
+      "multiple": "{{count}} 個正在下載…"
     },
     "about": {
       "versionDescription": "Murmur 的目前版本",
       "ggml": {
-        "details": "Murmur uses transcribe.cpp and ggml for local speech recognition. Thanks to Georgi Gerganov and contributors."
+        "details": "Murmur 使用 transcribe.cpp 和 ggml 進行本機語音辨識。感謝 Georgi Gerganov 及所有貢獻者。"
       }
     },
     "general": {
       "status": {
-        "recording": "Recording now",
-        "idle": "Not recording"
+        "recording": "正在錄音",
+        "idle": "未在錄音"
       },
       "indicator": {
-        "title": "Recording indicator"
+        "title": "錄音指示器"
       }
     },
     "insertion": {
       "method": {
-        "title": "Inserting text",
-        "description": "If transcripts appear in History but not in your app, try another method here."
+        "title": "插入文字",
+        "description": "如果轉錄出現在歷史紀錄中，卻沒有出現在你的應用程式裡，請在這裡嘗試其他方式。"
       },
       "after": {
-        "title": "After inserting"
+        "title": "插入之後"
       }
     },
     "keys": {
-      "removed": "Removed the key for {{name}}",
-      "title": "Saved API keys",
-      "description": "Keys are kept in your system credential store, never in Murmur's settings file.",
-      "unavailable": "Credential-store status is unavailable. Saved keys have not been removed.",
-      "loading": "Checking the credential store…",
-      "none": "No API keys saved.",
-      "speech": "Speech recognition",
-      "cleanup": "AI cleanup",
-      "remove": "Remove"
+      "removed": "已移除 {{name}} 的金鑰",
+      "title": "已儲存的 API 金鑰",
+      "description": "金鑰保存在系統憑證儲存區，絕不會寫入 Murmur 的設定檔。",
+      "unavailable": "無法取得憑證儲存區狀態。已儲存的金鑰並未被移除。",
+      "loading": "正在檢查憑證儲存區…",
+      "none": "尚未儲存任何 API 金鑰。",
+      "speech": "語音辨識",
+      "cleanup": "AI 潤飾",
+      "remove": "移除"
     },
     "stt": {
-      "inUse": "In use",
-      "keySaved": "Speech API key saved",
-      "keyRemoved": "Speech API key removed",
-      "saved": "Speech source saved",
-      "refreshFailed": "Speech source was saved, but settings could not be reloaded. Retry loading settings.",
-      "title": "Speech recognition",
-      "description": "Choose where your speech is turned into text.",
-      "source": "Transcription source",
+      "inUse": "使用中",
+      "keySaved": "語音 API 金鑰已儲存",
+      "keyRemoved": "語音 API 金鑰已移除",
+      "saved": "語音來源已儲存",
+      "refreshFailed": "語音來源已儲存，但無法重新載入設定。請重新載入設定。",
+      "title": "語音辨識",
+      "description": "選擇要在哪裡將你的語音轉成文字。",
+      "source": "轉錄來源",
       "local": {
-        "title": "On this device",
-        "description": "Pick or download a model below. Audio never leaves this computer."
+        "title": "在此裝置上",
+        "description": "在下方選擇或下載模型。音訊絕不會離開這台電腦。"
       },
       "endpoint": {
-        "title": "Cloud API or your own server",
-        "description": "OpenAI, Groq or any OpenAI-compatible service. Needs an API key unless it runs locally.",
-        "notice": "Each recording is sent to this service, which may charge for usage. Murmur never switches to another service on its own."
+        "title": "雲端 API 或自有伺服器",
+        "description": "OpenAI、Groq 或任何相容 OpenAI 的服務。除非在本機執行，否則需要 API 金鑰。",
+        "notice": "每段錄音都會傳送至此服務，該服務可能依用量收費。Murmur 絕不會自行切換至其他服務。"
       },
-      "service": "Service",
-      "presetOther": "or enter any compatible server below",
-      "baseUrl": "API base URL",
-      "baseUrlHelp": "For a server on this computer, try http://127.0.0.1:8000/v1. A full /audio/transcriptions URL also works.",
-      "model": "Model ID",
-      "modelHelp": "Use the model name your speech server accepts.",
+      "service": "服務",
+      "presetOther": "或在下方輸入任何相容的伺服器",
+      "baseUrl": "API 基礎 URL",
+      "baseUrlHelp": "若伺服器在這台電腦上，可試試 http://127.0.0.1:8000/v1。完整的 /audio/transcriptions URL 也可以使用。",
+      "model": "模型 ID",
+      "modelHelp": "使用你的語音伺服器接受的模型名稱。",
       "apiKey": "API 金鑰",
-      "apiKeyPlaceholder": "Paste your key",
-      "saveKey": "Save key",
-      "removeKey": "Remove",
-      "keySavedWithSource": "Your key is saved with the URL and model when you press Save.",
-      "keyStored": "A key is saved for this endpoint in the system credential store.",
-      "noKey": "No key saved. Leave it empty only for a server that does not need one.",
-      "keyStatusError": "Could not check the system credential store. Retry below.",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "retryKeyCheck": "Retry key check",
-      "retryRefresh": "Retry loading settings",
-      "saving": "Saving…",
-      "save": "建立提示詞"
+      "apiKeyPlaceholder": "貼上你的金鑰",
+      "saveKey": "儲存金鑰",
+      "removeKey": "移除",
+      "keySavedWithSource": "按下「儲存」時，你的金鑰會與 URL 和模型一起儲存。",
+      "keyStored": "此端點的金鑰已儲存在系統憑證儲存區。",
+      "noKey": "尚未儲存金鑰。只有在伺服器不需要金鑰時才留空。",
+      "keyStatusError": "無法檢查系統憑證儲存區。請在下方重試。",
+      "keyStatusUnknown": "正在檢查系統憑證儲存區…",
+      "retryKeyCheck": "重新檢查金鑰",
+      "retryRefresh": "重新載入設定",
+      "saving": "正在儲存…",
+      "save": "儲存"
     },
     "privacy": {
-      "loading": "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
-      "change": "Change",
-      "reporting": "Anonymous usage and errors",
-      "reportingSwitch": "Share anonymous usage and errors",
-      "reportingNotice": "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
-      "reportingUnconfigured": "Reporting is not configured in this build. Nothing is sent.",
-      "reportingSaveError": "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+      "loading": "設定載入期間無法使用隱私權設定。請按「重試」再次檢查。",
+      "change": "變更",
+      "reporting": "匿名使用情況與錯誤",
+      "reportingSwitch": "分享匿名使用情況與錯誤",
+      "reportingNotice": "僅包含自行架設的畫面/操作次數和固定的錯誤類別。不追蹤訪客，不包含錄音、轉錄、字典字詞或 API 金鑰。在擁有者設定接收端點前保持關閉。Do Not Track 和 Global Privacy Control 優先於此開關。次數在 30 天後到期，錯誤在 14 天後到期。",
+      "reportingUnconfigured": "此版本未設定回報功能，不會傳送任何資料。",
+      "reportingSaveError": "無法儲存回報偏好設定。在能讀取該設定前，回報將保持關閉。",
       "leaves": {
-        "title": "What leaves this computer",
-        "description": "Your voice and text only go to services you choose. Murmur never switches to one on its own."
+        "title": "哪些資料會離開這台電腦",
+        "description": "你的語音和文字只會傳送至你選擇的服務。Murmur 絕不會自行切換至其他服務。"
       },
       "speech": {
-        "title": "Your voice",
-        "cloud": "Each recording is sent to {{host}} to be transcribed.",
-        "local": "Transcribed on this computer. Recordings are never uploaded."
+        "title": "你的語音",
+        "cloud": "每段錄音都會傳送至 {{host}} 進行轉錄。",
+        "local": "在這台電腦上轉錄。錄音絕不會上傳。"
       },
       "cleanup": {
-        "title": "Your transcripts",
-        "off": "AI cleanup is off, so transcripts stay here.",
-        "local": "Cleaned up on this computer by {{provider}}.",
-        "cloud": "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not."
+        "title": "你的轉錄",
+        "off": "AI 潤飾已關閉，因此轉錄會保留在本機。",
+        "local": "由 {{provider}} 在這台電腦上潤飾。",
+        "cloud": "轉錄文字和你的字典字詞會傳送至 {{provider}} 進行潤飾。音訊不會傳送。"
       },
       "stored": {
-        "title": "What stays on this computer"
+        "title": "哪些資料會留在這台電腦上"
       },
       "history": {
-        "title": "Recordings and transcripts",
-        "detail": "Kept: {{period}}. Starred dictations are always kept."
+        "title": "錄音和轉錄",
+        "detail": "保留期限：{{period}}。加上星號的聽寫一律保留。"
       },
       "keys": {
-        "title": "API keys",
-        "detail": "{{count}} saved in your system credential store, never in Murmur's settings file."
+        "title": "API 金鑰",
+        "detail": "{{count}} 個儲存在系統憑證儲存區，絕不會寫入 Murmur 的設定檔。"
       },
-      "manage": "Manage"
+      "manage": "管理"
     },
     "stats": {
-      "providerCost": "Provider cost",
-      "openrouterKeys": "OpenRouter usage for your configured keys",
-      "refresh": "Refresh",
-      "costStale": "Could not refresh provider usage. These figures may be out of date.",
-      "costLoading": "Checking OpenRouter usage…",
-      "costUnavailable": "OpenRouter usage is unavailable. Check your connection and key, then retry.",
-      "noOpenrouterKey": "Add an OpenRouter speech key in Models or a cleanup key in Cleanup to see its usage here.",
-      "costWeek": "This week",
-      "costMonth": "This month",
-      "costAll": "All time",
-      "byokValue": "OpenRouter also reports {{value}} in BYOK model usage this month. Your provider bills that separately.",
-      "costScope": "These totals cover {{count}} configured OpenRouter key(s), including use outside Murmur. Local models and direct provider keys are not counted.",
-      "totalWordsDescription": "Words in saved dictations",
-      "thisWeekDescription": "Words saved since Monday",
-      "recordedDescription": "Based on saved audio after silence filtering",
-      "recordedMinutes": "Saved audio minutes",
-      "title": "Your dictation stats",
-      "unavailableHelp": "Try again after Murmur has finished starting up.",
-      "position": "Stat {{current}} of {{total}}",
-      "swipeHint": "Drag or swipe to browse",
-      "metricCards": "Dictation stat cards",
-      "noAudioShort": "No retained audio",
-      "noAudio": "No retained recordings with audio are available, so recorded pace and minutes cannot be calculated. This week is still in progress."
+      "providerCost": "服務供應商費用",
+      "openrouterKeys": "你已設定金鑰的 OpenRouter 用量",
+      "refresh": "重新整理",
+      "costStale": "無法重新整理服務供應商用量。這些數字可能已過時。",
+      "costLoading": "正在檢查 OpenRouter 用量…",
+      "costUnavailable": "無法取得 OpenRouter 用量。請檢查網路連線和金鑰後重試。",
+      "noOpenrouterKey": "在「模型」中新增 OpenRouter 語音金鑰，或在「後處理」中新增潤飾金鑰，即可在此查看其用量。",
+      "costWeek": "本週",
+      "costMonth": "本月",
+      "costAll": "所有時間",
+      "byokValue": "OpenRouter 也回報了本月 {{value}} 的 BYOK 模型用量。這部分由你的服務供應商另行計費。",
+      "costScope": "這些總計涵蓋 {{count}} 個已設定的 OpenRouter 金鑰，包括在 Murmur 以外的使用。本機模型和直接連線的服務供應商金鑰不列入計算。",
+      "totalWordsDescription": "已儲存聽寫中的字數",
+      "thisWeekDescription": "自週一以來儲存的字數",
+      "recordedDescription": "根據濾除靜音後的已儲存音訊",
+      "recordedMinutes": "已儲存音訊分鐘數",
+      "title": "你的聽寫統計",
+      "unavailableHelp": "請在 Murmur 啟動完成後再試一次。",
+      "position": "第 {{current}} 項，共 {{total}} 項",
+      "swipeHint": "拖曳或滑動以瀏覽",
+      "metricCards": "聽寫統計卡片",
+      "noAudioShort": "沒有保留的音訊",
+      "noAudio": "沒有保留含音訊的錄音，因此無法計算錄音語速和分鐘數。本週尚未結束。"
     }
   }
 }

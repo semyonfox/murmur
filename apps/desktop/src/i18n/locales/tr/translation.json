@@ -119,9 +119,9 @@
         "requestFailed": "İzin isteği başarısız oldu. Lütfen tekrar deneyin."
       }
     },
-    "configureEndpoint": "Use a speech endpoint",
-    "configureEndpointDescription": "Configure an online provider or a server you run in Models.",
-    "noModels": "No downloadable models are listed right now."
+    "configureEndpoint": "Konuşma uç noktası kullan",
+    "configureEndpointDescription": "Modeller bölümünde çevrimiçi bir sağlayıcı veya kendi çalıştırdığınız bir sunucuyu yapılandırın.",
+    "noModels": "Şu anda indirilebilir model listelenmiyor."
   },
   "modelSelector": {
     "custom": "Özel",
@@ -664,8 +664,8 @@
     "copy": "Kopyala",
     "clear": "Temizle",
     "noOptionsFound": "Seçenek bulunamadı",
-    "download": "Download",
-    "retry": "Retry",
+    "download": "İndir",
+    "retry": "Yeniden dene",
     "cancel": "İptal"
   },
   "accessibility": {
@@ -734,36 +734,36 @@
         "configuration": "İstek reddedildi. Sağlayıcı ve model ayarlarını kontrol edin."
       },
       "failed": "Yapay zekâyla metin düzeltilemedi",
-      "removeKey": "Remove key",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "keyStored": "Key saved in the system credential store",
-      "keyMissing": "No key saved",
+      "removeKey": "Anahtarı kaldır",
+      "keyStatusUnknown": "Sistem kimlik bilgisi deposu denetleniyor…",
+      "keyStored": "Anahtar sistem kimlik bilgisi deposuna kaydedildi",
+      "keyMissing": "Kayıtlı anahtar yok",
       "formality": {
-        "veryCasual": "Very casual",
-        "casual": "Casual",
-        "natural": "Natural",
-        "professional": "Professional",
-        "formal": "Formal",
-        "title": "Tone",
-        "description": "Choose punctuation and grammar polish. Every level should keep your own words."
+        "veryCasual": "Çok samimi",
+        "casual": "Samimi",
+        "natural": "Doğal",
+        "professional": "Profesyonel",
+        "formal": "Resmî",
+        "title": "Üslup",
+        "description": "Noktalama ve dil bilgisi düzeltmesinin düzeyini seçin. Her düzey kendi sözcüklerinizi korur."
       },
       "basic": {
-        "title": "On this device",
-        "description": "Always runs locally, even when AI cleanup is off."
+        "title": "Bu cihazda",
+        "description": "Yapay zekâyla düzeltme kapalıyken bile her zaman yerel olarak çalışır."
       },
-      "title": "AI cleanup",
-      "description": "Fixes punctuation and clear errors and splits long dictation into readable sentences, keeping your words. Cloud providers receive the transcript, not the recording.",
+      "title": "Yapay zekâyla metin düzeltme",
+      "description": "Sözcüklerinizi koruyarak noktalamayı ve açık hataları düzeltir, uzun dikteleri okunabilir cümlelere böler. Bulut sağlayıcılar kaydı değil, yalnızca dökümü alır.",
       "instructions": {
-        "title": "Custom instructions",
-        "description": "Optional. Tell the cleanup model anything extra."
+        "title": "Özel talimatlar",
+        "description": "İsteğe bağlı. Düzeltme modeline ek olarak söylemek istediklerinizi yazın."
       },
       "model": {
-        "none": "No provider chosen"
+        "none": "Sağlayıcı seçilmedi"
       }
     },
     "app": {
-      "loading": "Loading Murmur…",
-      "skip": "Skip to settings",
+      "loading": "Murmur yükleniyor…",
+      "skip": "Ayarlara geç",
       "appearance": {
         "title": "Görünüm"
       },
@@ -786,323 +786,323 @@
     },
     "pages": {
       "dictation": {
-        "description": "Your shortcut, microphone and spoken language, plus what you see and hear while recording."
+        "description": "Kısayolunuz, mikrofonunuz ve konuştuğunuz dil, ayrıca kayıt sırasında gördükleriniz ve duyduklarınız."
       },
       "lectures": {
         "description": "Ders kaydedin veya ses dosyası içe aktarın. Yazıya dökülen metin geçmişte görünür."
       },
       "models": {
-        "description": "Choose what turns your speech into text. Every saved API key is listed here too."
+        "description": "Konuşmanızı metne neyin dönüştüreceğini seçin. Kayıtlı tüm API anahtarları da burada listelenir."
       },
       "cleanup": {
-        "description": "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions."
+        "description": "Dökümleri eklenmeden önce düzenleyin: dolgu sözcükleri, yapay zekâ modeli ve anahtarı, üslup ve talimatlar."
       },
       "dictionary": {
-        "description": "Names and terms Murmur should spell your way."
+        "description": "Murmur'un sizin istediğiniz gibi yazması gereken adlar ve terimler."
       },
       "insertion": {
-        "description": "How finished text reaches the app you are typing in, and what happens after."
+        "description": "Tamamlanan metnin yazdığınız uygulamaya nasıl ulaştığı ve sonrasında ne olacağı."
       },
       "stats": {
-        "description": "Words, speaking pace, saved audio duration and provider cost."
+        "description": "Sözcükler, konuşma hızı, kayıtlı ses süresi ve sağlayıcı maliyeti."
       },
       "history": {
-        "description": "Past dictations, retention and compressed export."
+        "description": "Geçmiş dikteler, saklama süresi ve sıkıştırılmış dışa aktarma."
       },
       "privacy": {
-        "description": "What leaves this computer, what stays on it, and for how long."
+        "description": "Bu bilgisayardan neyin çıktığı, neyin kaldığı ve ne kadar süre kaldığı."
       },
       "app": {
         "description": "Görünüm, arayüz dili, başlangıç ve performans."
       },
       "about": {
-        "description": "Version, credits and where Murmur keeps its files."
+        "description": "Sürüm, katkıda bulunanlar ve Murmur'un dosyalarını nerede tuttuğu."
       },
       "debug": {
-        "description": "Diagnostics for troubleshooting."
+        "description": "Sorun giderme için tanılama bilgileri."
       }
     },
     "onboarding": {
-      "checking": "Checking permissions…",
-      "checkFailed": "Permission checks failed. Use the permission action below to retry. Your system settings have not been changed.",
-      "microphoneWaiting": "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
-      "recheck": "Check again",
-      "accessibilityWaiting": "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically."
+      "checking": "İzinler denetleniyor…",
+      "checkFailed": "İzin denetimi başarısız oldu. Yeniden denemek için aşağıdaki izin işlemini kullanın. Sistem ayarlarınız değiştirilmedi.",
+      "microphoneWaiting": "Sistem ayarlarında mikrofon erişimini etkinleştirin, ardından buraya dönün. Murmur otomatik olarak yeniden denetleyecek.",
+      "recheck": "Yeniden denetle",
+      "accessibilityWaiting": "Sistem erişilebilirlik ayarlarında Murmur'u etkinleştirin, ardından buraya dönün. Murmur otomatik olarak yeniden denetleyecek."
     },
     "models": {
-      "downloadNamed": "Download {{model}}",
-      "browse": "Browse {{count}} models to download",
+      "downloadNamed": "{{model}} indir",
+      "browse": "İndirilebilecek {{count}} modele göz atın",
       "local": {
-        "title": "On-device models"
+        "title": "Cihaz üzerindeki modeller"
       },
       "cleanup": {
-        "title": "Cleanup model",
-        "on": "AI cleanup is on",
-        "off": "AI cleanup is off",
-        "change": "Change in Cleanup"
+        "title": "Düzeltme modeli",
+        "on": "Yapay zekâyla düzeltme açık",
+        "off": "Yapay zekâyla düzeltme kapalı",
+        "change": "Son İşlem bölümünde değiştir"
       }
     },
     "dictionary": {
-      "saveError": "Could not save this dictionary entry.",
-      "search": "Search saved words",
-      "count": "{{count}} terms saved",
-      "noMatches": "No matching words.",
-      "title": "Your words",
-      "description": "Used by on-device recognition and by AI cleanup to spell unusual names and terms."
+      "saveError": "Bu sözlük girdisi kaydedilemedi.",
+      "search": "Kayıtlı sözcüklerde ara",
+      "count": "{{count}} terim kayıtlı",
+      "noMatches": "Eşleşen sözcük yok.",
+      "title": "Sözcükleriniz",
+      "description": "Alışılmadık adları ve terimleri doğru yazmak için cihaz üzerindeki tanıma ve yapay zekâyla düzeltme tarafından kullanılır."
     },
     "history": {
       "limit": {
         "confirmMessage": "Son {{count}} dikte saklansın mı? Yıldızlanmamış eski dikteler ve bunların ses kayıtları kalıcı olarak silinecek.",
-        "confirmTitle": "Reduce history limit"
+        "confirmTitle": "Geçmiş sınırını düşür"
       },
       "retention": {
-        "confirmMessage": "Changing retention may permanently delete existing recordings and transcripts that exceed the new limit. Continue?",
-        "confirmTitle": "Change history retention"
+        "confirmMessage": "Saklama süresini değiştirmek, yeni sınırı aşan mevcut kayıtları ve dökümleri kalıcı olarak silebilir. Devam edilsin mi?",
+        "confirmTitle": "Geçmiş saklama süresini değiştir"
       },
-      "playbackError": "Recording playback is unavailable. Try Play again or recover the transcript above.",
-      "saveError": "Could not change whether this dictation is kept. Try again.",
-      "folderError": "Could not open the recordings folder. Your transcripts are still available here.",
+      "playbackError": "Kayıt oynatılamıyor. Oynat'ı yeniden deneyin veya yukarıdaki dökümü kurtarın.",
+      "saveError": "Bu diktenin saklanıp saklanmayacağı değiştirilemedi. Yeniden deneyin.",
+      "folderError": "Kayıtlar klasörü açılamadı. Dökümleriniz burada kullanılabilir durumda.",
       "archive": {
-        "partial": "Archived {{count}} dictations, but {{missing}} recordings were already missing.",
-        "complete": "Archived {{count}} dictations. Originals are unchanged.",
-        "error": "Could not export history.",
-        "working": "Creating archive…",
-        "action": "Export compressed archive",
-        "note": "Lossless compression keeps the original WAV audio. The archive is not encrypted, and exporting never deletes local history."
+        "partial": "{{count}} dikte arşivlendi, ancak {{missing}} kayıt zaten eksikti.",
+        "complete": "{{count}} dikte arşivlendi. Orijinaller değiştirilmedi.",
+        "error": "Geçmiş dışa aktarılamadı.",
+        "working": "Arşiv oluşturuluyor…",
+        "action": "Sıkıştırılmış arşivi dışa aktar",
+        "note": "Kayıpsız sıkıştırma orijinal WAV sesini korur. Arşiv şifrelenmez ve dışa aktarma yerel geçmişi asla silmez."
       },
-      "loadError": "Could not load history. Your saved dictations have not been removed.",
-      "retryLoad": "Retry loading",
+      "loadError": "Geçmiş yüklenemedi. Kayıtlı dikteleriniz silinmedi.",
+      "retryLoad": "Yeniden yükle",
       "storage": {
-        "title": "Storage and archive",
-        "description": "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive."
+        "title": "Depolama ve arşiv",
+        "description": "Kayıtların ve dökümlerin ne kadar süre saklanacağını seçin. Uzun süreli bir arşiv istediğinizde ham ve düzeltilmiş metni içeren sıkıştırılmış bir kopyayı dışa aktarın."
       },
-      "copied": "Copied displayed transcript.",
-      "deleteMessage": "This permanently removes the raw and cleaned text and its recording.",
-      "deleteTitle": "Delete dictation?",
-      "retryFinished": "Transcription request finished. Check this entry for the result.",
-      "raw": "Raw transcript",
-      "cleaned": "Cleaned transcript",
+      "copied": "Görüntülenen döküm kopyalandı.",
+      "deleteMessage": "Bu işlem ham ve düzeltilmiş metni ve kaydını kalıcı olarak siler.",
+      "deleteTitle": "Dikte silinsin mi?",
+      "retryFinished": "Transkripsiyon isteği tamamlandı. Sonuç için bu girdiyi kontrol edin.",
+      "raw": "Ham döküm",
+      "cleaned": "Düzeltilmiş döküm",
       "processed": "İşlenmiş döküm",
-      "showCleaned": "Show cleaned text",
+      "showCleaned": "Düzeltilmiş metni göster",
       "showProcessed": "İşlenmiş metni göster",
-      "showRaw": "Show raw text",
+      "showRaw": "Ham metni göster",
       "rawFallback": "Bu kayıt için yapay zekâyla metin düzeltme kullanılamadı.",
       "stats": {
-        "noPreviousWeek": "No previous week to compare",
-        "totalWords": "Retained words",
-        "thisWeek": "This week",
-        "recordedPace": "Recorded pace",
-        "wpm": "wpm",
-        "minutes": "min",
-        "retainedOnly": "Based on retained history. Deleted dictations are not counted.",
-        "stale": "Could not refresh statistics. These figures may be out of date.",
-        "loading": "Loading statistics…",
-        "unavailable": "Statistics are unavailable right now.",
-        "weeklyWords": "Words each week",
-        "vsPrevious": "vs last full week",
-        "weekBar": "{{date}}: {{count}} words",
-        "weeklyPace": "Recorded pace each week",
-        "weekPaceUnavailable": "{{date}}: no recording data",
-        "weekPaceValue": "{{date}}: {{wpm}} words per minute",
-        "method": "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress."
+        "noPreviousWeek": "Karşılaştırılacak önceki hafta yok",
+        "totalWords": "Saklanan sözcükler",
+        "thisWeek": "Bu hafta",
+        "recordedPace": "Kayıtlı hız",
+        "wpm": "sözcük/dk",
+        "minutes": "dk",
+        "retainedOnly": "Saklanan geçmişe dayanır. Silinen dikteler sayılmaz.",
+        "stale": "İstatistikler yenilenemedi. Bu rakamlar güncel olmayabilir.",
+        "loading": "İstatistikler yükleniyor…",
+        "unavailable": "İstatistikler şu anda kullanılamıyor.",
+        "weeklyWords": "Haftalık sözcükler",
+        "vsPrevious": "son tam haftaya göre",
+        "weekBar": "{{date}}: {{count}} sözcük",
+        "weeklyPace": "Haftalık kayıtlı hız",
+        "weekPaceUnavailable": "{{date}}: kayıt verisi yok",
+        "weekPaceValue": "{{date}}: dakikada {{wpm}} sözcük",
+        "method": "Hız, {{count}} kaydın {{covered}} tanesinin kayıtlı sesini kullanır. Kayıt sırasında filtrelenen sessizlik sayılmaz. Bu hafta henüz bitmedi."
       }
     },
     "lectures": {
-      "saved": "Lecture transcript saved in History",
-      "imported": "Audio transcript saved in History",
-      "importFailed": "Import or transcription failed: {{error}}",
-      "recordTitle": "Record a lecture",
-      "recordDescription": "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
-      "finish": "Finish and transcribe",
-      "record": "Record lecture",
-      "recordingSince": "Recording since {{time}}",
-      "earlier": "earlier",
-      "progress": "Transcribing {{completed}} of {{total}} parts",
-      "working": "Working…",
-      "importTitle": "Transcribe an audio file",
-      "importDescription": "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
-      "choose": "Choose audio file",
-      "privacy": "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode."
+      "saved": "Ders dökümü Geçmiş'e kaydedildi",
+      "imported": "Ses dökümü Geçmiş'e kaydedildi",
+      "importFailed": "İçe aktarma veya transkripsiyon başarısız oldu: {{error}}",
+      "recordTitle": "Ders kaydet",
+      "recordDescription": "Mikrofonunuzdan kaydedin. Ses kaydederken saklanır, bitirdiğinizde yazıya dökülür.",
+      "finish": "Bitir ve yazıya dök",
+      "record": "Dersi kaydet",
+      "recordingSince": "{{time}} saatinden beri kaydediliyor",
+      "earlier": "daha önce",
+      "progress": "{{total}} bölümün {{completed}} tanesi yazıya dökülüyor",
+      "working": "İşleniyor…",
+      "importTitle": "Ses dosyasını yazıya dök",
+      "importDescription": "Geçmiş'e eklemek için bir kayıt seçin. Murmur seçtiğiniz konuşma ve düzeltme sağlayıcılarını kullanır.",
+      "choose": "Ses dosyası seç",
+      "privacy": "Ham ses ve dökümler Geçmiş saklama ayarlarınıza uyar. Bulut sağlayıcılar sesi yalnızca uç noktalı bir konuşma modu seçtiğinizde alır."
     },
     "dictation": {
-      "resetMicrophone": "Reset microphone to default",
+      "resetMicrophone": "Mikrofonu varsayılana sıfırla",
       "indicator": {
-        "visibility": "Show recording indicator",
-        "description": "A visible alternative to sound cues. Availability depends on the desktop and its permissions."
+        "visibility": "Kayıt göstergesini göster",
+        "description": "Sesli uyarılara görsel bir alternatif. Kullanılabilirliği masaüstüne ve izinlerine bağlıdır."
       },
-      "previewSounds": "Preview sound theme: start then stop",
+      "previewSounds": "Ses temasını önizle: başlat, sonra durdur",
       "status": {
-        "hold": "Hold {{shortcut}} to dictate; release to finish",
-        "toggle": "Press {{shortcut}} to start; press again to finish",
-        "holdOrToggle": "Hold {{shortcut}}, or tap to start and tap again to finish",
-        "speechCloud": "Audio is sent to {{host}} for transcription",
-        "speechLocal": "Audio stays on this device ({{model}})",
-        "noModel": "no model selected",
-        "cleanupOff": "AI cleanup is off",
-        "cleanupLocal": "AI cleanup runs locally with {{provider}}",
-        "cleanupCloud": "Transcript text is sent to {{provider}} for cleanup",
-        "unavailable": "Microphone status unavailable",
-        "chooseModel": "Choose a recognition model to start",
-        "checking": "Checking dictation status…",
-        "change": "Change models",
-        "captureOnly": "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
-        "release": "Release the shortcut to finish.",
-        "pressAgain": "Press the shortcut again to finish.",
-        "releaseOrPress": "Release if holding, or tap the shortcut again to finish."
+        "hold": "Dikte için {{shortcut}} tuşunu basılı tutun, bitirmek için bırakın",
+        "toggle": "Başlatmak için {{shortcut}} tuşuna basın, bitirmek için yeniden basın",
+        "holdOrToggle": "{{shortcut}} tuşunu basılı tutun ya da başlatmak için dokunup bitirmek için yeniden dokunun",
+        "speechCloud": "Ses, transkripsiyon için {{host}} adresine gönderilir",
+        "speechLocal": "Ses bu cihazda kalır ({{model}})",
+        "noModel": "model seçilmedi",
+        "cleanupOff": "Yapay zekâyla düzeltme kapalı",
+        "cleanupLocal": "Yapay zekâyla düzeltme {{provider}} ile yerel olarak çalışır",
+        "cleanupCloud": "Döküm metni düzeltme için {{provider}} sağlayıcısına gönderilir",
+        "unavailable": "Mikrofon durumu kullanılamıyor",
+        "chooseModel": "Başlamak için bir tanıma modeli seçin",
+        "checking": "Dikte durumu denetleniyor…",
+        "change": "Modelleri değiştir",
+        "captureOnly": "Mikrofon kaydı kapalı. Tanıma veya düzeltme hâlâ çalışıyor olabilir. Sonuç için kayıt göstergesine veya Geçmiş'e bakın.",
+        "release": "Bitirmek için kısayolu bırakın.",
+        "pressAgain": "Bitirmek için kısayola yeniden basın.",
+        "releaseOrPress": "Basılı tutuyorsanız bırakın veya bitirmek için kısayola yeniden dokunun."
       },
       "shortcut": {
-        "title": "Shortcut"
+        "title": "Kısayol"
       },
       "microphone": {
         "title": "Mikrofon"
       },
       "sounds": {
-        "title": "Sounds",
+        "title": "Sesler",
         "theme": "Ses",
-        "themeDescription": "Recording cues use your system output and volume."
+        "themeDescription": "Kayıt uyarıları sistem çıkışınızı ve ses düzeyinizi kullanır."
       },
       "language": {
-        "title": "Spoken language",
-        "model": "Options depend on the active model, {{model}}."
+        "title": "Konuşulan dil",
+        "model": "Seçenekler etkin modele bağlıdır: {{model}}."
       }
     },
     "download": {
-      "pending": "Downloading…",
-      "multiple": "{{count}} downloading…"
+      "pending": "İndiriliyor…",
+      "multiple": "{{count}} indiriliyor…"
     },
     "about": {
       "versionDescription": "Murmur'nin mevcut sürümü",
       "ggml": {
-        "details": "Murmur uses transcribe.cpp and ggml for local speech recognition. Thanks to Georgi Gerganov and contributors."
+        "details": "Murmur, yerel konuşma tanıma için transcribe.cpp ve ggml kullanır. Georgi Gerganov'a ve katkıda bulunanlara teşekkürler."
       }
     },
     "general": {
       "status": {
-        "recording": "Recording now",
-        "idle": "Not recording"
+        "recording": "Şu anda kaydediliyor",
+        "idle": "Kayıt yapılmıyor"
       },
       "indicator": {
-        "title": "Recording indicator"
+        "title": "Kayıt göstergesi"
       }
     },
     "insertion": {
       "method": {
-        "title": "Inserting text",
-        "description": "If transcripts appear in History but not in your app, try another method here."
+        "title": "Metin ekleme",
+        "description": "Dökümler Geçmiş'te görünüyor ancak uygulamanızda görünmüyorsa burada başka bir yöntem deneyin."
       },
       "after": {
-        "title": "After inserting"
+        "title": "Ekledikten sonra"
       }
     },
     "keys": {
-      "removed": "Removed the key for {{name}}",
-      "title": "Saved API keys",
-      "description": "Keys are kept in your system credential store, never in Murmur's settings file.",
-      "unavailable": "Credential-store status is unavailable. Saved keys have not been removed.",
-      "loading": "Checking the credential store…",
-      "none": "No API keys saved.",
-      "speech": "Speech recognition",
-      "cleanup": "AI cleanup",
-      "remove": "Remove"
+      "removed": "{{name}} anahtarı kaldırıldı",
+      "title": "Kayıtlı API anahtarları",
+      "description": "Anahtarlar Murmur'un ayar dosyasında değil, sistem kimlik bilgisi deponuzda tutulur.",
+      "unavailable": "Kimlik bilgisi deposunun durumu alınamıyor. Kayıtlı anahtarlar silinmedi.",
+      "loading": "Kimlik bilgisi deposu denetleniyor…",
+      "none": "Kayıtlı API anahtarı yok.",
+      "speech": "Konuşma tanıma",
+      "cleanup": "Yapay zekâyla düzeltme",
+      "remove": "Kaldır"
     },
     "stt": {
-      "inUse": "In use",
-      "keySaved": "Speech API key saved",
-      "keyRemoved": "Speech API key removed",
-      "saved": "Speech source saved",
-      "refreshFailed": "Speech source was saved, but settings could not be reloaded. Retry loading settings.",
-      "title": "Speech recognition",
-      "description": "Choose where your speech is turned into text.",
-      "source": "Transcription source",
+      "inUse": "Kullanımda",
+      "keySaved": "Konuşma API anahtarı kaydedildi",
+      "keyRemoved": "Konuşma API anahtarı kaldırıldı",
+      "saved": "Konuşma kaynağı kaydedildi",
+      "refreshFailed": "Konuşma kaynağı kaydedildi ancak ayarlar yeniden yüklenemedi. Ayarları yeniden yüklemeyi deneyin.",
+      "title": "Konuşma tanıma",
+      "description": "Konuşmanızın nerede metne dönüştürüleceğini seçin.",
+      "source": "Transkripsiyon kaynağı",
       "local": {
-        "title": "On this device",
-        "description": "Pick or download a model below. Audio never leaves this computer."
+        "title": "Bu cihazda",
+        "description": "Aşağıdan bir model seçin veya indirin. Ses bu bilgisayardan asla çıkmaz."
       },
       "endpoint": {
-        "title": "Cloud API or your own server",
-        "description": "OpenAI, Groq or any OpenAI-compatible service. Needs an API key unless it runs locally.",
-        "notice": "Each recording is sent to this service, which may charge for usage. Murmur never switches to another service on its own."
+        "title": "Bulut API'si veya kendi sunucunuz",
+        "description": "OpenAI, Groq veya OpenAI uyumlu herhangi bir hizmet. Yerel olarak çalışmıyorsa API anahtarı gerekir.",
+        "notice": "Her kayıt bu hizmete gönderilir ve hizmet kullanım ücreti alabilir. Murmur kendiliğinden asla başka bir hizmete geçmez."
       },
-      "service": "Service",
-      "presetOther": "or enter any compatible server below",
-      "baseUrl": "API base URL",
-      "baseUrlHelp": "For a server on this computer, try http://127.0.0.1:8000/v1. A full /audio/transcriptions URL also works.",
-      "model": "Model ID",
-      "modelHelp": "Use the model name your speech server accepts.",
+      "service": "Hizmet",
+      "presetOther": "veya aşağıya uyumlu herhangi bir sunucu girin",
+      "baseUrl": "API temel URL'si",
+      "baseUrlHelp": "Bu bilgisayardaki bir sunucu için http://127.0.0.1:8000/v1 adresini deneyin. Tam bir /audio/transcriptions URL'si de çalışır.",
+      "model": "Model kimliği",
+      "modelHelp": "Konuşma sunucunuzun kabul ettiği model adını kullanın.",
       "apiKey": "API Anahtarı",
-      "apiKeyPlaceholder": "Paste your key",
-      "saveKey": "Save key",
-      "removeKey": "Remove",
-      "keySavedWithSource": "Your key is saved with the URL and model when you press Save.",
-      "keyStored": "A key is saved for this endpoint in the system credential store.",
-      "noKey": "No key saved. Leave it empty only for a server that does not need one.",
-      "keyStatusError": "Could not check the system credential store. Retry below.",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "retryKeyCheck": "Retry key check",
-      "retryRefresh": "Retry loading settings",
-      "saving": "Saving…",
-      "save": "Prompt Oluştur"
+      "apiKeyPlaceholder": "Anahtarınızı yapıştırın",
+      "saveKey": "Anahtarı kaydet",
+      "removeKey": "Kaldır",
+      "keySavedWithSource": "Kaydet'e bastığınızda anahtarınız URL ve modelle birlikte kaydedilir.",
+      "keyStored": "Bu uç nokta için sistem kimlik bilgisi deposunda bir anahtar kayıtlı.",
+      "noKey": "Kayıtlı anahtar yok. Yalnızca anahtar gerektirmeyen bir sunucu için boş bırakın.",
+      "keyStatusError": "Sistem kimlik bilgisi deposu denetlenemedi. Aşağıdan yeniden deneyin.",
+      "keyStatusUnknown": "Sistem kimlik bilgisi deposu denetleniyor…",
+      "retryKeyCheck": "Anahtar denetimini yeniden dene",
+      "retryRefresh": "Ayarları yeniden yükle",
+      "saving": "Kaydediliyor…",
+      "save": "Kaydet"
     },
     "privacy": {
-      "loading": "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
-      "change": "Change",
-      "reporting": "Anonymous usage and errors",
-      "reportingSwitch": "Share anonymous usage and errors",
-      "reportingNotice": "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
-      "reportingUnconfigured": "Reporting is not configured in this build. Nothing is sent.",
-      "reportingSaveError": "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+      "loading": "Yapılandırma yüklenirken gizlilik ayarları kullanılamıyor. Yeniden denetlemek için Yeniden dene'yi kullanın.",
+      "change": "Değiştir",
+      "reporting": "Anonim kullanım ve hatalar",
+      "reportingSwitch": "Anonim kullanım ve hata verilerini paylaş",
+      "reportingNotice": "Yalnızca kendi sunucumuzda tutulan ekran/işlem sayıları ve sabit hata kategorileri. Ziyaretçi takibi, kayıtlar, dökümler, sözlük sözcükleri veya API anahtarları yok. Bir sahip uç noktası yapılandırılana kadar kapalıdır. Do Not Track ve Global Privacy Control bu anahtarı geçersiz kılar. Sayılar 30 gün, hatalar 14 gün sonra silinir.",
+      "reportingUnconfigured": "Bu sürümde raporlama yapılandırılmamış. Hiçbir şey gönderilmez.",
+      "reportingSaveError": "Raporlama tercihi kaydedilemedi. Tercih okunabilene kadar raporlama kapalı kalır.",
       "leaves": {
-        "title": "What leaves this computer",
-        "description": "Your voice and text only go to services you choose. Murmur never switches to one on its own."
+        "title": "Bu bilgisayardan çıkanlar",
+        "description": "Sesiniz ve metniniz yalnızca seçtiğiniz hizmetlere gider. Murmur kendiliğinden asla birine geçmez."
       },
       "speech": {
-        "title": "Your voice",
-        "cloud": "Each recording is sent to {{host}} to be transcribed.",
-        "local": "Transcribed on this computer. Recordings are never uploaded."
+        "title": "Sesiniz",
+        "cloud": "Her kayıt yazıya dökülmek üzere {{host}} adresine gönderilir.",
+        "local": "Bu bilgisayarda yazıya dökülür. Kayıtlar asla yüklenmez."
       },
       "cleanup": {
-        "title": "Your transcripts",
-        "off": "AI cleanup is off, so transcripts stay here.",
-        "local": "Cleaned up on this computer by {{provider}}.",
-        "cloud": "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not."
+        "title": "Dökümleriniz",
+        "off": "Yapay zekâyla düzeltme kapalı, bu yüzden dökümler burada kalır.",
+        "local": "Bu bilgisayarda {{provider}} tarafından düzeltilir.",
+        "cloud": "Döküm metni ve sözlük sözcükleriniz düzeltme için {{provider}} sağlayıcısına gönderilir. Ses gönderilmez."
       },
       "stored": {
-        "title": "What stays on this computer"
+        "title": "Bu bilgisayarda kalanlar"
       },
       "history": {
-        "title": "Recordings and transcripts",
-        "detail": "Kept: {{period}}. Starred dictations are always kept."
+        "title": "Kayıtlar ve dökümler",
+        "detail": "Saklama: {{period}}. Yıldızlı dikteler her zaman saklanır."
       },
       "keys": {
-        "title": "API keys",
-        "detail": "{{count}} saved in your system credential store, never in Murmur's settings file."
+        "title": "API anahtarları",
+        "detail": "{{count}} anahtar Murmur'un ayar dosyasında değil, sistem kimlik bilgisi deponuzda kayıtlı."
       },
-      "manage": "Manage"
+      "manage": "Yönet"
     },
     "stats": {
-      "providerCost": "Provider cost",
-      "openrouterKeys": "OpenRouter usage for your configured keys",
-      "refresh": "Refresh",
-      "costStale": "Could not refresh provider usage. These figures may be out of date.",
-      "costLoading": "Checking OpenRouter usage…",
-      "costUnavailable": "OpenRouter usage is unavailable. Check your connection and key, then retry.",
-      "noOpenrouterKey": "Add an OpenRouter speech key in Models or a cleanup key in Cleanup to see its usage here.",
-      "costWeek": "This week",
-      "costMonth": "This month",
-      "costAll": "All time",
-      "byokValue": "OpenRouter also reports {{value}} in BYOK model usage this month. Your provider bills that separately.",
-      "costScope": "These totals cover {{count}} configured OpenRouter key(s), including use outside Murmur. Local models and direct provider keys are not counted.",
-      "totalWordsDescription": "Words in saved dictations",
-      "thisWeekDescription": "Words saved since Monday",
-      "recordedDescription": "Based on saved audio after silence filtering",
-      "recordedMinutes": "Saved audio minutes",
-      "title": "Your dictation stats",
-      "unavailableHelp": "Try again after Murmur has finished starting up.",
-      "position": "Stat {{current}} of {{total}}",
-      "swipeHint": "Drag or swipe to browse",
-      "metricCards": "Dictation stat cards",
-      "noAudioShort": "No retained audio",
-      "noAudio": "No retained recordings with audio are available, so recorded pace and minutes cannot be calculated. This week is still in progress."
+      "providerCost": "Sağlayıcı maliyeti",
+      "openrouterKeys": "Yapılandırılmış anahtarlarınız için OpenRouter kullanımı",
+      "refresh": "Yenile",
+      "costStale": "Sağlayıcı kullanımı yenilenemedi. Bu rakamlar güncel olmayabilir.",
+      "costLoading": "OpenRouter kullanımı denetleniyor…",
+      "costUnavailable": "OpenRouter kullanımı alınamıyor. Bağlantınızı ve anahtarınızı kontrol edip yeniden deneyin.",
+      "noOpenrouterKey": "Kullanımını burada görmek için Modeller bölümüne bir OpenRouter konuşma anahtarı veya Son İşlem bölümüne bir düzeltme anahtarı ekleyin.",
+      "costWeek": "Bu hafta",
+      "costMonth": "Bu ay",
+      "costAll": "Tüm zamanlar",
+      "byokValue": "OpenRouter bu ay ayrıca {{value}} tutarında BYOK model kullanımı bildiriyor. Bunu sağlayıcınız ayrıca faturalandırır.",
+      "costScope": "Bu toplamlar, Murmur dışındaki kullanım dahil, yapılandırılmış {{count}} OpenRouter anahtarını kapsar. Yerel modeller ve doğrudan sağlayıcı anahtarları sayılmaz.",
+      "totalWordsDescription": "Kayıtlı diktelerdeki sözcükler",
+      "thisWeekDescription": "Pazartesiden bu yana kaydedilen sözcükler",
+      "recordedDescription": "Sessizlik filtrelendikten sonraki kayıtlı sese dayanır",
+      "recordedMinutes": "Kayıtlı ses dakikası",
+      "title": "Dikte istatistikleriniz",
+      "unavailableHelp": "Murmur açılışını tamamladıktan sonra yeniden deneyin.",
+      "position": "İstatistik {{current}} / {{total}}",
+      "swipeHint": "Göz atmak için sürükleyin veya kaydırın",
+      "metricCards": "Dikte istatistik kartları",
+      "noAudioShort": "Saklanan ses yok",
+      "noAudio": "Sesi olan saklanmış kayıt yok, bu yüzden kayıtlı hız ve dakikalar hesaplanamıyor. Bu hafta henüz bitmedi."
     }
   }
 }

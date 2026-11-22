@@ -119,9 +119,9 @@
         "requestFailed": "No s'ha pogut sol·licitar el permís. Torneu-ho a provar."
       }
     },
-    "configureEndpoint": "Use a speech endpoint",
-    "configureEndpointDescription": "Configure an online provider or a server you run in Models.",
-    "noModels": "No downloadable models are listed right now."
+    "configureEndpoint": "Utilitza un servei de veu",
+    "configureEndpointDescription": "Configura un proveïdor en línia o un servidor propi a Models.",
+    "noModels": "Ara mateix no hi ha cap model disponible per baixar."
   },
   "modelSelector": {
     "custom": "Personalitzat",
@@ -667,8 +667,8 @@
     "copy": "Copia",
     "clear": "Neteja",
     "noOptionsFound": "No s'ha trobat cap opció",
-    "download": "Download",
-    "retry": "Retry",
+    "download": "Baixa",
+    "retry": "Torna-ho a provar",
     "cancel": "Cancel·la"
   },
   "accessibility": {
@@ -734,36 +734,36 @@
         "configuration": "La sol·licitud s’ha rebutjat. Comprova la configuració del proveïdor i del model."
       },
       "failed": "Ha fallat la correcció amb IA",
-      "removeKey": "Remove key",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "keyStored": "Key saved in the system credential store",
-      "keyMissing": "No key saved",
+      "removeKey": "Elimina la clau",
+      "keyStatusUnknown": "S’està comprovant el magatzem de credencials del sistema…",
+      "keyStored": "Clau desada al magatzem de credencials del sistema",
+      "keyMissing": "No hi ha cap clau desada",
       "formality": {
-        "veryCasual": "Very casual",
-        "casual": "Casual",
+        "veryCasual": "Molt informal",
+        "casual": "Informal",
         "natural": "Natural",
         "professional": "Professional",
         "formal": "Formal",
-        "title": "Tone",
-        "description": "Choose punctuation and grammar polish. Every level should keep your own words."
+        "title": "To",
+        "description": "Tria quant es poleixen la puntuació i la gramàtica. Tots els nivells conserven les teves paraules."
       },
       "basic": {
-        "title": "On this device",
-        "description": "Always runs locally, even when AI cleanup is off."
+        "title": "En aquest dispositiu",
+        "description": "Sempre s’executa localment, fins i tot amb la correcció amb IA desactivada."
       },
-      "title": "AI cleanup",
-      "description": "Fixes punctuation and clear errors and splits long dictation into readable sentences, keeping your words. Cloud providers receive the transcript, not the recording.",
+      "title": "Correcció amb IA",
+      "description": "Corregeix la puntuació i els errors evidents i divideix els dictats llargs en frases llegibles, conservant les teves paraules. Els proveïdors al núvol reben la transcripció, no l’enregistrament.",
       "instructions": {
-        "title": "Custom instructions",
-        "description": "Optional. Tell the cleanup model anything extra."
+        "title": "Instruccions personalitzades",
+        "description": "Opcional. Indica al model de correcció qualsevol cosa addicional."
       },
       "model": {
-        "none": "No provider chosen"
+        "none": "No s’ha triat cap proveïdor"
       }
     },
     "app": {
-      "loading": "Loading Murmur…",
-      "skip": "Skip to settings",
+      "loading": "S’està carregant el Murmur…",
+      "skip": "Ves a la configuració",
       "appearance": {
         "title": "Aparença"
       },
@@ -786,323 +786,323 @@
     },
     "pages": {
       "dictation": {
-        "description": "Your shortcut, microphone and spoken language, plus what you see and hear while recording."
+        "description": "La drecera, el micròfon i l’idioma parlat, i el que veus i sents mentre enregistres."
       },
       "lectures": {
         "description": "Enregistra una classe o importa un fitxer d’àudio. Trobaràs la transcripció a l’historial."
       },
       "models": {
-        "description": "Choose what turns your speech into text. Every saved API key is listed here too."
+        "description": "Tria què converteix la teva veu en text. Aquí també es mostren totes les claus API desades."
       },
       "cleanup": {
-        "description": "Tidy transcripts before they are inserted: filler words, the AI model and key, tone and instructions."
+        "description": "Polit de les transcripcions abans d’inserir-les: falques, el model i la clau d’IA, el to i les instruccions."
       },
       "dictionary": {
-        "description": "Names and terms Murmur should spell your way."
+        "description": "Noms i termes que el Murmur ha d’escriure a la teva manera."
       },
       "insertion": {
-        "description": "How finished text reaches the app you are typing in, and what happens after."
+        "description": "Com arriba el text final a l’aplicació on escrius, i què passa després."
       },
       "stats": {
-        "description": "Words, speaking pace, saved audio duration and provider cost."
+        "description": "Paraules, ritme de parla, durada de l’àudio desat i cost dels proveïdors."
       },
       "history": {
-        "description": "Past dictations, retention and compressed export."
+        "description": "Dictats anteriors, conservació i exportació comprimida."
       },
       "privacy": {
-        "description": "What leaves this computer, what stays on it, and for how long."
+        "description": "Què surt d’aquest ordinador, què s’hi queda i durant quant de temps."
       },
       "app": {
         "description": "Aparença, idioma de la interfície, inici i rendiment."
       },
       "about": {
-        "description": "Version, credits and where Murmur keeps its files."
+        "description": "Versió, crèdits i on desa el Murmur els seus fitxers."
       },
       "debug": {
-        "description": "Diagnostics for troubleshooting."
+        "description": "Diagnòstics per resoldre problemes."
       }
     },
     "onboarding": {
-      "checking": "Checking permissions…",
-      "checkFailed": "Permission checks failed. Use the permission action below to retry. Your system settings have not been changed.",
-      "microphoneWaiting": "Enable microphone access in system settings, then return here. Murmur will check again automatically.",
-      "recheck": "Check again",
-      "accessibilityWaiting": "Enable Murmur in system accessibility settings, then return here. Murmur will check again automatically."
+      "checking": "S’estan comprovant els permisos…",
+      "checkFailed": "Ha fallat la comprovació de permisos. Fes servir l’acció de permís de sota per tornar-ho a provar. La configuració del sistema no s’ha modificat.",
+      "microphoneWaiting": "Activa l’accés al micròfon a la configuració del sistema i torna aquí. El Murmur ho tornarà a comprovar automàticament.",
+      "recheck": "Torna a comprovar",
+      "accessibilityWaiting": "Activa el Murmur a la configuració d’accessibilitat del sistema i torna aquí. El Murmur ho tornarà a comprovar automàticament."
     },
     "models": {
-      "downloadNamed": "Download {{model}}",
-      "browse": "Browse {{count}} models to download",
+      "downloadNamed": "Baixa {{model}}",
+      "browse": "Explora {{count}} models per baixar",
       "local": {
-        "title": "On-device models"
+        "title": "Models al dispositiu"
       },
       "cleanup": {
-        "title": "Cleanup model",
-        "on": "AI cleanup is on",
-        "off": "AI cleanup is off",
-        "change": "Change in Cleanup"
+        "title": "Model de correcció",
+        "on": "La correcció amb IA està activada",
+        "off": "La correcció amb IA està desactivada",
+        "change": "Canvia-ho a Correcció"
       }
     },
     "dictionary": {
-      "saveError": "Could not save this dictionary entry.",
-      "search": "Search saved words",
-      "count": "{{count}} terms saved",
-      "noMatches": "No matching words.",
-      "title": "Your words",
-      "description": "Used by on-device recognition and by AI cleanup to spell unusual names and terms."
+      "saveError": "No s’ha pogut desar aquesta entrada del diccionari.",
+      "search": "Cerca paraules desades",
+      "count": "{{count}} termes desats",
+      "noMatches": "No hi ha cap paraula coincident.",
+      "title": "Les teves paraules",
+      "description": "Les fan servir el reconeixement al dispositiu i la correcció amb IA per escriure noms i termes poc habituals."
     },
     "history": {
       "limit": {
         "confirmMessage": "Vols conservar els darrers {{count}} dictats? Els dictats anteriors sense marcar i els seus enregistraments se suprimiran permanentment.",
-        "confirmTitle": "Reduce history limit"
+        "confirmTitle": "Redueix el límit de l’historial"
       },
       "retention": {
-        "confirmMessage": "Changing retention may permanently delete existing recordings and transcripts that exceed the new limit. Continue?",
-        "confirmTitle": "Change history retention"
+        "confirmMessage": "Canviar la conservació pot eliminar permanentment enregistraments i transcripcions existents que superin el nou límit. Vols continuar?",
+        "confirmTitle": "Canvia la conservació de l’historial"
       },
-      "playbackError": "Recording playback is unavailable. Try Play again or recover the transcript above.",
-      "saveError": "Could not change whether this dictation is kept. Try again.",
-      "folderError": "Could not open the recordings folder. Your transcripts are still available here.",
+      "playbackError": "La reproducció de l’enregistrament no està disponible. Torna a provar Reprodueix o recupera la transcripció de dalt.",
+      "saveError": "No s’ha pogut canviar si es conserva aquest dictat. Torna-ho a provar.",
+      "folderError": "No s’ha pogut obrir la carpeta d’enregistraments. Les transcripcions encara són disponibles aquí.",
       "archive": {
-        "partial": "Archived {{count}} dictations, but {{missing}} recordings were already missing.",
-        "complete": "Archived {{count}} dictations. Originals are unchanged.",
-        "error": "Could not export history.",
-        "working": "Creating archive…",
-        "action": "Export compressed archive",
-        "note": "Lossless compression keeps the original WAV audio. The archive is not encrypted, and exporting never deletes local history."
+        "partial": "S’han arxivat {{count}} dictats, però ja faltaven {{missing}} enregistraments.",
+        "complete": "S’han arxivat {{count}} dictats. Els originals no s’han modificat.",
+        "error": "No s’ha pogut exportar l’historial.",
+        "working": "S’està creant l’arxiu…",
+        "action": "Exporta un arxiu comprimit",
+        "note": "La compressió sense pèrdua conserva l’àudio WAV original. L’arxiu no està xifrat i exportar no elimina mai l’historial local."
       },
-      "loadError": "Could not load history. Your saved dictations have not been removed.",
-      "retryLoad": "Retry loading",
+      "loadError": "No s’ha pogut carregar l’historial. Els dictats desats no s’han eliminat.",
+      "retryLoad": "Torna a carregar",
       "storage": {
-        "title": "Storage and archive",
-        "description": "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive."
+        "title": "Emmagatzematge i arxiu",
+        "description": "Tria quant de temps es conserven els enregistraments i les transcripcions. Exporta una còpia comprimida amb el text original i el corregit quan vulguis un arxiu a llarg termini."
       },
-      "copied": "Copied displayed transcript.",
-      "deleteMessage": "This permanently removes the raw and cleaned text and its recording.",
-      "deleteTitle": "Delete dictation?",
-      "retryFinished": "Transcription request finished. Check this entry for the result.",
-      "raw": "Raw transcript",
-      "cleaned": "Cleaned transcript",
+      "copied": "S’ha copiat la transcripció mostrada.",
+      "deleteMessage": "Això elimina permanentment el text original, el corregit i el seu enregistrament.",
+      "deleteTitle": "Vols eliminar el dictat?",
+      "retryFinished": "La sol·licitud de transcripció ha acabat. Consulta aquesta entrada per veure el resultat.",
+      "raw": "Transcripció original",
+      "cleaned": "Transcripció corregida",
       "processed": "Transcripció processada",
-      "showCleaned": "Show cleaned text",
+      "showCleaned": "Mostra el text corregit",
       "showProcessed": "Mostra el text processat",
-      "showRaw": "Show raw text",
+      "showRaw": "Mostra el text original",
       "rawFallback": "La correcció amb IA no estava disponible per a aquesta entrada.",
       "stats": {
-        "noPreviousWeek": "No previous week to compare",
-        "totalWords": "Retained words",
-        "thisWeek": "This week",
-        "recordedPace": "Recorded pace",
-        "wpm": "wpm",
+        "noPreviousWeek": "No hi ha cap setmana anterior per comparar",
+        "totalWords": "Paraules conservades",
+        "thisWeek": "Aquesta setmana",
+        "recordedPace": "Ritme enregistrat",
+        "wpm": "ppm",
         "minutes": "min",
-        "retainedOnly": "Based on retained history. Deleted dictations are not counted.",
-        "stale": "Could not refresh statistics. These figures may be out of date.",
-        "loading": "Loading statistics…",
-        "unavailable": "Statistics are unavailable right now.",
-        "weeklyWords": "Words each week",
-        "vsPrevious": "vs last full week",
-        "weekBar": "{{date}}: {{count}} words",
-        "weeklyPace": "Recorded pace each week",
-        "weekPaceUnavailable": "{{date}}: no recording data",
-        "weekPaceValue": "{{date}}: {{wpm}} words per minute",
-        "method": "Pace uses the saved audio for {{covered}} of {{count}} recordings. Silence filtered out during capture does not count. This week is still in progress."
+        "retainedOnly": "Basat en l’historial conservat. Els dictats eliminats no es compten.",
+        "stale": "No s’han pogut actualitzar les estadístiques. Aquestes xifres poden estar desactualitzades.",
+        "loading": "S’estan carregant les estadístiques…",
+        "unavailable": "Ara mateix les estadístiques no estan disponibles.",
+        "weeklyWords": "Paraules per setmana",
+        "vsPrevious": "respecte a l’última setmana completa",
+        "weekBar": "{{date}}: {{count}} paraules",
+        "weeklyPace": "Ritme enregistrat per setmana",
+        "weekPaceUnavailable": "{{date}}: no hi ha dades d’enregistrament",
+        "weekPaceValue": "{{date}}: {{wpm}} paraules per minut",
+        "method": "El ritme fa servir l’àudio desat de {{covered}} de {{count}} enregistraments. El silenci filtrat durant la captura no compta. Aquesta setmana encara no ha acabat."
       }
     },
     "lectures": {
-      "saved": "Lecture transcript saved in History",
-      "imported": "Audio transcript saved in History",
-      "importFailed": "Import or transcription failed: {{error}}",
-      "recordTitle": "Record a lecture",
-      "recordDescription": "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
-      "finish": "Finish and transcribe",
-      "record": "Record lecture",
-      "recordingSince": "Recording since {{time}}",
-      "earlier": "earlier",
-      "progress": "Transcribing {{completed}} of {{total}} parts",
-      "working": "Working…",
-      "importTitle": "Transcribe an audio file",
-      "importDescription": "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
-      "choose": "Choose audio file",
-      "privacy": "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode."
+      "saved": "Transcripció de la classe desada a l’historial",
+      "imported": "Transcripció de l’àudio desada a l’historial",
+      "importFailed": "Ha fallat la importació o la transcripció: {{error}}",
+      "recordTitle": "Enregistra una classe",
+      "recordDescription": "Captura des del micròfon. L’àudio es desa mentre enregistres i es transcriu quan acabes.",
+      "finish": "Acaba i transcriu",
+      "record": "Enregistra la classe",
+      "recordingSince": "Enregistrant des de les {{time}}",
+      "earlier": "abans",
+      "progress": "S’estan transcrivint {{completed}} de {{total}} parts",
+      "working": "S’està processant…",
+      "importTitle": "Transcriu un fitxer d’àudio",
+      "importDescription": "Tria un enregistrament per afegir-lo a l’historial. El Murmur fa servir els proveïdors de veu i de correcció seleccionats.",
+      "choose": "Tria un fitxer d’àudio",
+      "privacy": "L’àudio original i les transcripcions segueixen la configuració de conservació de l’historial. Els proveïdors al núvol només reben àudio quan selecciones un mode de veu amb servei extern."
     },
     "dictation": {
-      "resetMicrophone": "Reset microphone to default",
+      "resetMicrophone": "Restableix el micròfon predeterminat",
       "indicator": {
-        "visibility": "Show recording indicator",
-        "description": "A visible alternative to sound cues. Availability depends on the desktop and its permissions."
+        "visibility": "Mostra l’indicador d’enregistrament",
+        "description": "Una alternativa visible als avisos sonors. La disponibilitat depèn de l’escriptori i dels seus permisos."
       },
-      "previewSounds": "Preview sound theme: start then stop",
+      "previewSounds": "Previsualitza el tema de so: inici i després aturada",
       "status": {
-        "hold": "Hold {{shortcut}} to dictate; release to finish",
-        "toggle": "Press {{shortcut}} to start; press again to finish",
-        "holdOrToggle": "Hold {{shortcut}}, or tap to start and tap again to finish",
-        "speechCloud": "Audio is sent to {{host}} for transcription",
-        "speechLocal": "Audio stays on this device ({{model}})",
-        "noModel": "no model selected",
-        "cleanupOff": "AI cleanup is off",
-        "cleanupLocal": "AI cleanup runs locally with {{provider}}",
-        "cleanupCloud": "Transcript text is sent to {{provider}} for cleanup",
-        "unavailable": "Microphone status unavailable",
-        "chooseModel": "Choose a recognition model to start",
-        "checking": "Checking dictation status…",
-        "change": "Change models",
-        "captureOnly": "Microphone capture is off. Recognition or cleanup may still be running; check the recording indicator or History for the result.",
-        "release": "Release the shortcut to finish.",
-        "pressAgain": "Press the shortcut again to finish.",
-        "releaseOrPress": "Release if holding, or tap the shortcut again to finish."
+        "hold": "Mantén premut {{shortcut}} per dictar i deixa’l anar per acabar",
+        "toggle": "Prem {{shortcut}} per començar i torna’l a prémer per acabar",
+        "holdOrToggle": "Mantén premut {{shortcut}}, o toca’l per començar i torna’l a tocar per acabar",
+        "speechCloud": "L’àudio s’envia a {{host}} per transcriure’l",
+        "speechLocal": "L’àudio es queda en aquest dispositiu ({{model}})",
+        "noModel": "cap model seleccionat",
+        "cleanupOff": "La correcció amb IA està desactivada",
+        "cleanupLocal": "La correcció amb IA s’executa localment amb {{provider}}",
+        "cleanupCloud": "El text de la transcripció s’envia a {{provider}} per corregir-lo",
+        "unavailable": "L’estat del micròfon no està disponible",
+        "chooseModel": "Tria un model de reconeixement per començar",
+        "checking": "S’està comprovant l’estat del dictat…",
+        "change": "Canvia els models",
+        "captureOnly": "La captura del micròfon està aturada. El reconeixement o la correcció encara poden estar en curs. Consulta l’indicador d’enregistrament o l’historial per veure el resultat.",
+        "release": "Deixa anar la drecera per acabar.",
+        "pressAgain": "Torna a prémer la drecera per acabar.",
+        "releaseOrPress": "Deixa-la anar si la mantens premuda, o torna a tocar la drecera per acabar."
       },
       "shortcut": {
-        "title": "Shortcut"
+        "title": "Drecera"
       },
       "microphone": {
         "title": "Micròfon"
       },
       "sounds": {
-        "title": "Sounds",
+        "title": "Sons",
         "theme": "So",
-        "themeDescription": "Recording cues use your system output and volume."
+        "themeDescription": "Els avisos d’enregistrament fan servir la sortida i el volum del sistema."
       },
       "language": {
-        "title": "Spoken language",
-        "model": "Options depend on the active model, {{model}}."
+        "title": "Idioma parlat",
+        "model": "Les opcions depenen del model actiu, {{model}}."
       }
     },
     "download": {
-      "pending": "Downloading…",
-      "multiple": "{{count}} downloading…"
+      "pending": "S’està baixant…",
+      "multiple": "{{count}} baixades en curs…"
     },
     "about": {
       "versionDescription": "Versió actual del Murmur",
       "ggml": {
-        "details": "Murmur uses transcribe.cpp and ggml for local speech recognition. Thanks to Georgi Gerganov and contributors."
+        "details": "El Murmur fa servir transcribe.cpp i ggml per al reconeixement de veu local. Gràcies a Georgi Gerganov i als col·laboradors."
       }
     },
     "general": {
       "status": {
-        "recording": "Recording now",
-        "idle": "Not recording"
+        "recording": "Enregistrant",
+        "idle": "No s’està enregistrant"
       },
       "indicator": {
-        "title": "Recording indicator"
+        "title": "Indicador d’enregistrament"
       }
     },
     "insertion": {
       "method": {
-        "title": "Inserting text",
-        "description": "If transcripts appear in History but not in your app, try another method here."
+        "title": "Inserció de text",
+        "description": "Si les transcripcions apareixen a l’historial però no a l’aplicació, prova un altre mètode aquí."
       },
       "after": {
-        "title": "After inserting"
+        "title": "Després d’inserir"
       }
     },
     "keys": {
-      "removed": "Removed the key for {{name}}",
-      "title": "Saved API keys",
-      "description": "Keys are kept in your system credential store, never in Murmur's settings file.",
-      "unavailable": "Credential-store status is unavailable. Saved keys have not been removed.",
-      "loading": "Checking the credential store…",
-      "none": "No API keys saved.",
-      "speech": "Speech recognition",
-      "cleanup": "AI cleanup",
-      "remove": "Remove"
+      "removed": "S’ha eliminat la clau de {{name}}",
+      "title": "Claus API desades",
+      "description": "Les claus es desen al magatzem de credencials del sistema, mai al fitxer de configuració del Murmur.",
+      "unavailable": "L’estat del magatzem de credencials no està disponible. Les claus desades no s’han eliminat.",
+      "loading": "S’està comprovant el magatzem de credencials…",
+      "none": "No hi ha cap clau API desada.",
+      "speech": "Reconeixement de veu",
+      "cleanup": "Correcció amb IA",
+      "remove": "Elimina"
     },
     "stt": {
-      "inUse": "In use",
-      "keySaved": "Speech API key saved",
-      "keyRemoved": "Speech API key removed",
-      "saved": "Speech source saved",
-      "refreshFailed": "Speech source was saved, but settings could not be reloaded. Retry loading settings.",
-      "title": "Speech recognition",
-      "description": "Choose where your speech is turned into text.",
-      "source": "Transcription source",
+      "inUse": "En ús",
+      "keySaved": "S’ha desat la clau API de veu",
+      "keyRemoved": "S’ha eliminat la clau API de veu",
+      "saved": "S’ha desat la font de veu",
+      "refreshFailed": "S’ha desat la font de veu, però no s’ha pogut tornar a carregar la configuració. Torna a carregar la configuració.",
+      "title": "Reconeixement de veu",
+      "description": "Tria on es converteix la teva veu en text.",
+      "source": "Font de transcripció",
       "local": {
-        "title": "On this device",
-        "description": "Pick or download a model below. Audio never leaves this computer."
+        "title": "En aquest dispositiu",
+        "description": "Tria o baixa un model a continuació. L’àudio no surt mai d’aquest ordinador."
       },
       "endpoint": {
-        "title": "Cloud API or your own server",
-        "description": "OpenAI, Groq or any OpenAI-compatible service. Needs an API key unless it runs locally.",
-        "notice": "Each recording is sent to this service, which may charge for usage. Murmur never switches to another service on its own."
+        "title": "API al núvol o servidor propi",
+        "description": "OpenAI, Groq o qualsevol servei compatible amb OpenAI. Necessita una clau API tret que s’executi localment.",
+        "notice": "Cada enregistrament s’envia a aquest servei, que pot cobrar per l’ús. El Murmur no canvia mai a un altre servei pel seu compte."
       },
-      "service": "Service",
-      "presetOther": "or enter any compatible server below",
-      "baseUrl": "API base URL",
-      "baseUrlHelp": "For a server on this computer, try http://127.0.0.1:8000/v1. A full /audio/transcriptions URL also works.",
-      "model": "Model ID",
-      "modelHelp": "Use the model name your speech server accepts.",
+      "service": "Servei",
+      "presetOther": "o introdueix qualsevol servidor compatible a continuació",
+      "baseUrl": "URL base de l’API",
+      "baseUrlHelp": "Per a un servidor en aquest ordinador, prova http://127.0.0.1:8000/v1. També funciona un URL complet amb /audio/transcriptions.",
+      "model": "ID del model",
+      "modelHelp": "Fes servir el nom de model que accepta el teu servidor de veu.",
       "apiKey": "Clau de l'API",
-      "apiKeyPlaceholder": "Paste your key",
-      "saveKey": "Save key",
-      "removeKey": "Remove",
-      "keySavedWithSource": "Your key is saved with the URL and model when you press Save.",
-      "keyStored": "A key is saved for this endpoint in the system credential store.",
-      "noKey": "No key saved. Leave it empty only for a server that does not need one.",
-      "keyStatusError": "Could not check the system credential store. Retry below.",
-      "keyStatusUnknown": "Checking the system credential store…",
-      "retryKeyCheck": "Retry key check",
-      "retryRefresh": "Retry loading settings",
-      "saving": "Saving…",
-      "save": "Creeu la indicació"
+      "apiKeyPlaceholder": "Enganxa la clau",
+      "saveKey": "Desa la clau",
+      "removeKey": "Elimina",
+      "keySavedWithSource": "La clau es desa amb l’URL i el model quan prems Desa.",
+      "keyStored": "Hi ha una clau desada per a aquest servei al magatzem de credencials del sistema.",
+      "noKey": "No hi ha cap clau desada. Deixa-ho buit només per a un servidor que no en necessiti.",
+      "keyStatusError": "No s’ha pogut comprovar el magatzem de credencials del sistema. Torna-ho a provar a continuació.",
+      "keyStatusUnknown": "S’està comprovant el magatzem de credencials del sistema…",
+      "retryKeyCheck": "Torna a comprovar la clau",
+      "retryRefresh": "Torna a carregar la configuració",
+      "saving": "S’està desant…",
+      "save": "Desa"
     },
     "privacy": {
-      "loading": "Privacy settings are unavailable while configuration loads. Use Retry to check again.",
-      "change": "Change",
-      "reporting": "Anonymous usage and errors",
-      "reportingSwitch": "Share anonymous usage and errors",
-      "reportingNotice": "Self-hosted screen/action counts and fixed error categories only. No visitor tracking, recordings, transcripts, dictionary words or API keys. Off until an owner endpoint is configured. Do Not Track and Global Privacy Control override this switch. Counts expire after 30 days, errors after 14 days.",
-      "reportingUnconfigured": "Reporting is not configured in this build. Nothing is sent.",
-      "reportingSaveError": "Could not save the reporting preference. Reporting stays off until the preference can be read.",
+      "loading": "La configuració de privadesa no està disponible mentre es carrega la configuració. Fes servir Torna-ho a provar per comprovar-ho de nou.",
+      "change": "Canvia",
+      "reporting": "Ús i errors anònims",
+      "reportingSwitch": "Comparteix dades anònimes d’ús i errors",
+      "reportingNotice": "Només recomptes de pantalles i accions i categories d’error fixes, en un servidor propi. Sense seguiment de visitants, enregistraments, transcripcions, paraules del diccionari ni claus API. Desactivat fins que el propietari configuri un servei de recepció. Do Not Track i Global Privacy Control tenen prioritat sobre aquest interruptor. Els recomptes caduquen al cap de 30 dies i els errors al cap de 14.",
+      "reportingUnconfigured": "Els informes no estan configurats en aquesta versió. No s’envia res.",
+      "reportingSaveError": "No s’ha pogut desar la preferència d’informes. Els informes es mantenen desactivats fins que es pugui llegir la preferència.",
       "leaves": {
-        "title": "What leaves this computer",
-        "description": "Your voice and text only go to services you choose. Murmur never switches to one on its own."
+        "title": "Què surt d’aquest ordinador",
+        "description": "La teva veu i el teu text només van als serveis que triïs. El Murmur no canvia mai a un altre servei pel seu compte."
       },
       "speech": {
-        "title": "Your voice",
-        "cloud": "Each recording is sent to {{host}} to be transcribed.",
-        "local": "Transcribed on this computer. Recordings are never uploaded."
+        "title": "La teva veu",
+        "cloud": "Cada enregistrament s’envia a {{host}} per transcriure’l.",
+        "local": "Es transcriu en aquest ordinador. Els enregistraments no es pugen mai."
       },
       "cleanup": {
-        "title": "Your transcripts",
-        "off": "AI cleanup is off, so transcripts stay here.",
-        "local": "Cleaned up on this computer by {{provider}}.",
-        "cloud": "Transcript text and your dictionary words are sent to {{provider}} for cleanup. Audio is not."
+        "title": "Les teves transcripcions",
+        "off": "La correcció amb IA està desactivada, així que les transcripcions es queden aquí.",
+        "local": "{{provider}} les corregeix en aquest ordinador.",
+        "cloud": "El text de la transcripció i les paraules del diccionari s’envien a {{provider}} per corregir-los. L’àudio no."
       },
       "stored": {
-        "title": "What stays on this computer"
+        "title": "Què es queda en aquest ordinador"
       },
       "history": {
-        "title": "Recordings and transcripts",
-        "detail": "Kept: {{period}}. Starred dictations are always kept."
+        "title": "Enregistraments i transcripcions",
+        "detail": "Conservació: {{period}}. Els dictats destacats amb estrella es conserven sempre."
       },
       "keys": {
-        "title": "API keys",
-        "detail": "{{count}} saved in your system credential store, never in Murmur's settings file."
+        "title": "Claus API",
+        "detail": "{{count}} desades al magatzem de credencials del sistema, mai al fitxer de configuració del Murmur."
       },
-      "manage": "Manage"
+      "manage": "Gestiona"
     },
     "stats": {
-      "providerCost": "Provider cost",
-      "openrouterKeys": "OpenRouter usage for your configured keys",
-      "refresh": "Refresh",
-      "costStale": "Could not refresh provider usage. These figures may be out of date.",
-      "costLoading": "Checking OpenRouter usage…",
-      "costUnavailable": "OpenRouter usage is unavailable. Check your connection and key, then retry.",
-      "noOpenrouterKey": "Add an OpenRouter speech key in Models or a cleanup key in Cleanup to see its usage here.",
-      "costWeek": "This week",
-      "costMonth": "This month",
-      "costAll": "All time",
-      "byokValue": "OpenRouter also reports {{value}} in BYOK model usage this month. Your provider bills that separately.",
-      "costScope": "These totals cover {{count}} configured OpenRouter key(s), including use outside Murmur. Local models and direct provider keys are not counted.",
-      "totalWordsDescription": "Words in saved dictations",
-      "thisWeekDescription": "Words saved since Monday",
-      "recordedDescription": "Based on saved audio after silence filtering",
-      "recordedMinutes": "Saved audio minutes",
-      "title": "Your dictation stats",
-      "unavailableHelp": "Try again after Murmur has finished starting up.",
-      "position": "Stat {{current}} of {{total}}",
-      "swipeHint": "Drag or swipe to browse",
-      "metricCards": "Dictation stat cards",
-      "noAudioShort": "No retained audio",
-      "noAudio": "No retained recordings with audio are available, so recorded pace and minutes cannot be calculated. This week is still in progress."
+      "providerCost": "Cost dels proveïdors",
+      "openrouterKeys": "Ús d’OpenRouter de les claus configurades",
+      "refresh": "Actualitza",
+      "costStale": "No s’ha pogut actualitzar l’ús dels proveïdors. Aquestes xifres poden estar desactualitzades.",
+      "costLoading": "S’està comprovant l’ús d’OpenRouter…",
+      "costUnavailable": "L’ús d’OpenRouter no està disponible. Comprova la connexió i la clau i torna-ho a provar.",
+      "noOpenrouterKey": "Afegeix una clau de veu d’OpenRouter a Models o una clau de correcció a Correcció per veure’n l’ús aquí.",
+      "costWeek": "Aquesta setmana",
+      "costMonth": "Aquest mes",
+      "costAll": "Des de sempre",
+      "byokValue": "OpenRouter també informa de {{value}} en ús de models BYOK aquest mes. El teu proveïdor ho factura per separat.",
+      "costScope": "Aquests totals cobreixen {{count}} claus d’OpenRouter configurades, inclòs l’ús fora del Murmur. Els models locals i les claus directes de proveïdors no es compten.",
+      "totalWordsDescription": "Paraules als dictats desats",
+      "thisWeekDescription": "Paraules desades des de dilluns",
+      "recordedDescription": "Basat en l’àudio desat després de filtrar el silenci",
+      "recordedMinutes": "Minuts d’àudio desat",
+      "title": "Les teves estadístiques de dictat",
+      "unavailableHelp": "Torna-ho a provar quan el Murmur hagi acabat d’iniciar-se.",
+      "position": "Estadística {{current}} de {{total}}",
+      "swipeHint": "Arrossega o llisca per navegar",
+      "metricCards": "Targetes d’estadístiques de dictat",
+      "noAudioShort": "No hi ha àudio conservat",
+      "noAudio": "No hi ha enregistraments conservats amb àudio, així que no es poden calcular el ritme enregistrat ni els minuts. Aquesta setmana encara no ha acabat."
     }
   }
 }
