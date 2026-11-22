@@ -113,7 +113,15 @@ internal fun LectureDetailScreen(model: AppModel, id: Long, onBack: () -> Unit, 
     }
     val saveAudio = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/mp4")) { uri: Uri? ->
         val source = file ?: return@rememberLauncherForActivityResult
-        if (uri != null) export("Audio saved.") { copyToUri(context, encodedAudio(context, source, record.title), uri) }
+        if (uri != null) export("Audio saved.") {
+            val encoded = encodedAudio(context, source, record.title)
+            try {
+                copyToUri(context, encoded, uri)
+            } finally {
+                encoded.delete()
+                encoded.parentFile?.delete()
+            }
+        }
     }
     val saveText = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri: Uri? ->
         if (uri != null) export("Transcript saved.") { writeToUri(context, uri, stamped + "\n") }
@@ -460,8 +468,17 @@ private fun shareText(context: Context, title: String, text: String) {
 // one export at a time lives in the cache, so shared files do not pile up
 private fun encodedAudio(context: Context, wav: File, title: String): File {
     val directory = File(context.cacheDir, "exports").apply { mkdirs() }
-    directory.listFiles()?.forEach { it.delete() }
-    return File(directory, LectureExport.fileName(title, "m4a")).also { LectureExport.writeM4a(wav, it) }
+    val cutoff = System.currentTimeMillis() - java.util.concurrent.TimeUnit.DAYS.toMillis(1)
+    directory.listFiles()?.filter { it.lastModified() < cutoff }?.forEach { it.deleteRecursively() }
+    val export = java.nio.file.Files.createTempDirectory(directory.toPath(), "audio-").toFile()
+    return File(export, LectureExport.fileName(title, "m4a")).also { file ->
+        try {
+            LectureExport.writeM4a(wav, file)
+        } catch (error: Exception) {
+            export.deleteRecursively()
+            throw error
+        }
+    }
 }
 
 private fun copyToUri(context: Context, file: File, uri: Uri) {
