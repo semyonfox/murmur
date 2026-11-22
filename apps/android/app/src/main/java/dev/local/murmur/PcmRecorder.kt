@@ -9,6 +9,7 @@ import android.media.MediaRecorder
 import android.media.audiofx.NoiseSuppressor
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
@@ -125,7 +126,7 @@ internal class PcmRecorder private constructor(
             // stop may have raced the user releasing the microphone button
         }
         recorder.release()
-        noiseSuppressor?.release()
+        runCatching { noiseSuppressor?.release() }
         mainHandler.post {
             if (discard.get()) file.delete()
             else {
@@ -232,31 +233,41 @@ internal class PcmRecorder private constructor(
                 file.delete()
                 error("Microphone could not start.")
             }
-            val noiseSuppressor = try {
-                if (suppressNoise && NoiseSuppressor.isAvailable()) {
-                    NoiseSuppressor.create(recorder.audioSessionId)?.apply { enabled = true }
-                } else null
-            } catch (error: Exception) {
-                recorder.release()
-                file.delete()
-                throw error
-            }
+            val noiseSuppressor = if (suppressNoise) {
+                enableNoiseSuppressor(recorder.audioSessionId).also { effect ->
+                    if (effect == null) Toast.makeText(context, "Recording without noise suppression.", Toast.LENGTH_SHORT).show()
+                }
+            } else null
             try {
                 recorder.startRecording()
             } catch (error: Exception) {
-                noiseSuppressor?.release()
+                runCatching { noiseSuppressor?.release() }
                 recorder.release()
                 file.delete()
                 throw error
             }
             if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-                noiseSuppressor?.release()
+                runCatching { noiseSuppressor?.release() }
                 recorder.release()
                 file.delete()
                 error("Microphone did not start recording.")
             }
             return PcmRecorder(file, recorder, noiseSuppressor, maxPcmBytes, preserveOnFailure, context.cacheDir, onChunk, chunkMinSeconds, chunkMaxSeconds, onLevel, onPcm, onComplete).also { capture ->
                 Thread({ capture.runCapture(bufferSize) }, "murmur-audio").start()
+            }
+        }
+
+        private fun enableNoiseSuppressor(sessionId: Int): NoiseSuppressor? {
+            var effect: NoiseSuppressor? = null
+            return try {
+                if (NoiseSuppressor.isAvailable()) effect = NoiseSuppressor.create(sessionId)
+                if (effect == null) return null
+                check(effect.setEnabled(true) == android.media.audiofx.AudioEffect.SUCCESS && effect.enabled)
+                effect
+            } catch (error: RuntimeException) {
+                runCatching { effect?.release() }
+                Diagnostics.warn("audio", "noise suppression could not start", error)
+                null
             }
         }
 
