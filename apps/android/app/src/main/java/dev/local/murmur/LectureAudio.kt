@@ -30,6 +30,7 @@ internal object LectureAudio {
     private const val SEARCH_BYTES = BYTES_PER_SECOND * 10
     private const val MAX_SAMPLES = SAMPLE_RATE * 28_800L
     private const val IMPORT_RESERVE_BYTES = 256L * 1024 * 1024
+    private const val SPACE_CHECK_BYTES = 4L * 1024 * 1024
     private val importOpenTimeoutNs = TimeUnit.MINUTES.toNanos(10)
     private const val IMPORT_STALL_NS = 30_000_000_000L
     // a provider can block both the copy and the cancellation call
@@ -329,10 +330,13 @@ internal object LectureAudio {
         }
     }
 
-    private class WavSink(file: File) : AutoCloseable {
+    // decoding writes up to 920 MB for an eight hour file, so it keeps the same free space
+    // reserve as staging and leaves room for a lecture that is recording at the same time
+    private class WavSink(private val file: File) : AutoCloseable {
         private val output = RandomAccessFile(file, "rw")
         private val buffer = ByteArray(16 * 1024)
         private var used = 0
+        private var unchecked = 0L
         var samples = 0L
             private set
 
@@ -353,15 +357,24 @@ internal object LectureAudio {
         fun writePcm(bytes: ByteArray, count: Int) {
             require(count % 2 == 0)
             flush()
+            reserve(count)
             output.write(bytes, 0, count)
             samples += count / 2
         }
 
         private fun flush() {
             if (used > 0) {
+                reserve(used)
                 output.write(buffer, 0, used)
                 used = 0
             }
+        }
+
+        private fun reserve(bytes: Int) {
+            unchecked += bytes
+            if (unchecked < SPACE_CHECK_BYTES) return
+            unchecked = 0
+            requireImportSpace(file.parentFile ?: file, SPACE_CHECK_BYTES)
         }
 
         override fun close() {
