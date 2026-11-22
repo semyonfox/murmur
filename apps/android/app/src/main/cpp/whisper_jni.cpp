@@ -24,9 +24,9 @@ Java_dev_local_murmur_LocalWhisper_nativeTranscribe(
     JNIEnv *env, jobject, jlong context_ptr, jfloatArray samples, jstring language, jboolean translate, jint threads) {
     auto *context = reinterpret_cast<whisper_context *>(context_ptr);
     if (!context) return nullptr;
-    const char *lang = env->GetStringUTFChars(language, nullptr);
     const jsize length = env->GetArrayLength(samples);
     if (length == 0) return nullptr;
+    const char *lang = env->GetStringUTFChars(language, nullptr);
     jfloat *data = env->GetFloatArrayElements(samples, nullptr);
     if (!lang || !data) {
         if (lang) env->ReleaseStringUTFChars(language, lang);
