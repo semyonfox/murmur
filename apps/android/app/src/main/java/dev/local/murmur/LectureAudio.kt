@@ -27,6 +27,7 @@ internal object LectureAudio {
     private const val FRAME_BYTES = 640
     private const val SEARCH_BYTES = BYTES_PER_SECOND * 10
     private const val MAX_SAMPLES = SAMPLE_RATE * 28_800L
+    private val importOpenTimeoutNs = TimeUnit.MINUTES.toNanos(10)
     private const val IMPORT_STALL_NS = 30_000_000_000L
 
     fun removeTemporaryRecordings(lectureDirectory: File, cacheDirectory: File) {
@@ -111,7 +112,7 @@ internal object LectureAudio {
     fun import(context: Context, uri: Uri, destination: File, signal: CancellationSignal) {
         val source = File.createTempFile("murmur-lecture-source-", ".audio", context.cacheDir)
         try {
-            stageImport(context, uri, source)
+            stageImport(context, uri, source, signal)
             signal.throwIfCanceled()
             decodeImport(source, destination, signal)
         } finally {
@@ -119,15 +120,16 @@ internal object LectureAudio {
         }
     }
 
-    private fun stageImport(context: Context, uri: Uri, source: File) {
+    private fun stageImport(context: Context, uri: Uri, source: File, importSignal: CancellationSignal) {
         val signal = CancellationSignal()
-        val lastProgress = AtomicLong(System.nanoTime())
+        val deadline = AtomicLong(System.nanoTime() + importOpenTimeoutNs)
         source.outputStream().use { output ->
             // the import queue can move on even if a provider ignores cancellation
             val copy = FutureTask {
                 val asset = context.contentResolver.openAssetFileDescriptor(uri, "r", signal)
                     ?: error("Could not open the selected audio file.")
                 asset.use {
+                    deadline.set(System.nanoTime() + IMPORT_STALL_NS)
                     signal.setOnCancelListener { runCatching { asset.close() } }
                     signal.throwIfCanceled()
                     asset.createInputStream().use { input ->
@@ -138,7 +140,7 @@ internal object LectureAudio {
                             if (count < 0) break
                             if (count == 0) continue
                             output.write(buffer, 0, count)
-                            lastProgress.set(System.nanoTime())
+                            deadline.set(System.nanoTime() + IMPORT_STALL_NS)
                         }
                     }
                 }
@@ -146,13 +148,14 @@ internal object LectureAudio {
             thread(isDaemon = true, name = "murmur-import-source") { copy.run() }
             try {
                 while (true) {
-                    val remaining = IMPORT_STALL_NS - (System.nanoTime() - lastProgress.get())
+                    importSignal.throwIfCanceled()
+                    val remaining = deadline.get() - System.nanoTime()
                     check(remaining > 0 || copy.isDone) { "The audio provider stopped responding." }
                     try {
-                        copy.get(remaining.coerceAtLeast(0), TimeUnit.NANOSECONDS)
+                        copy.get(remaining.coerceIn(0, TimeUnit.SECONDS.toNanos(1)), TimeUnit.NANOSECONDS)
                         break
                     } catch (_: TimeoutException) {
-                        // a read may have made progress while we were waiting
+                        // recheck cancellation and the deadline after each wait
                     } catch (error: ExecutionException) {
                         throw error.cause ?: error
                     }
