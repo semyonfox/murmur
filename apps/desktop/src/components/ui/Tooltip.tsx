@@ -93,6 +93,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   return createPortal(
     <div
       ref={tooltipRef}
+      role="tooltip"
       style={{
         position: "fixed",
         top: coords?.top ?? -9999,
@@ -101,7 +102,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
         zIndex: 9999,
         opacity: coords ? 1 : 0,
       }}
-      className="px-3 py-2 bg-raised border border-line/48 rounded-lg shadow-raised whitespace-normal transition-opacity duration-150"
+      className="px-3 py-2 bg-raised border border-line/48 rounded-lg shadow-raised whitespace-normal"
     >
       {children}
       <div

@@ -7,12 +7,14 @@ import {
 } from "../../lib/utils/modelTranslation";
 
 interface ModelDropdownProps {
+  open: boolean;
   models: ModelInfo[];
   currentModelId: string;
   onModelSelect: (modelId: string) => void;
 }
 
 const ModelDropdown: React.FC<ModelDropdownProps> = ({
+  open,
   models,
   currentModelId,
   onModelSelect,
@@ -25,7 +27,11 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   };
 
   return (
-    <div className="absolute bottom-full start-0 mb-2 w-64 max-h-[60dvh] overflow-y-auto bg-raised border border-line/12 rounded-lg shadow-raised p-1 z-50">
+    <div
+      data-open={open}
+      inert={!open}
+      className="dropdown-panel [--dropdown-origin:bottom_left] rtl:[--dropdown-origin:bottom_right] absolute bottom-full start-0 mb-2 w-64 max-h-[60dvh] overflow-y-auto overscroll-contain bg-raised border border-line/12 rounded-lg shadow-raised p-1 z-50"
+    >
       {downloadedModels.length > 0 ? (
         <div>
           {downloadedModels.map((model) => (
@@ -40,7 +46,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
               }}
               tabIndex={0}
               role="button"
-              className={`w-full rounded-[calc(var(--radius-lg)-5px)] px-3 py-2 text-start hover:bg-mid-gray/10 transition-colors cursor-pointer focus:outline-none ${
+              className={`w-full rounded-[calc(var(--radius-lg)-5px)] px-3 py-2 text-start hover:bg-mid-gray/10 cursor-pointer ${
                 currentModelId === model.id
                   ? "bg-logo-primary/10 text-logo-primary"
                   : ""

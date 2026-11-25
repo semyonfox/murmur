@@ -265,8 +265,9 @@ const Onboarding: React.FC<OnboardingProps> = ({
               {hasRecommended && rest.length > 0 && (
                 <button
                   type="button"
+                  aria-expanded={showAll}
                   onClick={() => setShowAll((v) => !v)}
-                  className="flex items-center justify-center gap-1.5 mx-auto py-1 text-sm font-medium text-text/60 hover:text-text transition-colors"
+                  className="flex items-center justify-center gap-1.5 mx-auto py-1 text-sm font-medium text-text/60 hover:text-text"
                 >
                   {showAll
                     ? t("onboarding.showFewerModels")
@@ -281,21 +282,24 @@ const Onboarding: React.FC<OnboardingProps> = ({
                 </button>
               )}
 
-              {showRest &&
-                rest.map((model: ModelInfo) => (
-                  <ModelCard
-                    key={model.id}
-                    model={model}
-                    status={getModelStatus(model.id)}
-                    disabled={isBusy}
-                    onSelect={handleDownloadModel}
-                    onDownload={handleDownloadModel}
-                    onCancel={handleCancelDownload}
-                    downloadProgress={getModelDownloadProgress(model.id)}
-                    downloadSpeed={getModelDownloadSpeed(model.id)}
-                    showRecommended={false}
-                  />
-                ))}
+              {showRest && (
+                <div className="disclosure-content space-y-3">
+                  {rest.map((model: ModelInfo) => (
+                    <ModelCard
+                      key={model.id}
+                      model={model}
+                      status={getModelStatus(model.id)}
+                      disabled={isBusy}
+                      onSelect={handleDownloadModel}
+                      onDownload={handleDownloadModel}
+                      onCancel={handleCancelDownload}
+                      downloadProgress={getModelDownloadProgress(model.id)}
+                      downloadSpeed={getModelDownloadSpeed(model.id)}
+                      showRecommended={false}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

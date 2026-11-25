@@ -149,7 +149,7 @@ const StatusCard: React.FC = () => {
           aria-live="polite"
         >
           <span
-            className={`h-2 w-2 rounded-full ${isRecording ? "bg-logo-primary animate-pulse" : "bg-mid-gray/60"}`}
+            className={`h-2 w-2 rounded-full ${isRecording ? "bg-logo-primary" : "bg-mid-gray/60"}`}
             aria-hidden="true"
           />
           {statusError

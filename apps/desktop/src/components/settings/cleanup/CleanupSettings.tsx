@@ -406,7 +406,7 @@ export const CleanupSettings: React.FC = () => {
             {formalityOptions.map((option) => (
               <label
                 key={option.value}
-                className={`relative flex min-w-0 items-center justify-center rounded-lg border px-1 py-2 text-center text-xs font-medium transition-colors focus-within:ring-2 focus-within:ring-logo-primary/40 ${
+                className={`relative flex min-w-0 items-center justify-center rounded-lg border px-1 py-2 text-center text-xs font-medium focus-within:ring-2 focus-within:ring-logo-primary/40 ${
                   unavailableReason ? "cursor-not-allowed" : "cursor-pointer"
                 } ${
                   formality === option.value

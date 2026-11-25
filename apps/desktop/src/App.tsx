@@ -456,7 +456,7 @@ function App() {
               aria-labelledby="page-heading"
               tabIndex={-1}
               ref={settingsScrollRef}
-              className="flex-1 overflow-y-auto"
+              className="flex-1 overflow-y-auto overscroll-contain"
             >
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 pt-5 pb-8 xl:max-w-5xl">
                 <header>

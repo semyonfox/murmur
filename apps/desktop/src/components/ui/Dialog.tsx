@@ -186,14 +186,14 @@ export const Dialog: React.FC<DialogProps> = ({
               type="button"
               onClick={() => onOpenChange(false)}
               aria-label={closeLabel}
-              className="shrink-0 cursor-pointer rounded-md border border-transparent p-1 text-mid-gray transition-colors hover:border-line/12 hover:bg-mid-gray/10 hover:text-text focus:outline-none focus-visible:ring-1 focus-visible:ring-logo-primary"
+              className="shrink-0 cursor-pointer rounded-md border border-transparent p-1 text-mid-gray hover:border-line/12 hover:bg-mid-gray/10 hover:text-text focus:outline-none focus-visible:ring-1 focus-visible:ring-logo-primary"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
         </div>
         <div
-          className={`min-h-0 overflow-y-auto px-4 pb-4 pt-3 ${contentClassName}`}
+          className={`min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 ${contentClassName}`}
           style={contentStyle}
         >
           {children}

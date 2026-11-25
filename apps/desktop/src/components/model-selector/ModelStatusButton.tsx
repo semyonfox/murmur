@@ -30,13 +30,13 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
       case "ready":
         return "bg-green-400";
       case "loading":
-        return "bg-yellow-400 animate-pulse";
+        return "bg-yellow-400";
       case "downloading":
-        return "bg-logo-primary animate-pulse";
+        return "bg-logo-primary";
       case "verifying":
-        return "bg-orange-400 animate-pulse";
+        return "bg-orange-400";
       case "extracting":
-        return "bg-orange-400 animate-pulse";
+        return "bg-orange-400";
       case "error":
         return "bg-red-400";
       case "unloaded":
@@ -53,7 +53,7 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
       type="button"
       onClick={onClick}
       aria-expanded={isDropdownOpen}
-      className={`flex min-h-[24px] min-w-[24px] items-center gap-2 hover:text-text/80 transition-colors ${className}`}
+      className={`flex min-h-[24px] min-w-[24px] items-center gap-2 hover:text-text/80 ${className}`}
       title={`Model status: ${displayText}`}
     >
       <div

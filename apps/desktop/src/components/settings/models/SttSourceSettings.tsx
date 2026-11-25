@@ -260,7 +260,7 @@ export const SttSourceSettings: React.FC<SttSourceSettingsProps> = ({
           </legend>
           <div className="grid gap-2 lg:grid-cols-2">
             <label
-              className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition-colors focus-within:ring-2 focus-within:ring-logo-primary/40 ${
+              className={`flex cursor-pointer gap-3 rounded-xl border p-3 focus-within:ring-2 focus-within:ring-logo-primary/40 ${
                 source === "local"
                   ? "border-logo-primary/60 bg-mid-gray/10"
                   : "border-line/12 hover:border-line/27"
@@ -299,7 +299,7 @@ export const SttSourceSettings: React.FC<SttSourceSettingsProps> = ({
               {savedSource === "local" && inUseBadge}
             </label>
             <label
-              className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition-colors focus-within:ring-2 focus-within:ring-logo-primary/40 ${
+              className={`flex cursor-pointer gap-3 rounded-xl border p-3 focus-within:ring-2 focus-within:ring-logo-primary/40 ${
                 source === "endpoint"
                   ? "border-logo-primary/60 bg-mid-gray/10"
                   : "border-line/12 hover:border-line/27"
@@ -357,7 +357,7 @@ export const SttSourceSettings: React.FC<SttSourceSettingsProps> = ({
                       setApiKey("");
                       setError(null);
                     }}
-                    className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                    className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm ${
                       activePreset?.id === preset.id
                         ? "border-logo-primary/60 bg-background font-medium text-text"
                         : "border-line/15 text-text/80 hover:border-line/30"

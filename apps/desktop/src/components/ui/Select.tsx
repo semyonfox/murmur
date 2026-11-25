@@ -55,7 +55,6 @@ const selectStyles: StylesConfig<SelectOption, false> = {
     backgroundColor: fieldBackground,
     fontSize: "0.875rem",
     color: "var(--color-text)",
-    transition: "all 150ms ease",
     ":hover": {
       borderColor: state.isFocused
         ? "var(--color-logo-primary)"
@@ -91,9 +90,11 @@ const selectStyles: StylesConfig<SelectOption, false> = {
       color: "var(--color-logo-primary)",
     },
   }),
-  menu: (provided) => ({
+  menu: (provided, state) => ({
     ...provided,
     zIndex: 30,
+    animation: "dropdown-enter 180ms ease-out both",
+    transformOrigin: state.placement === "top" ? "bottom" : "top",
     // same radius as the control. options sit 4px inside a 1px border, so
     // their radius is 8 - 4 - 1
     borderRadius: 8,
@@ -105,6 +106,7 @@ const selectStyles: StylesConfig<SelectOption, false> = {
   menuList: (base) => ({
     ...base,
     padding: 4,
+    overscrollBehavior: "contain",
   }),
   option: (base, state) => ({
     ...base,

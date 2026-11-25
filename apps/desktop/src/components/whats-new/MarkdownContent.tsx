@@ -119,7 +119,7 @@ const components: Components = {
     );
   },
   pre: ({ children }) => (
-    <pre className="overflow-x-auto rounded-md bg-mid-gray/10 p-3 text-xs leading-relaxed text-text/80">
+    <pre className="overflow-x-auto overscroll-contain rounded-md bg-mid-gray/10 p-3 text-xs leading-relaxed text-text/80">
       {children}
     </pre>
   ),

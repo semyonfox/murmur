@@ -163,10 +163,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <nav
       aria-label={t("murmur.nav.label", { defaultValue: "Settings" })}
-      className="flex h-full w-44 shrink-0 flex-col overflow-y-auto border-e border-line/9 px-2 max-sm:h-auto max-sm:w-full max-sm:border-e-0 max-sm:border-b"
+      className="flex h-full w-44 shrink-0 flex-col overflow-y-auto overscroll-contain border-e border-line/9 px-2 max-sm:h-auto max-sm:w-full max-sm:border-e-0 max-sm:border-b"
     >
       <HandyTextLogo width={104} className="mx-2 mt-4 mb-5 max-sm:hidden" />
-      <ul className="flex flex-col gap-0.5 pb-3 max-sm:flex-row max-sm:overflow-x-auto max-sm:py-2">
+      <ul className="flex flex-col gap-0.5 pb-3 max-sm:flex-row max-sm:overflow-x-auto max-sm:overscroll-contain max-sm:py-2">
         {availableSections.map((id, index) => {
           const section = SECTIONS_CONFIG[id];
           const Icon = section.icon;
@@ -186,7 +186,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 type="button"
                 aria-current={isActive ? "page" : undefined}
                 onClick={() => onSectionChange(id)}
-                className={`flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-start text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary/40 max-sm:min-h-11 ${
+                className={`flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-start text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary/40 max-sm:min-h-11 ${
                   isActive
                     ? "bg-mid-gray/15 font-medium text-text"
                     : "text-text/75 hover:bg-mid-gray/10 hover:text-text"
