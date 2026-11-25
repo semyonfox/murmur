@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { ModelCardStatus } from "@/components/onboarding";
 import { ModelCard } from "@/components/onboarding";
+import { useDelayedFlag } from "@/hooks/useDelayedFlag";
 import { useModelStore } from "@/stores/modelStore";
 import {
   getLanguageLabel,
@@ -41,6 +42,8 @@ export const LocalModels: React.FC = () => {
   const [languageSearch, setLanguageSearch] = useState("");
   const [showAvailable, setShowAvailable] = useState(false);
   const languageDropdownRef = useRef<HTMLDivElement>(null);
+  const languageTriggerRef = useRef<HTMLButtonElement>(null);
+  const catalogueHeadingRef = useRef<HTMLHeadingElement>(null);
   const languageSearchInputRef = useRef<HTMLInputElement>(null);
   const {
     models,
@@ -58,6 +61,7 @@ export const LocalModels: React.FC = () => {
     deleteModel,
     rescanLocalModels,
   } = useModelStore();
+  const longLoad = useDelayedFlag(loading, 3000);
 
   // click outside handler for language dropdown
   useEffect(() => {
@@ -80,6 +84,17 @@ export const LocalModels: React.FC = () => {
       languageSearchInputRef.current.focus();
     }
   }, [languageDropdownOpen]);
+
+  useEffect(() => {
+    if (showAvailable) catalogueHeadingRef.current?.focus();
+  }, [showAvailable]);
+
+  const chooseLanguage = (language: string) => {
+    setLanguageFilter(language);
+    setLanguageDropdownOpen(false);
+    setLanguageSearch("");
+    languageTriggerRef.current?.focus();
+  };
 
   // filtered languages for dropdown (exclude "auto")
   const filteredLanguages = useMemo(() => {
@@ -230,9 +245,26 @@ export const LocalModels: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-3xl w-full mx-auto">
-        <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-2 border-logo-primary border-t-transparent rounded-full animate-spin" />
+      <div className="space-y-4" role="status" data-loading-long={longLoad}>
+        <p className={longLoad ? "text-sm text-mid-gray" : "sr-only"}>
+          {t("common.loading")}
+        </p>
+        <div aria-hidden="true" className="space-y-3">
+          <div className="skeleton h-9 w-full rounded-lg" />
+          <div className="flex h-8 items-center justify-between gap-2">
+            <div className="skeleton h-4 w-28 rounded" />
+            <div className="skeleton h-8 w-40 rounded-lg" />
+          </div>
+          <div className="flex flex-col gap-2 rounded-xl border border-line/9 bg-surface px-4 py-3">
+            <div className="skeleton h-5 w-32 rounded" />
+            <div className="skeleton h-4 w-1/2 rounded" />
+            <hr className="w-full border-line/12" />
+            <div className="flex h-5 items-center justify-between">
+              <div className="skeleton h-3 w-24 rounded" />
+              <div className="skeleton h-4 w-20 rounded" />
+            </div>
+          </div>
+          <div className="skeleton h-11 w-full rounded-xl" />
         </div>
       </div>
     );
@@ -268,10 +300,10 @@ export const LocalModels: React.FC = () => {
                 disabled={isRescanning}
                 title={t("settings.models.rescan.tooltip")}
                 aria-label={t("settings.models.rescan.tooltip")}
-                className="flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RefreshCw
-                  className={`w-3.5 h-3.5 ${isRescanning ? "animate-spin" : ""}`}
+                  className={`w-3.5 h-3.5 ${isRescanning ? "delayed-spin" : ""}`}
                 />
               </button>
 
@@ -283,7 +315,7 @@ export const LocalModels: React.FC = () => {
                 title={t("settings.models.filters.streaming")}
                 aria-label={t("settings.models.filters.streaming")}
                 aria-pressed={filterStreaming}
-                className={`flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg transition-colors ${
+                className={`flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg ${
                   filterStreaming
                     ? "bg-logo-primary/20 text-logo-primary hover:bg-logo-primary/30"
                     : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
@@ -297,7 +329,7 @@ export const LocalModels: React.FC = () => {
                 title={t("settings.models.filters.translation")}
                 aria-label={t("settings.models.filters.translation")}
                 aria-pressed={filterTranslation}
-                className={`flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg transition-colors ${
+                className={`flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg ${
                   filterTranslation
                     ? "bg-logo-primary/20 text-logo-primary hover:bg-logo-primary/30"
                     : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
@@ -309,8 +341,10 @@ export const LocalModels: React.FC = () => {
               <div className="relative" ref={languageDropdownRef}>
                 <button
                   type="button"
+                  ref={languageTriggerRef}
+                  aria-expanded={languageDropdownOpen}
                   onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
-                  className={`flex items-center gap-1.5 h-8 px-3 text-sm font-medium rounded-lg transition-colors ${
+                  className={`flex items-center gap-1.5 h-8 px-3 text-sm font-medium rounded-lg ${
                     languageFilter !== "all"
                       ? "bg-logo-primary/20 text-logo-primary"
                       : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
@@ -327,75 +361,69 @@ export const LocalModels: React.FC = () => {
                   />
                 </button>
 
-                {languageDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-56 bg-raised border border-line/48 rounded-lg shadow-raised z-50 overflow-hidden">
-                    <div className="p-2 border-b border-line/24">
-                      <input
-                        ref={languageSearchInputRef}
-                        type="text"
-                        value={languageSearch}
-                        onChange={(e) => setLanguageSearch(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (
-                            e.key === "Enter" &&
-                            filteredLanguages.length > 0
-                          ) {
-                            setLanguageFilter(filteredLanguages[0].value);
-                            setLanguageDropdownOpen(false);
-                            setLanguageSearch("");
-                          } else if (e.key === "Escape") {
-                            setLanguageDropdownOpen(false);
-                            setLanguageSearch("");
-                          }
-                        }}
-                        placeholder={t(
-                          "settings.general.language.searchPlaceholder",
-                        )}
-                        className="w-full px-2 py-1 text-sm bg-mid-gray/10 border border-line/24 rounded-md focus:outline-none focus:ring-1 focus:ring-logo-primary"
-                      />
-                    </div>
-                    <div className="max-h-48 overflow-y-auto p-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLanguageFilter("all");
+                <div
+                  data-open={languageDropdownOpen}
+                  inert={!languageDropdownOpen}
+                  className="dropdown-panel [--dropdown-origin:top_right] absolute top-full right-0 mt-1 w-56 bg-raised border border-line/48 rounded-lg shadow-raised z-50 overflow-hidden"
+                >
+                  <div className="p-2 border-b border-line/24">
+                    <input
+                      ref={languageSearchInputRef}
+                      type="text"
+                      value={languageSearch}
+                      onChange={(e) => setLanguageSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && filteredLanguages.length > 0) {
+                          setLanguageFilter(filteredLanguages[0].value);
                           setLanguageDropdownOpen(false);
                           setLanguageSearch("");
-                        }}
-                        className={`w-full rounded-[calc(var(--radius-lg)-5px)] px-3 py-1.5 text-sm text-left transition-colors ${
-                          languageFilter === "all"
+                        } else if (e.key === "Escape") {
+                          setLanguageDropdownOpen(false);
+                          setLanguageSearch("");
+                        }
+                      }}
+                      aria-label={t(
+                        "settings.general.language.searchPlaceholder",
+                      )}
+                      placeholder={t(
+                        "settings.general.language.searchPlaceholder",
+                      )}
+                      className="w-full px-2 py-1 text-sm bg-mid-gray/10 border border-line/24 rounded-md focus:outline-none focus:ring-1 focus:ring-logo-primary"
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto overscroll-contain p-1">
+                    <button
+                      type="button"
+                      onClick={() => chooseLanguage("all")}
+                      className={`w-full rounded-[calc(var(--radius-lg)-5px)] px-3 py-1.5 text-sm text-left ${
+                        languageFilter === "all"
+                          ? "bg-logo-primary/20 text-logo-primary font-semibold"
+                          : "hover:bg-mid-gray/10"
+                      }`}
+                    >
+                      {t("settings.models.filters.allLanguages")}
+                    </button>
+                    {filteredLanguages.map((lang) => (
+                      <button
+                        key={lang.value}
+                        type="button"
+                        onClick={() => chooseLanguage(lang.value)}
+                        className={`w-full rounded-[calc(var(--radius-lg)-5px)] px-3 py-1.5 text-sm text-left ${
+                          languageFilter === lang.value
                             ? "bg-logo-primary/20 text-logo-primary font-semibold"
                             : "hover:bg-mid-gray/10"
                         }`}
                       >
-                        {t("settings.models.filters.allLanguages")}
+                        {lang.label}
                       </button>
-                      {filteredLanguages.map((lang) => (
-                        <button
-                          key={lang.value}
-                          type="button"
-                          onClick={() => {
-                            setLanguageFilter(lang.value);
-                            setLanguageDropdownOpen(false);
-                            setLanguageSearch("");
-                          }}
-                          className={`w-full rounded-[calc(var(--radius-lg)-5px)] px-3 py-1.5 text-sm text-left transition-colors ${
-                            languageFilter === lang.value
-                              ? "bg-logo-primary/20 text-logo-primary font-semibold"
-                              : "hover:bg-mid-gray/10"
-                          }`}
-                        >
-                          {lang.label}
-                        </button>
-                      ))}
-                      {filteredLanguages.length === 0 && (
-                        <div className="px-3 py-2 text-sm text-text/50 text-center">
-                          {t("settings.general.language.noResults")}
-                        </div>
-                      )}
-                    </div>
+                    ))}
+                    {filteredLanguages.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-text/50 text-center">
+                        {t("settings.general.language.noResults")}
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
@@ -433,8 +461,12 @@ export const LocalModels: React.FC = () => {
           )}
         {availableModels.length > 0 &&
           (showAvailable || !!searchQuery.trim()) && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-medium text-text/60">
+            <div className="disclosure-content space-y-3">
+              <h2
+                ref={catalogueHeadingRef}
+                tabIndex={-1}
+                className="text-sm font-medium text-text/60"
+              >
                 {t("settings.models.availableModels")}
               </h2>
               {availableModels.map((model: ModelInfo) => (

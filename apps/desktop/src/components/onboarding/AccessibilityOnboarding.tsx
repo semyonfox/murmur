@@ -332,7 +332,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
       >
         <Loader2
           aria-hidden="true"
-          className="w-8 h-8 animate-spin text-text/50"
+          className="w-8 h-8 delayed-spin text-text/50"
         />
         <span>
           {t("murmur.onboarding.checking", {
@@ -430,7 +430,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                       aria-labelledby="microphone-action microphone-title"
                       aria-describedby="microphone-description"
                       onClick={handleGrantMicrophone}
-                      className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium transition-colors"
+                      className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium"
                     >
                       <span id="microphone-action">
                         {isWindows
@@ -488,7 +488,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                       aria-labelledby="accessibility-action accessibility-title"
                       aria-describedby="accessibility-description"
                       onClick={handleGrantAccessibility}
-                      className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium transition-colors"
+                      className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium"
                     >
                       <span id="accessibility-action">
                         {permissions.accessibility === "waiting"

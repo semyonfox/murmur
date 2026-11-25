@@ -91,7 +91,7 @@ export function OpenRouterUsageCard() {
           className="inline-flex items-center gap-2"
         >
           <RefreshCw
-            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+            className={`h-3.5 w-3.5 ${loading ? "delayed-spin" : ""}`}
             aria-hidden="true"
           />
           {t("murmur.stats.refresh", { defaultValue: "Refresh" })}

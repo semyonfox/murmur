@@ -20,6 +20,7 @@ import {
   type HistoryEntry,
   type HistoryUpdatePayload,
 } from "@/bindings";
+import { useDelayedFlag } from "@/hooks/useDelayedFlag";
 import { useOsType } from "@/hooks/useOsType";
 import { formatDate, formatDateTime } from "@/utils/dateFormat";
 import { AudioPlayer, AudioPlayerGroup } from "../../ui/AudioPlayer";
@@ -40,7 +41,7 @@ const IconButton: React.FC<{
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`p-1.5 rounded-md flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:text-text/20 focus-visible:ring-2 focus-visible:ring-logo-primary max-sm:min-h-11 max-sm:min-w-11 ${
+    className={`p-1.5 rounded-md flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:text-text/20 focus-visible:ring-2 focus-visible:ring-logo-primary max-sm:min-h-11 max-sm:min-w-11 ${
       active
         ? "text-logo-primary hover:text-logo-primary/80"
         : "text-text/50 hover:text-logo-primary"
@@ -81,6 +82,7 @@ export const HistorySettings: React.FC = () => {
   const osType = useOsType();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const longLoad = useDelayedFlag(loading, 3000);
   const [hasMore, setHasMore] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -318,8 +320,14 @@ export const HistorySettings: React.FC = () => {
 
   if (loading) {
     content = (
-      <div role="status" className="px-4 py-3 text-center text-text/60">
-        {t("settings.history.loading")}
+      <div data-loading-long={longLoad}>
+        <p
+          role="status"
+          className={longLoad ? "px-4 py-3 text-sm text-mid-gray" : "sr-only"}
+        >
+          {t("settings.history.loading")}
+        </p>
+        <HistorySkeleton />
       </div>
     );
   } else if (entries.length === 0 && !loadError) {
@@ -457,6 +465,36 @@ export const HistorySettings: React.FC = () => {
   );
 };
 
+function HistorySkeleton() {
+  return (
+    <div aria-hidden="true">
+      <div className="border-b border-line/9 bg-mid-gray/5 px-4 py-2">
+        <div className="skeleton my-1 h-3 w-28 rounded" />
+      </div>
+      <div className="flex flex-col gap-3 px-4 py-2 pb-5">
+        <div className="flex h-7 items-center justify-between">
+          <div className="skeleton h-3 w-36 rounded" />
+          <div className="flex gap-2">
+            {[0, 1, 2, 3].map((action) => (
+              <span key={action} className="skeleton size-4 rounded" />
+            ))}
+          </div>
+        </div>
+        <div className="flex h-[24px] items-center">
+          <div className="skeleton h-3 w-30 rounded" />
+        </div>
+        <div className="pb-2">
+          <div className="skeleton h-4 w-3/4 rounded" />
+        </div>
+        <div className="flex min-h-11 items-center gap-3">
+          <div className="skeleton size-6 shrink-0 rounded-full" />
+          <div className="skeleton h-1.5 flex-1 rounded-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface HistoryEntryProps {
   entry: HistoryEntry;
   onToggleSaved: () => void;
@@ -477,6 +515,8 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const { t, i18n } = useTranslation();
   const [showCopied, setShowCopied] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [retryFailed, setRetryFailed] = useState(false);
+  const longRetry = useDelayedFlag(retrying, 5000);
   const [deleting, setDeleting] = useState(false);
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
@@ -574,6 +614,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
 
   const handleRetranscribe = async () => {
     try {
+      setRetryFailed(false);
       setRetrying(true);
       setActionStatus(t("settings.history.transcribing"));
       await retryTranscription(entry.id);
@@ -585,8 +626,8 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
       );
     } catch (error) {
       console.error("Failed to re-transcribe:", error);
-      setActionStatus(t("settings.history.retranscribeError"));
-      toast.error(t("settings.history.retranscribeError"));
+      setActionStatus("");
+      setRetryFailed(true);
     } finally {
       setRetrying(false);
     }
@@ -636,11 +677,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
             <RotateCcw
               width={16}
               height={16}
-              style={
-                retrying
-                  ? { animation: "spin 1s linear infinite reverse" }
-                  : undefined
-              }
+              className={retrying ? "delayed-spin" : undefined}
             />
           </IconButton>
           <IconButton
@@ -705,33 +742,26 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         </p>
       )}
 
+      {retryFailed && (
+        <p role="alert" className="text-sm text-error">
+          {t("settings.history.retranscribeError")}
+        </p>
+      )}
+      {longRetry && (
+        <p className="text-xs text-mid-gray">
+          {t("settings.history.transcribing")}
+        </p>
+      )}
       <p
         className={`italic text-sm pb-2 ${
-          retrying
-            ? ""
-            : hasTranscription
-              ? "text-text/90 select-text cursor-text whitespace-pre-wrap break-words"
-              : "text-text/40"
+          hasTranscription
+            ? "text-text/90 select-text cursor-text whitespace-pre-wrap break-words"
+            : "text-text/40"
         }`}
-        style={
-          retrying
-            ? { animation: "transcribe-pulse 3s ease-in-out infinite" }
-            : undefined
-        }
       >
-        {retrying && (
-          <style>{`
-            @keyframes transcribe-pulse {
-              0%, 100% { color: color-mix(in srgb, var(--color-text) 40%, transparent); }
-              50% { color: color-mix(in srgb, var(--color-text) 90%, transparent); }
-            }
-          `}</style>
-        )}
-        {retrying
-          ? t("settings.history.transcribing")
-          : hasTranscription
-            ? displayText
-            : t("settings.history.transcriptionFailed")}
+        {hasTranscription
+          ? displayText
+          : t("settings.history.transcriptionFailed")}
       </p>
 
       <AudioPlayer onLoadRequest={handleLoadAudio} className="w-full" />
