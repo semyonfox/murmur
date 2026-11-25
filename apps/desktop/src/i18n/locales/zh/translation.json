@@ -147,7 +147,7 @@
     "loadingGeneric": "加载中...",
     "modelError": "模型错误",
     "modelUnloaded": "模型已卸载",
-    "noModelDownloadRequired": "无模型 - 需要下载",
+    "noModelDownloadRequired": "尚未选择模型。请在“模型”中选择一个。",
     "deleteModel": "删除 {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
     "capabilities": {
@@ -182,6 +182,7 @@
       "yourModels": "已下载的模型",
       "availableModels": "可供下载",
       "searchPlaceholder": "按名称搜索模型…",
+      "searchLabel": "按名称搜索模型",
       "rescan": {
         "label": "重新扫描",
         "tooltip": "重新扫描在 Murmur 之外添加到模型文件夹或 Hugging Face 缓存中的模型"
@@ -473,7 +474,7 @@
       "save": "保存转录",
       "unsave": "从已保存中移除",
       "delete": "删除条目",
-      "deleteError": "删除条目失败，请重试。",
+      "deleteError": "无法删除这条听写记录。它仍然保留。请重试。",
       "retranscribe": "重新转录",
       "retranscribeError": "重新转录失败。请重试。",
       "transcribing": "转录中...",
@@ -744,6 +745,8 @@
       "removeKey": "移除密钥",
       "keyStatusUnknown": "正在检查系统凭据存储…",
       "keyStored": "密钥已保存在系统凭据存储中",
+      "enableToConfigure": "开启 AI 润色，然后选择服务提供商。",
+      "noProviders": "没有可用的润色服务提供商。",
       "keyMissing": "未保存密钥",
       "formality": {
         "veryCasual": "非常随意",

@@ -147,7 +147,7 @@
     "loadingGeneric": "Đang tải...",
     "modelError": "Lỗi Mô Hình",
     "modelUnloaded": "Mô Hình Đã Gỡ",
-    "noModelDownloadRequired": "Chưa Có Mô Hình - Cần Tải Xuống",
+    "noModelDownloadRequired": "Chưa có mô hình. Hãy chọn một mô hình trong mục Mô hình.",
     "deleteModel": "Xóa {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
     "capabilities": {
@@ -182,6 +182,7 @@
       "yourModels": "Mô hình đã tải",
       "availableModels": "Có sẵn để tải xuống",
       "searchPlaceholder": "Tìm mô hình theo tên…",
+      "searchLabel": "Tìm mô hình theo tên",
       "rescan": {
         "label": "Quét lại",
         "tooltip": "Quét lại các mô hình được thêm vào thư mục mô hình hoặc bộ nhớ đệm Hugging Face bên ngoài Murmur"
@@ -473,7 +474,7 @@
       "save": "Lưu bản ghi",
       "unsave": "Xóa khỏi đã lưu",
       "delete": "Xóa mục",
-      "deleteError": "Không thể xóa mục. Vui lòng thử lại.",
+      "deleteError": "Không thể xoá bản đọc chính tả này. Bản ghi vẫn được lưu. Hãy thử lại.",
       "retranscribe": "Phiên âm lại",
       "retranscribeError": "Không thể phiên âm lại. Vui lòng thử lại.",
       "transcribing": "Đang phiên âm...",
@@ -744,6 +745,8 @@
       "removeKey": "Xóa khóa",
       "keyStatusUnknown": "Đang kiểm tra kho thông tin xác thực của hệ thống…",
       "keyStored": "Đã lưu khóa trong kho thông tin xác thực của hệ thống",
+      "enableToConfigure": "Bật tính năng chỉnh sửa bằng AI, rồi chọn nhà cung cấp.",
+      "noProviders": "Không có nhà cung cấp dịch vụ chỉnh sửa.",
       "keyMissing": "Chưa lưu khóa",
       "formality": {
         "veryCasual": "Rất thoải mái",

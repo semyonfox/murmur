@@ -197,9 +197,9 @@ test("failed deletion preserves recovery text and reports the error", async ({
   });
   await openHistory(page);
   await page.getByRole("button", { name: "Delete entry" }).click();
-  await expect(
-    page.getByText("Failed to delete entry. Please try again."),
-  ).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText(
+    "Couldn’t delete this dictation. It’s still saved. Try again.",
+  );
   await expect(
     page.getByText(sampleHistory.post_processed_text!, { exact: true }),
   ).toBeVisible();

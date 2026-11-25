@@ -147,7 +147,7 @@
     "loadingGeneric": "טוען...",
     "modelError": "שגיאת מודל",
     "modelUnloaded": "המודל נפרק",
-    "noModelDownloadRequired": "אין מודל, נדרשת הורדה",
+    "noModelDownloadRequired": "עדיין אין מודל. יש לבחור מודל במסך המודלים.",
     "deleteModel": "מחק את {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
     "cancel": "ביטול",
@@ -233,6 +233,7 @@
       },
       "noModelsMatch": "אין מודלים שמתאימים לסינון הזה.",
       "searchPlaceholder": "חיפוש מודלים לפי שם…",
+      "searchLabel": "חיפוש מודלים לפי שם",
       "rescan": {
         "label": "סריקה מחדש",
         "tooltip": "סריקה מחדש לאיתור מודלים שנוספו לתיקיית המודלים או למטמון של Hugging Face מחוץ ל-Murmur"
@@ -473,7 +474,7 @@
       "save": "שמור תמלול",
       "unsave": "הסר משמורים",
       "delete": "מחק רשומה",
-      "deleteError": "מחיקת הרשומה נכשלה. נסה שוב.",
+      "deleteError": "לא ניתן היה למחוק את ההכתבה. היא עדיין שמורה. אפשר לנסות שוב.",
       "retranscribe": "תמלל מחדש",
       "retranscribeError": "תמלול מחדש נכשל. נסה שוב.",
       "transcribing": "מתמלל...",
@@ -744,6 +745,8 @@
       "removeKey": "הסרת המפתח",
       "keyStatusUnknown": "בודק את מאגר האישורים של המערכת…",
       "keyStored": "המפתח נשמר במאגר האישורים של המערכת",
+      "enableToConfigure": "יש להפעיל את העריכה בעזרת בינה מלאכותית ולבחור ספק.",
+      "noProviders": "אין ספקי עריכה זמינים.",
       "keyMissing": "לא נשמר מפתח",
       "formality": {
         "veryCasual": "יומיומי מאוד",

@@ -4,7 +4,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import ModelSelector from "../model-selector";
 import { useSettings } from "../../hooks/useSettings";
 
-const Footer: React.FC = () => {
+const Footer: React.FC<{ onOpenModels: () => void }> = ({ onOpenModels }) => {
   const [version, setVersion] = useState("");
   const { settings } = useSettings();
 
@@ -26,7 +26,9 @@ const Footer: React.FC = () => {
     <div className="w-full border-t border-line/12 pt-3">
       <div className="flex justify-between items-center text-xs px-4 pb-3 text-text/60">
         <div className="flex items-center gap-4">
-          {settings?.stt_source !== "endpoint" && <ModelSelector />}
+          {settings?.stt_source !== "endpoint" && (
+            <ModelSelector onOpenModels={onOpenModels} />
+          )}
         </div>
 
         <div className="flex items-center gap-1">

@@ -146,7 +146,7 @@
     "loadingGeneric": "Yükleniyor...",
     "modelError": "Model Hatası",
     "modelUnloaded": "Model Boşaltıldı",
-    "noModelDownloadRequired": "Model Yok – İndirme Gerekli",
+    "noModelDownloadRequired": "Henüz model yok. Modeller bölümünden bir model seçin.",
     "deleteModel": "{{modelName}} Sil",
     "switching": "Değiştiriliyor...",
     "downloadSpeed": "{{speed}} MB/s",
@@ -182,6 +182,7 @@
       "yourModels": "İndirilen Modeller",
       "availableModels": "İndirilebilir",
       "searchPlaceholder": "Modelleri ada göre ara…",
+      "searchLabel": "Modelleri ada göre ara",
       "rescan": {
         "label": "Yeniden Tara",
         "tooltip": "Murmur dışında modeller klasörüne veya Hugging Face önbelleğine eklenen modelleri yeniden tara"
@@ -473,7 +474,7 @@
       "save": "Transkripsiyonu kaydet",
       "unsave": "Kaydedilenlerden kaldır",
       "delete": "Kaydı sil",
-      "deleteError": "Kayıt silinemedi. Lütfen tekrar deneyin.",
+      "deleteError": "Bu dikte silinemedi. Hâlâ kayıtlı. Tekrar deneyin.",
       "retranscribe": "Yeniden transkribe et",
       "retranscribeError": "Yeniden transkripsiyon başarısız oldu. Lütfen tekrar deneyin.",
       "transcribing": "Transkribe ediliyor...",
@@ -744,6 +745,8 @@
       "removeKey": "Anahtarı kaldır",
       "keyStatusUnknown": "Sistem kimlik bilgisi deposu denetleniyor…",
       "keyStored": "Anahtar sistem kimlik bilgisi deposuna kaydedildi",
+      "enableToConfigure": "Yapay zekâyla düzenlemeyi açın ve bir sağlayıcı seçin.",
+      "noProviders": "Kullanılabilir düzenleme sağlayıcısı yok.",
       "keyMissing": "Kayıtlı anahtar yok",
       "formality": {
         "veryCasual": "Çok samimi",

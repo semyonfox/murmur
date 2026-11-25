@@ -5,17 +5,21 @@ interface ProviderSelectProps {
   options: DropdownOption[];
   value: string;
   onChange: (value: string) => void;
-  disabled?: boolean;
+  label: string;
+  placeholder: string;
+  unavailableReasonId?: string;
 }
 
 export const ProviderSelect: React.FC<ProviderSelectProps> = React.memo(
-  ({ options, value, onChange, disabled }) => {
+  ({ options, value, onChange, label, placeholder, unavailableReasonId }) => {
     return (
       <Dropdown
         options={options}
         selectedValue={value}
         onSelect={onChange}
-        disabled={disabled}
+        label={label}
+        placeholder={placeholder}
+        unavailableReasonId={unavailableReasonId}
         className="flex-1"
       />
     );

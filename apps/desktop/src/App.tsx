@@ -482,7 +482,7 @@ function App() {
           </div>
         </div>
         {/* Fixed footer at bottom */}
-        <Footer />
+        <Footer onOpenModels={() => setCurrentSection("models")} />
       </div>
     );
   }

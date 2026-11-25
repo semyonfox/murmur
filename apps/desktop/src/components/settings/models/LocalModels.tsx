@@ -247,6 +247,7 @@ export const LocalModels: React.FC = () => {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label={t("settings.models.searchLabel")}
           placeholder={t("settings.models.searchPlaceholder")}
           className="w-full pl-9 pr-3 py-2 text-sm bg-surface border border-line/12 rounded-lg focus:outline-none focus:ring-2 focus:ring-logo-primary/40 placeholder:text-text/40"
         />

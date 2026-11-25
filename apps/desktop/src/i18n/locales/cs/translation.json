@@ -146,7 +146,7 @@
     "loadingGeneric": "Načítání...",
     "modelError": "Chyba modelu",
     "modelUnloaded": "Model uvolněn",
-    "noModelDownloadRequired": "Žádný model - je nutné stáhnout",
+    "noModelDownloadRequired": "Zatím není vybraný žádný model. Vyberte ho v části Modely.",
     "deleteModel": "Smazat {{modelName}}",
     "switching": "Přepínání...",
     "downloadSpeed": "{{speed}} MB/s",
@@ -182,6 +182,7 @@
       "yourModels": "Stažené modely",
       "availableModels": "Dostupné ke stažení",
       "searchPlaceholder": "Hledat modely podle názvu…",
+      "searchLabel": "Hledat modely podle názvu",
       "rescan": {
         "label": "Znovu prohledat",
         "tooltip": "Znovu prohledat modely přidané do složky modelů nebo mezipaměti Hugging Face mimo Murmur"
@@ -473,7 +474,7 @@
       "save": "Uložit přepis",
       "unsave": "Odebrat z uložených",
       "delete": "Smazat záznam",
-      "deleteError": "Nepodařilo se smazat záznam. Zkuste to prosím znovu.",
+      "deleteError": "Tento diktát se nepodařilo smazat. Zůstává uložený. Zkuste to znovu.",
       "retranscribe": "Přepsat znovu",
       "retranscribeError": "Opětovný přepis se nezdařil. Zkuste to prosím znovu.",
       "transcribing": "Přepisuji...",
@@ -744,6 +745,8 @@
       "removeKey": "Odebrat klíč",
       "keyStatusUnknown": "Kontroluji systémové úložiště přihlašovacích údajů…",
       "keyStored": "Klíč je uložen v systémovém úložišti přihlašovacích údajů",
+      "enableToConfigure": "Zapněte úpravy pomocí AI a vyberte poskytovatele.",
+      "noProviders": "Nejsou k dispozici žádní poskytovatelé úprav.",
       "keyMissing": "Žádný uložený klíč",
       "formality": {
         "veryCasual": "Velmi neformální",

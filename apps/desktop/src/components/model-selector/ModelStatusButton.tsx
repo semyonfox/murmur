@@ -13,7 +13,7 @@ type ModelStatus =
 interface ModelStatusButtonProps {
   status: ModelStatus;
   displayText: string;
-  isDropdownOpen: boolean;
+  isDropdownOpen?: boolean;
   onClick: () => void;
   className?: string;
 }
@@ -50,20 +50,36 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
 
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`flex items-center gap-2 hover:text-text/80 transition-colors ${className}`}
+      aria-expanded={isDropdownOpen}
+      className={`flex min-h-[24px] min-w-[24px] items-center gap-2 hover:text-text/80 transition-colors ${className}`}
       title={`Model status: ${displayText}`}
     >
-      <div className={`w-2 h-2 rounded-full ${getStatusColor(status)}`} />
-      <span className="max-w-[45vw] truncate">{displayText}</span>
-      <svg
-        className={`w-3 h-3 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+      <div
+        className={`w-2 h-2 shrink-0 rounded-full ${getStatusColor(status)}`}
+      />
+      <span
+        className={
+          isDropdownOpen === undefined ? "text-start" : "max-w-[45vw] truncate"
+        }
       >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-      </svg>
+        {displayText}
+      </span>
+      {isDropdownOpen !== undefined && (
+        <svg
+          className={`w-3 h-3 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      )}
     </button>
   );
 };

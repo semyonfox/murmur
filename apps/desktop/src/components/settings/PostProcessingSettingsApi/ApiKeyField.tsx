@@ -6,12 +6,21 @@ interface ApiKeyFieldProps {
   label: string;
   onBlur: (value: string) => void;
   disabled: boolean;
+  unavailableReasonId?: string;
   placeholder?: string;
   className?: string;
 }
 
 export const ApiKeyField: React.FC<ApiKeyFieldProps> = React.memo(
-  ({ value, label, onBlur, disabled, placeholder, className = "" }) => {
+  ({
+    value,
+    label,
+    onBlur,
+    disabled,
+    unavailableReasonId,
+    placeholder,
+    className = "",
+  }) => {
     const [localValue, setLocalValue] = useState(value);
 
     // Sync with prop changes
@@ -23,13 +32,20 @@ export const ApiKeyField: React.FC<ApiKeyFieldProps> = React.memo(
       <Input
         type="password"
         aria-label={label}
+        aria-disabled={unavailableReasonId ? true : undefined}
+        aria-describedby={unavailableReasonId}
+        readOnly={!!unavailableReasonId}
         value={localValue}
-        onChange={(event) => setLocalValue(event.target.value)}
-        onBlur={() => onBlur(localValue)}
+        onChange={
+          unavailableReasonId
+            ? undefined
+            : (event) => setLocalValue(event.target.value)
+        }
+        onBlur={unavailableReasonId ? undefined : () => onBlur(localValue)}
         placeholder={placeholder}
         variant="compact"
-        disabled={disabled}
-        className={`min-w-0 flex-1 ${className}`}
+        disabled={disabled && !unavailableReasonId}
+        className={`min-w-0 flex-1 ${unavailableReasonId ? "cursor-not-allowed opacity-60" : ""} ${className}`}
       />
     );
   },

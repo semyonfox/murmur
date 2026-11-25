@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { commands } from "@/bindings";
 
@@ -15,6 +15,7 @@ import { FillerWordRemoval } from "../FillerWordRemoval";
 import { PostProcessingToggle } from "../PostProcessingToggle";
 import { useSettings } from "../../../hooks/useSettings";
 import { CleanupModel } from "./CleanupModel";
+import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 
 const PostProcessingSettingsPromptsComponent: React.FC = () => {
   const { t } = useTranslation();
@@ -296,6 +297,16 @@ export const CleanupSettings: React.FC = () => {
   const { t } = useTranslation();
   const { getSetting, updateSetting, isLoading, isUpdating } = useSettings();
   const cleanupEnabled = getSetting("post_process_enabled") ?? false;
+  const providerState = usePostProcessProviderState();
+  const unavailableReasonId = useId();
+  const unavailableReason = !cleanupEnabled
+    ? t("murmur.cleanup.enableToConfigure")
+    : !providerState.selectedProvider
+      ? t("murmur.cleanup.noProviders")
+      : undefined;
+  const unavailableDescription = unavailableReason
+    ? unavailableReasonId
+    : undefined;
   const formality = getSetting("post_process_formality") ?? 3;
   const formalityOptions = [
     {
@@ -353,7 +364,20 @@ export const CleanupSettings: React.FC = () => {
         })}
       >
         <PostProcessingToggle descriptionMode="tooltip" grouped={true} />
-        <CleanupModel />
+        {unavailableReason && (
+          <div className="px-4 py-2">
+            <p
+              id={unavailableReasonId}
+              className="max-w-[70ch] text-xs/normal text-mid-gray"
+            >
+              {unavailableReason}
+            </p>
+          </div>
+        )}
+        <CleanupModel
+          state={providerState}
+          unavailableReasonId={unavailableDescription}
+        />
         <SettingContainer
           title={t("murmur.cleanup.formality.title", {
             defaultValue: "Tone",
@@ -365,15 +389,14 @@ export const CleanupSettings: React.FC = () => {
           descriptionMode="tooltip"
           layout="stacked"
           grouped
-          disabled={!cleanupEnabled}
+          disabled={!!unavailableReason}
         >
           <fieldset
             disabled={
-              !cleanupEnabled ||
-              isLoading ||
-              isUpdating("post_process_formality")
+              !unavailableReason &&
+              (isLoading || isUpdating("post_process_formality"))
             }
-            className="grid grid-cols-5 gap-1.5 pb-2 disabled:opacity-50"
+            className={`grid grid-cols-5 gap-1.5 pb-2 disabled:opacity-50 ${unavailableReason ? "opacity-50" : ""}`}
           >
             <legend className="sr-only">
               {t("murmur.cleanup.formality.title", {
@@ -383,7 +406,9 @@ export const CleanupSettings: React.FC = () => {
             {formalityOptions.map((option) => (
               <label
                 key={option.value}
-                className={`flex min-w-0 cursor-pointer items-center justify-center rounded-lg border px-1 py-2 text-center text-xs font-medium transition-colors focus-within:ring-2 focus-within:ring-logo-primary/40 ${
+                className={`relative flex min-w-0 items-center justify-center rounded-lg border px-1 py-2 text-center text-xs font-medium transition-colors focus-within:ring-2 focus-within:ring-logo-primary/40 ${
+                  unavailableReason ? "cursor-not-allowed" : "cursor-pointer"
+                } ${
                   formality === option.value
                     ? "border-logo-primary/70 bg-logo-primary/10 text-text"
                     : "border-line/12 text-text/80 hover:border-line/27"
@@ -394,9 +419,19 @@ export const CleanupSettings: React.FC = () => {
                   name="post-process-formality"
                   value={option.value}
                   checked={formality === option.value}
-                  onChange={() =>
-                    updateSetting("post_process_formality", option.value)
-                  }
+                  aria-disabled={unavailableReason ? true : undefined}
+                  aria-describedby={unavailableDescription}
+                  onClick={(event) => {
+                    if (unavailableReason) event.preventDefault();
+                  }}
+                  onKeyDown={(event) => {
+                    if (unavailableReason && event.key.startsWith("Arrow"))
+                      event.preventDefault();
+                  }}
+                  onChange={() => {
+                    if (!unavailableReason)
+                      updateSetting("post_process_formality", option.value);
+                  }}
                   className="sr-only"
                 />
                 {option.label}

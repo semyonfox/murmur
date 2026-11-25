@@ -71,29 +71,28 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
               className="relative"
               onMouseEnter={() => setShowTooltip(true)}
               onMouseLeave={() => setShowTooltip(false)}
-              onClick={toggleTooltip}
             >
-              <svg
-                className="min-w-6 min-h-6 text-mid-gray cursor-help hover:text-logo-primary transition-colors duration-200 select-none"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+              <button
+                type="button"
+                className="grid size-[24px] place-items-center text-mid-gray cursor-help hover:text-logo-primary transition-colors duration-200"
                 aria-label={`More information: ${title}`}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    toggleTooltip();
-                  }
-                }}
+                aria-expanded={showTooltip}
+                onClick={toggleTooltip}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+                <svg
+                  className="size-6 select-none"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </button>
               {showTooltip && (
                 <Tooltip targetRef={tooltipRef} position="top">
                   <p className="text-sm text-center leading-relaxed">
@@ -153,29 +152,28 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
               className="relative"
               onMouseEnter={() => setShowTooltip(true)}
               onMouseLeave={() => setShowTooltip(false)}
-              onClick={toggleTooltip}
             >
-              <svg
-                className="min-w-6 min-h-6 text-mid-gray cursor-help hover:text-logo-primary transition-colors duration-200 select-none"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+              <button
+                type="button"
+                className="grid size-[24px] place-items-center text-mid-gray cursor-help hover:text-logo-primary transition-colors duration-200"
                 aria-label={`More information: ${title}`}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    toggleTooltip();
-                  }
-                }}
+                aria-expanded={showTooltip}
+                onClick={toggleTooltip}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+                <svg
+                  className="size-6 select-none"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </button>
               {showTooltip && (
                 <Tooltip targetRef={tooltipRef} position={tooltipPosition}>
                   <p className="text-sm text-center leading-relaxed">

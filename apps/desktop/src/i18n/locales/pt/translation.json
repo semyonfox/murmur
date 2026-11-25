@@ -146,7 +146,7 @@
     "loadingGeneric": "Carregando...",
     "modelError": "Erro no Modelo",
     "modelUnloaded": "Modelo Descarregado",
-    "noModelDownloadRequired": "Sem Modelo - Download Necessário",
+    "noModelDownloadRequired": "Ainda não há um modelo. Escolhe um em Modelos.",
     "deleteModel": "Excluir {{modelName}}",
     "switching": "Alternando...",
     "downloadSpeed": "{{speed}} MB/s",
@@ -233,6 +233,7 @@
       "yourModels": "Modelos baixados",
       "availableModels": "Disponíveis para download",
       "searchPlaceholder": "Buscar modelos por nome…",
+      "searchLabel": "Buscar modelos por nome",
       "rescan": {
         "label": "Reescanear",
         "tooltip": "Reescaneia em busca de modelos adicionados à pasta de modelos ou ao cache do Hugging Face fora do Murmur"
@@ -473,7 +474,7 @@
       "save": "Salvar transcrição",
       "unsave": "Remover dos salvos",
       "delete": "Excluir entrada",
-      "deleteError": "Falha ao excluir entrada. Por favor, tente novamente.",
+      "deleteError": "Não foi possível apagar este ditado. Continua guardado. Tenta novamente.",
       "retranscribe": "Re-transcrever",
       "retranscribeError": "Falha ao re-transcrever. Por favor, tente novamente.",
       "transcribing": "Transcrevendo...",
@@ -744,6 +745,8 @@
       "removeKey": "Remover chave",
       "keyStatusUnknown": "A verificar o armazenamento de credenciais do sistema…",
       "keyStored": "Chave guardada no armazenamento de credenciais do sistema",
+      "enableToConfigure": "Ativa a correção com IA e escolhe um fornecedor.",
+      "noProviders": "Não há fornecedores de correção disponíveis.",
       "keyMissing": "Nenhuma chave guardada",
       "formality": {
         "veryCasual": "Muito descontraído",

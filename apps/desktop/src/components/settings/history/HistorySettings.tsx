@@ -416,12 +416,14 @@ export const HistorySettings: React.FC = () => {
           defaultValue: "Storage and archive",
         })}
       >
-        <p className="px-4 pt-3 text-xs leading-relaxed text-mid-gray">
-          {t("murmur.history.storage.description", {
-            defaultValue:
-              "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive.",
-          })}
-        </p>
+        <div className="px-4 pt-3">
+          <p className="max-w-[70ch] text-xs/normal text-mid-gray">
+            {t("murmur.history.storage.description", {
+              defaultValue:
+                "Choose how long to keep recordings and transcripts. Export a compressed copy with both raw and cleaned text whenever you want a long-term archive.",
+            })}
+          </p>
+        </div>
         <RecordingRetentionPeriodSelector descriptionMode="tooltip" grouped />
         {getSetting("recording_retention_period") === "preserve_limit" && (
           <HistoryLimit descriptionMode="tooltip" grouped />
@@ -476,6 +478,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const [showCopied, setShowCopied] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteFailed, setDeleteFailed] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
 
   const processedText =
@@ -548,11 +551,12 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         },
       );
       if (!confirmed) return;
+      setDeleteFailed(false);
       setDeleting(true);
       await deleteAudio(entry.id);
     } catch (error) {
       console.error("Failed to delete entry:", error);
-      toast.error(t("settings.history.deleteError"));
+      setDeleteFailed(true);
     } finally {
       setDeleting(false);
       confirmationPending.current = false;
@@ -649,6 +653,15 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         </div>
       </div>
 
+      {deleteFailed && (
+        <p
+          role="alert"
+          className="max-w-[70ch] text-sm leading-normal text-error"
+        >
+          {t("settings.history.deleteError")}
+        </p>
+      )}
+
       {processedText && (
         <div className="flex items-center gap-3 text-xs">
           <span className="text-mid-gray">
@@ -670,7 +683,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
               setShowRaw((raw) => !raw);
               setShowCopied(false);
             }}
-            className="rounded-md px-2 py-1 text-logo-primary hover:bg-mid-gray/10 cursor-pointer focus-visible:ring-2 focus-visible:ring-logo-primary max-sm:min-h-11"
+            className="min-h-[24px] min-w-[24px] rounded-md px-2 py-1 text-logo-primary hover:bg-mid-gray/10 cursor-pointer focus-visible:ring-2 focus-visible:ring-logo-primary max-sm:min-h-11"
           >
             {showRaw
               ? cleanupSucceeded

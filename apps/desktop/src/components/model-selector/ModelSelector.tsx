@@ -21,10 +21,14 @@ type ModelStatus =
   | "none";
 
 interface ModelSelectorProps {
+  onOpenModels: () => void;
   onError?: (error: string) => void;
 }
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
+const ModelSelector: React.FC<ModelSelectorProps> = ({
+  onError,
+  onOpenModels,
+}) => {
   const { t } = useTranslation();
   const {
     models,
@@ -242,6 +246,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     return modelStatus;
   };
 
+  const openModels = modelStatus === "none";
+
   return (
     <>
       {/* Model Status and Switcher */}
@@ -249,12 +255,16 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
         <ModelStatusButton
           status={getDisplayStatus()}
           displayText={getModelDisplayText()}
-          isDropdownOpen={showModelDropdown}
-          onClick={() => setShowModelDropdown(!showModelDropdown)}
+          isDropdownOpen={openModels ? undefined : showModelDropdown}
+          onClick={
+            openModels
+              ? onOpenModels
+              : () => setShowModelDropdown(!showModelDropdown)
+          }
         />
 
         {/* Model Dropdown */}
-        {showModelDropdown && (
+        {!openModels && showModelDropdown && (
           <ModelDropdown
             models={models}
             currentModelId={displayModelId}

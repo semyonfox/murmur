@@ -254,7 +254,7 @@ export const StatsSettings: React.FC = () => {
                 defaultValue: "Your dictation stats",
               })}
             </h2>
-            <p className="mt-1 text-xs leading-relaxed text-mid-gray">
+            <p className="mt-1 max-w-[70ch] text-xs/normal text-mid-gray">
               {t("murmur.history.stats.retainedOnly", {
                 defaultValue:
                   "Based on retained history. Deleted dictations are not counted.",
@@ -505,7 +505,7 @@ export const StatsSettings: React.FC = () => {
                 </div>
               </div>
 
-              <p className="mt-4 text-[11px] leading-relaxed text-mid-gray">
+              <p className="mt-4 max-w-[70ch] text-[11px] leading-normal text-mid-gray">
                 {hasAudio
                   ? t("murmur.history.stats.method", {
                       covered: stats.recordings_with_duration,

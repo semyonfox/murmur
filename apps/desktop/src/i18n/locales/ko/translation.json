@@ -147,7 +147,7 @@
     "loadingGeneric": "로딩 중...",
     "modelError": "모델 오류",
     "modelUnloaded": "모델 언로드됨",
-    "noModelDownloadRequired": "모델 없음 - 다운로드 필요",
+    "noModelDownloadRequired": "아직 모델이 없습니다. 모델에서 하나를 선택하세요.",
     "deleteModel": "{{modelName}} 삭제",
     "downloadSpeed": "{{speed}} MB/s",
     "cancel": "취소",
@@ -262,6 +262,7 @@
       },
       "noModelsMatch": "이 필터에 맞는 모델이 없습니다.",
       "searchPlaceholder": "이름으로 모델 검색…",
+      "searchLabel": "이름으로 모델 검색",
       "rescan": {
         "label": "다시 스캔",
         "tooltip": "Murmur 외부에서 모델 폴더 또는 Hugging Face 캐시에 추가된 모델을 다시 스캔합니다"
@@ -473,7 +474,7 @@
       "save": "변환된 텍스트 저장",
       "unsave": "저장에서 제거",
       "delete": "항목 삭제",
-      "deleteError": "항목 삭제에 실패했습니다. 다시 시도해주세요.",
+      "deleteError": "이 받아쓰기를 삭제하지 못했습니다. 아직 저장되어 있습니다. 다시 시도하세요.",
       "retranscribe": "다시 전사",
       "retranscribeError": "다시 전사에 실패했습니다. 다시 시도해주세요.",
       "transcribing": "전사 중...",
@@ -744,6 +745,8 @@
       "removeKey": "키 삭제",
       "keyStatusUnknown": "시스템 자격 증명 저장소 확인 중…",
       "keyStored": "키가 시스템 자격 증명 저장소에 저장됨",
+      "enableToConfigure": "AI로 다듬기를 켠 다음 제공업체를 선택하세요.",
+      "noProviders": "사용할 수 있는 다듬기 제공업체가 없습니다.",
       "keyMissing": "저장된 키 없음",
       "formality": {
         "veryCasual": "아주 편하게",

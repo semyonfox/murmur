@@ -16,6 +16,7 @@ interface DropdownProps {
   onSelect: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  unavailableReasonId?: string;
   onRefresh?: () => void;
   label?: string;
 }
@@ -28,6 +29,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
   menuClassName,
   placeholder = "Select an option...",
   disabled = false,
+  unavailableReasonId,
   onRefresh,
   label,
 }) => {
@@ -36,6 +38,8 @@ export const Dropdown: React.FC<DropdownProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
+  const unavailable = disabled || !!unavailableReasonId;
+  const menuOpen = isOpen && !unavailable;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -61,7 +65,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
   };
 
   const handleToggle = () => {
-    if (disabled) return;
+    if (unavailable) return;
     if (!isOpen && onRefresh) onRefresh();
     setIsOpen(!isOpen);
   };
@@ -91,10 +95,12 @@ export const Dropdown: React.FC<DropdownProps> = ({
             ? `${label}: ${selectedOption?.label || placeholder}`
             : undefined
         }
-        aria-expanded={isOpen}
-        aria-controls={isOpen ? menuId : undefined}
+        aria-expanded={menuOpen}
+        aria-controls={menuOpen ? menuId : undefined}
+        aria-disabled={unavailableReasonId ? true : undefined}
+        aria-describedby={unavailableReasonId}
         className={`px-2.5 py-[5px] text-sm bg-background border border-line/18 rounded-lg min-w-[200px] max-sm:min-w-0 w-full text-start grid grid-cols-[1fr_auto] gap-2 items-center transition-all duration-150 ${
-          disabled
+          unavailable
             ? "opacity-50 cursor-not-allowed"
             : "cursor-pointer hover:border-line/30"
         }`}
@@ -103,7 +109,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
       >
         <span className="truncate">{selectedOption?.label || placeholder}</span>
         <svg
-          className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "transform rotate-180" : ""}`}
+          className={`w-4 h-4 transition-transform duration-200 ${menuOpen ? "transform rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -115,7 +121,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
           />
         </svg>
       </button>
-      {isOpen && !disabled && (
+      {menuOpen && (
         <div
           id={menuId}
           className={`absolute top-full mt-1 bg-raised border border-line/15 rounded-lg shadow-raised z-50 p-1 max-h-60 overflow-y-auto ${
