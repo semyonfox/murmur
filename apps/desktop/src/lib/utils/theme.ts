@@ -23,13 +23,25 @@ export const THEME_OPTIONS: Theme[] = ["system", "light", "dark"];
 const isTheme = (value: unknown): value is Theme =>
   value === "system" || value === "light" || value === "dark";
 
+let restoreTransitionsFrame: number | undefined;
+
 /** Apply a theme to the document root and remember it for the next launch. */
 export const applyTheme = (theme: Theme): void => {
   const root = document.documentElement;
-  if (theme === "system") {
-    delete root.dataset.theme;
-  } else {
-    root.dataset.theme = theme;
+  if ((root.dataset.theme ?? "system") !== theme) {
+    root.classList.add("theme-switching");
+    if (theme === "system") delete root.dataset.theme;
+    else root.dataset.theme = theme;
+
+    if (restoreTransitionsFrame !== undefined)
+      cancelAnimationFrame(restoreTransitionsFrame);
+    // paint the new palette before enabling transitions again
+    restoreTransitionsFrame = requestAnimationFrame(() => {
+      restoreTransitionsFrame = requestAnimationFrame(() => {
+        root.classList.remove("theme-switching");
+        restoreTransitionsFrame = undefined;
+      });
+    });
   }
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);

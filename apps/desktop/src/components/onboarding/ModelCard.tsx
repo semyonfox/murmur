@@ -23,6 +23,7 @@ import {
 } from "../../lib/constants/languages";
 import Badge from "../ui/Badge";
 import { Button } from "../ui/Button";
+import { useDelayedFlag } from "@/hooks/useDelayedFlag";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 // Get display text for model's language support
@@ -96,6 +97,11 @@ const ModelCard: React.FC<ModelCardProps> = ({
   const debugMode = useSettingsStore(
     (state) => state.settings?.debug_mode ?? false,
   );
+  const progress = Math.max(0, Math.min(100, downloadProgress ?? 0));
+  const waitingForProgress = useDelayedFlag(
+    status === "downloading" && !downloadProgress,
+    5000,
+  );
   const isFeatured = variant === "featured";
   // The active model is already loaded — re-selecting it just reloads it for no
   // gain, so it is deliberately not clickable.
@@ -112,8 +118,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
     model.supported_languages,
   );
 
-  const baseClasses =
-    "flex flex-col rounded-xl px-4 py-3 gap-2 text-left transition-all duration-200";
+  const baseClasses = "flex flex-col rounded-xl px-4 py-3 gap-2 text-left";
 
   const getVariantClasses = () => {
     if (status === "active") {
@@ -171,7 +176,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
         <div className="flex flex-col items-start flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h3
-              className={`text-base font-semibold text-text ${isClickable ? "group-hover:text-logo-primary" : ""} transition-colors`}
+              className={`text-base font-semibold text-text ${isClickable ? "group-hover:text-logo-primary" : ""}`}
             >
               {displayName}
             </h3>
@@ -192,7 +197,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
             )}
             {status === "switching" && (
               <Badge variant="secondary">
-                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                <Loader2 className="w-3 h-3 mr-1 delayed-spin" />
                 {t("modelSelector.switching")}
               </Badge>
             )}
@@ -310,19 +315,28 @@ const ModelCard: React.FC<ModelCardProps> = ({
       </div>
 
       {/* Download/extract progress */}
-      {status === "downloading" && downloadProgress !== undefined && (
+      {status === "downloading" && (
         <div className="w-full mt-3">
-          <div className="w-full h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
+          <div
+            role="progressbar"
+            aria-label={t("common.download")}
+            aria-valuenow={
+              downloadProgress === undefined ? undefined : Math.round(progress)
+            }
+            className="w-full h-1.5 bg-mid-gray/20 rounded-full overflow-hidden"
+          >
             <div
-              className="h-full bg-logo-primary rounded-full transition-all duration-300"
-              style={{ width: `${downloadProgress}%` }}
+              className="h-full w-full origin-left rounded-full bg-logo-primary transition-transform duration-150 ease-out rtl:origin-right"
+              style={{ transform: `scaleX(${progress / 100})` }}
             />
           </div>
           <div className="flex items-center justify-between text-xs mt-1">
-            <span className="text-text/50">
-              {t("modelSelector.downloading", {
-                percentage: Math.round(downloadProgress),
-              })}
+            <span className="tabular-nums text-text/60">
+              {waitingForProgress
+                ? t("murmur.download.pending")
+                : t("modelSelector.downloading", {
+                    percentage: Math.round(progress),
+                  })}
             </span>
             <div className="flex items-center gap-2">
               {downloadSpeed !== undefined && downloadSpeed > 0 && (
@@ -353,7 +367,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
       {status === "verifying" && (
         <div className="w-full mt-3">
           <div className="w-full h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
-            <div className="h-full bg-logo-primary rounded-full animate-pulse w-full" />
+            <div className="skeleton h-full w-full rounded-full" />
           </div>
           <p className="text-xs text-text/50 mt-1">
             {t("modelSelector.verifyingGeneric")}
@@ -363,7 +377,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
       {status === "extracting" && (
         <div className="w-full mt-3">
           <div className="w-full h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
-            <div className="h-full bg-logo-primary rounded-full animate-pulse w-full" />
+            <div className="skeleton h-full w-full rounded-full" />
           </div>
           <p className="text-xs text-text/50 mt-1">
             {t("modelSelector.extractingGeneric")}

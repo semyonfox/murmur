@@ -59,8 +59,9 @@ export const LogDirectory: React.FC<LogDirectoryProps> = ({
       layout="stacked"
     >
       {loading ? (
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-100 rounded" />
+        <div role="status">
+          <p className="sr-only">{t("common.loading")}</p>
+          <div aria-hidden="true" className="skeleton h-8 rounded" />
         </div>
       ) : error ? (
         <div className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-600">

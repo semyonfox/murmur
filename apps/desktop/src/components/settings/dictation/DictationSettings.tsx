@@ -149,7 +149,7 @@ const StatusCard: React.FC = () => {
           aria-live="polite"
         >
           <span
-            className={`h-2 w-2 rounded-full ${isRecording ? "bg-logo-primary animate-pulse" : "bg-mid-gray/60"}`}
+            className={`h-2 w-2 rounded-full ${isRecording ? "bg-logo-primary" : "bg-mid-gray/60"}`}
             aria-hidden="true"
           />
           {statusError
@@ -177,7 +177,7 @@ const StatusCard: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate("models")}
-          className="cursor-pointer rounded-md px-1.5 py-0.5 text-xs font-medium text-logo-primary hover:bg-mid-gray/10 max-sm:min-h-11"
+          className="cursor-pointer min-h-[24px] min-w-[24px] rounded-md px-1.5 py-0.5 text-xs font-medium text-logo-primary hover:bg-mid-gray/10 max-sm:min-h-11"
         >
           {t("murmur.dictation.status.change", {
             defaultValue: "Change models",

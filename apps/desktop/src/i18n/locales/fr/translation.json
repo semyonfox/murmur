@@ -147,7 +147,7 @@
     "loadingGeneric": "Chargement...",
     "modelError": "Erreur du Modèle",
     "modelUnloaded": "Modèle Déchargé",
-    "noModelDownloadRequired": "Aucun Modèle - Téléchargement Requis",
+    "noModelDownloadRequired": "Aucun modèle pour l’instant. Choisissez-en un dans Modèles.",
     "deleteModel": "Supprimer {{modelName}}",
     "downloadSpeed": "{{speed}} Mo/s",
     "capabilities": {
@@ -182,6 +182,7 @@
       "yourModels": "Modèles téléchargés",
       "availableModels": "Disponibles au téléchargement",
       "searchPlaceholder": "Rechercher des modèles par nom…",
+      "searchLabel": "Rechercher des modèles par nom",
       "rescan": {
         "label": "Réanalyser",
         "tooltip": "Réanalyser pour détecter les modèles ajoutés au dossier des modèles ou au cache Hugging Face en dehors de Murmur"
@@ -473,7 +474,7 @@
       "save": "Enregistrer la transcription",
       "unsave": "Retirer des favoris",
       "delete": "Supprimer l'entrée",
-      "deleteError": "Échec de la suppression de l'entrée. Veuillez réessayer.",
+      "deleteError": "Impossible de supprimer cette dictée. Elle est toujours enregistrée. Réessayez.",
       "retranscribe": "Re-transcrire",
       "retranscribeError": "Impossible de re-transcrire. Veuillez réessayer.",
       "transcribing": "Transcription en cours...",
@@ -744,6 +745,8 @@
       "removeKey": "Supprimer la clé",
       "keyStatusUnknown": "Vérification du gestionnaire d’identifiants du système…",
       "keyStored": "Clé enregistrée dans le gestionnaire d’identifiants du système",
+      "enableToConfigure": "Activez la correction par IA, puis choisissez un fournisseur.",
+      "noProviders": "Aucun fournisseur de correction n’est disponible.",
       "keyMissing": "Aucune clé enregistrée",
       "formality": {
         "veryCasual": "Très familier",

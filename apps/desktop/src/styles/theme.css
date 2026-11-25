@@ -130,3 +130,10 @@
 :root .bg-logo-primary {
     color: var(--color-on-logo-primary);
 }
+
+:root.theme-switching,
+:root.theme-switching *,
+:root.theme-switching *::before,
+:root.theme-switching *::after {
+    transition: none !important;
+}

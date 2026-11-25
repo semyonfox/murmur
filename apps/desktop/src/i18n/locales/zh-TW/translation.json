@@ -147,7 +147,7 @@
     "loadingGeneric": "載入中...",
     "modelError": "模型錯誤",
     "modelUnloaded": "模型已卸載",
-    "noModelDownloadRequired": "無模型 - 需要下載",
+    "noModelDownloadRequired": "尚未選擇模型。請在「模型」中選擇一個。",
     "deleteModel": "刪除 {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
     "cancel": "取消",
@@ -233,6 +233,7 @@
       },
       "noModelsMatch": "沒有符合此篩選條件的模型",
       "searchPlaceholder": "依名稱搜尋模型…",
+      "searchLabel": "依名稱搜尋模型",
       "rescan": {
         "label": "重新掃描",
         "tooltip": "重新掃描在 Murmur 之外新增到模型資料夾或 Hugging Face 快取中的模型"
@@ -473,7 +474,7 @@
       "save": "儲存轉錄",
       "unsave": "從已儲存中移除",
       "delete": "刪除條目",
-      "deleteError": "刪除條目失敗，請重試",
+      "deleteError": "無法刪除這筆聽寫記錄。記錄仍然保留。請再試一次。",
       "retranscribe": "重新轉錄",
       "retranscribeError": "重新轉錄失敗，請重試。",
       "transcribing": "轉錄中...",
@@ -744,6 +745,8 @@
       "removeKey": "移除金鑰",
       "keyStatusUnknown": "正在檢查系統憑證儲存區…",
       "keyStored": "金鑰已儲存在系統憑證儲存區",
+      "enableToConfigure": "開啟 AI 潤飾，然後選擇服務供應商。",
+      "noProviders": "沒有可用的潤飾服務供應商。",
       "keyMissing": "尚未儲存金鑰",
       "formality": {
         "veryCasual": "非常隨性",

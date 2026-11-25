@@ -147,7 +147,7 @@
     "loadingGeneric": "Cargando...",
     "modelError": "Error del modelo",
     "modelUnloaded": "Modelo descargado",
-    "noModelDownloadRequired": "Sin modelo - descarga requerida",
+    "noModelDownloadRequired": "Todavía no hay ningún modelo. Elige uno en Modelos.",
     "deleteModel": "Eliminar {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
     "capabilities": {
@@ -182,6 +182,7 @@
       "yourModels": "Modelos descargados",
       "availableModels": "Disponibles para descargar",
       "searchPlaceholder": "Buscar modelos por nombre…",
+      "searchLabel": "Buscar modelos por nombre",
       "rescan": {
         "label": "Volver a escanear",
         "tooltip": "Vuelve a escanear en busca de modelos añadidos a la carpeta de modelos o a la caché de Hugging Face fuera de Murmur"
@@ -473,7 +474,7 @@
       "save": "Guardar transcripción",
       "unsave": "Eliminar de guardados",
       "delete": "Eliminar entrada",
-      "deleteError": "Error al eliminar la entrada. Por favor, intenta de nuevo.",
+      "deleteError": "No se pudo eliminar este dictado. Sigue guardado. Inténtalo de nuevo.",
       "retranscribe": "Re-transcribir",
       "retranscribeError": "No se pudo re-transcribir. Por favor, inténtalo de nuevo.",
       "transcribing": "Transcribiendo...",
@@ -744,6 +745,8 @@
       "removeKey": "Quitar clave",
       "keyStatusUnknown": "Comprobando el almacén de credenciales del sistema…",
       "keyStored": "Clave guardada en el almacén de credenciales del sistema",
+      "enableToConfigure": "Activa la corrección con IA y elige un proveedor.",
+      "noProviders": "No hay proveedores de corrección disponibles.",
       "keyMissing": "No hay ninguna clave guardada",
       "formality": {
         "veryCasual": "Muy informal",

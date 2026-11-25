@@ -1,5 +1,7 @@
 # Murmur
 
+attribution: on
+
 Murmur is a provisional name for a cross-platform dictation project. This is a standalone project, not a GNU Stow package.
 
 - Read README.md and docs/architecture.md before implementation.
@@ -10,4 +12,4 @@ Murmur is a provisional name for a cross-platform dictation project. This is a s
 - Local, bring-your-own-key, and managed cloud modes must have explicit data and cost boundaries. Never send local recordings to cloud as an automatic fallback.
 - Do not store credentials, personal recordings, or personal transcripts in this repository.
 - Do not commit, push, deploy, install system packages, change compositor settings, or provision paid services without explicit authorization.
-- Never add tool or model attribution to authored work. Upstream copyright notices are required provenance and must remain intact.
+- Commits, code and docs carry no tool or model attribution. Pull request descriptions name the agent, as `attribution: on` allows. Upstream copyright notices are required provenance and must remain intact.

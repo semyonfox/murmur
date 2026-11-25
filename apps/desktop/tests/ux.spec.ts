@@ -197,9 +197,9 @@ test("failed deletion preserves recovery text and reports the error", async ({
   });
   await openHistory(page);
   await page.getByRole("button", { name: "Delete entry" }).click();
-  await expect(
-    page.getByText("Failed to delete entry. Please try again."),
-  ).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText(
+    "Couldn’t delete this dictation. It’s still saved. Try again.",
+  );
   await expect(
     page.getByText(sampleHistory.post_processed_text!, { exact: true }),
   ).toBeVisible();
@@ -235,7 +235,8 @@ test("loading is announced before the successful empty state", async ({
 test("named switches and retention keyboard dismissal preserve focus", async ({
   page,
 }) => {
-  await installFixture(page);
+  await page.setViewportSize({ width: 680, height: 570 });
+  await installFixture(page, { history: [sampleHistory] });
   await page.goto("/");
   await expect(
     page.getByRole("checkbox", { name: "Start and stop sounds" }),
@@ -244,17 +245,48 @@ test("named switches and retention keyboard dismissal preserve focus", async ({
   const retention = page.getByRole("button", {
     name: "Keep recordings and transcripts: Forever",
   });
+  await retention.scrollIntoViewIfNeeded();
   await retention.focus();
   await page.keyboard.press("Enter");
   await expect(retention).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    page.getByRole("button", { name: "3 months", exact: true }),
+  ).toBeInViewport({ ratio: 1 });
   await page.keyboard.press("Tab");
   await page.keyboard.press("Escape");
   await expect(retention).toBeFocused();
   await expect(retention).toHaveAttribute("aria-expanded", "false");
+  await expect(
+    page.getByRole("button", { name: "Forever", exact: true }),
+  ).toHaveCount(0);
   await page.keyboard.press("Enter");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Enter");
   await expect(retention).toBeFocused();
+});
+
+test("moving between help buttons skips the first hover delay", async ({
+  page,
+}) => {
+  await installFixture(page);
+  await page.goto("/");
+  const help = page.getByRole("button", { name: /^More information:/ });
+  const first = help.first();
+  const second = help.nth(1);
+
+  await first.hover();
+  await expect(first).toHaveAttribute("aria-expanded", "false", {
+    timeout: 100,
+  });
+  await expect(first).toHaveAttribute("aria-expanded", "true");
+
+  await second.hover();
+  await expect(second).toHaveAttribute("aria-expanded", "true", {
+    timeout: 250,
+  });
+  await expect(page.getByRole("tooltip")).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
 });
 
 test("returning to Lectures shows the native recording start time", async ({

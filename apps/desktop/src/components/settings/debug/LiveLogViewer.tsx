@@ -181,7 +181,7 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
         <div className="flex items-center gap-2 text-xs text-mid-gray min-w-0">
           <span
             className={`inline-block w-2 h-2 rounded-full shrink-0 ${
-              paused ? "bg-mid-gray" : "bg-emerald-500 animate-pulse"
+              paused ? "bg-mid-gray" : "bg-emerald-500"
             }`}
           />
           <span className="shrink-0">
@@ -226,7 +226,7 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="h-72 overflow-y-auto rounded-lg border border-line/18 bg-[var(--color-log-surface)] p-3 font-mono text-xs leading-relaxed select-text"
+        className="h-72 overflow-y-auto overscroll-contain rounded-lg border border-line/18 bg-[var(--color-log-surface)] p-3 font-mono text-xs leading-relaxed select-text"
       >
         {logs.length === 0 ? (
           <div className="text-mid-gray select-none">

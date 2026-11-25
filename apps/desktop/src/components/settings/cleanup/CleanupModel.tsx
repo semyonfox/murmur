@@ -3,17 +3,28 @@ import { useTranslation } from "react-i18next";
 import { RefreshCcw } from "lucide-react";
 import { Alert } from "../../ui/Alert";
 import { Button } from "../../ui/Button";
+import { Input } from "../../ui/Input";
 import { ResetButton } from "../../ui/ResetButton";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
 import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
 import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
 import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
-import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
+import type { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 
-export const CleanupModel: React.FC = () => {
+interface CleanupModelProps {
+  state: ReturnType<typeof usePostProcessProviderState>;
+  unavailableReasonId?: string;
+}
+
+export const CleanupModel: React.FC<CleanupModelProps> = ({
+  state,
+  unavailableReasonId,
+}) => {
   const { t } = useTranslation();
-  const state = usePostProcessProviderState();
+  const modelPlaceholder = state.modelOptions.length
+    ? t("settings.postProcessing.api.model.placeholderWithOptions")
+    : t("settings.postProcessing.api.model.placeholderNoOptions");
 
   return (
     <>
@@ -29,6 +40,9 @@ export const CleanupModel: React.FC = () => {
             options={state.providerOptions}
             value={state.selectedProviderId}
             onChange={state.handleProviderSelect}
+            label={t("settings.postProcessing.api.provider.title")}
+            placeholder={t("murmur.cleanup.model.none")}
+            unavailableReasonId={unavailableReasonId}
           />
         </div>
       </SettingContainer>
@@ -59,6 +73,7 @@ export const CleanupModel: React.FC = () => {
                     "settings.postProcessing.api.baseUrl.placeholder",
                   )}
                   disabled={state.isBaseUrlUpdating}
+                  unavailableReasonId={unavailableReasonId}
                   className="min-w-0 flex-1"
                 />
               </div>
@@ -84,9 +99,10 @@ export const CleanupModel: React.FC = () => {
                       "settings.postProcessing.api.apiKey.placeholder",
                     )}
                     disabled={state.isApiKeyUpdating || state.isBaseUrlUpdating}
+                    unavailableReasonId={unavailableReasonId}
                     className="min-w-0 flex-1"
                   />
-                  {state.apiKeyConfigured && (
+                  {state.apiKeyConfigured && !unavailableReasonId && (
                     <Button
                       variant="secondary"
                       size="md"
@@ -133,36 +149,42 @@ export const CleanupModel: React.FC = () => {
           layout="stacked"
           grouped={true}
         >
-          <div className="flex items-center gap-2">
-            <ModelSelect
-              label={t("settings.postProcessing.api.model.title")}
+          {unavailableReasonId ? (
+            <Input
+              aria-label={t("settings.postProcessing.api.model.title")}
+              aria-disabled="true"
+              aria-describedby={unavailableReasonId}
               value={state.model}
-              options={state.modelOptions}
-              disabled={state.isModelUpdating}
-              isLoading={state.isFetchingModels}
-              placeholder={
-                state.modelOptions.length > 0
-                  ? t(
-                      "settings.postProcessing.api.model.placeholderWithOptions",
-                    )
-                  : t("settings.postProcessing.api.model.placeholderNoOptions")
-              }
-              onSelect={state.handleModelSelect}
-              onCreate={state.handleModelCreate}
-              onBlur={() => {}}
-              className="min-w-0 flex-1"
+              placeholder={modelPlaceholder}
+              readOnly
+              className="min-h-10 w-full cursor-not-allowed opacity-60"
             />
-            <ResetButton
-              onClick={state.handleRefreshModels}
-              disabled={state.isFetchingModels}
-              ariaLabel={t("settings.postProcessing.api.model.refreshModels")}
-              className="flex h-10 w-10 items-center justify-center"
-            >
-              <RefreshCcw
-                className={`h-4 w-4 ${state.isFetchingModels ? "animate-spin" : ""}`}
+          ) : (
+            <div className="flex items-center gap-2">
+              <ModelSelect
+                label={t("settings.postProcessing.api.model.title")}
+                value={state.model}
+                options={state.modelOptions}
+                disabled={state.isModelUpdating}
+                isLoading={state.isFetchingModels}
+                placeholder={modelPlaceholder}
+                onSelect={state.handleModelSelect}
+                onCreate={state.handleModelCreate}
+                onBlur={() => {}}
+                className="min-w-0 flex-1"
               />
-            </ResetButton>
-          </div>
+              <ResetButton
+                onClick={state.handleRefreshModels}
+                disabled={state.isFetchingModels}
+                ariaLabel={t("settings.postProcessing.api.model.refreshModels")}
+                className="flex h-10 w-10 items-center justify-center"
+              >
+                <RefreshCcw
+                  className={`h-4 w-4 ${state.isFetchingModels ? "delayed-spin" : ""}`}
+                />
+              </ResetButton>
+            </div>
+          )}
         </SettingContainer>
       )}
     </>

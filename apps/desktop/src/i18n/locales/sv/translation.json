@@ -147,7 +147,7 @@
     "loadingGeneric": "Laddar...",
     "modelError": "Modellfel",
     "modelUnloaded": "Modell avlastad",
-    "noModelDownloadRequired": "Ingen modell - Nedladdning krävs",
+    "noModelDownloadRequired": "Ingen modell har valts än. Välj en under Modeller.",
     "deleteModel": "Ta bort {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
     "cancel": "Avbryt",
@@ -233,6 +233,7 @@
       },
       "noModelsMatch": "Inga modeller matchar detta filter.",
       "searchPlaceholder": "Sök modeller efter namn…",
+      "searchLabel": "Sök modeller efter namn",
       "rescan": {
         "label": "Skanna om",
         "tooltip": "Skanna om efter modeller som lagts till i modellmappen eller Hugging Face-cachen utanför Murmur"
@@ -473,7 +474,7 @@
       "save": "Spara transkription",
       "unsave": "Ta bort från sparade",
       "delete": "Ta bort post",
-      "deleteError": "Misslyckades med att ta bort post. Försök igen.",
+      "deleteError": "Det gick inte att ta bort dikteringen. Den finns kvar. Försök igen.",
       "retranscribe": "Transkribera igen",
       "retranscribeError": "Misslyckades med att transkribera igen. Försök igen.",
       "transcribing": "Transkriberar...",
@@ -744,6 +745,8 @@
       "removeKey": "Ta bort nyckel",
       "keyStatusUnknown": "Kontrollerar systemets nyckelring…",
       "keyStored": "Nyckeln är sparad i systemets nyckelring",
+      "enableToConfigure": "Slå på AI-bearbetning och välj en leverantör.",
+      "noProviders": "Det finns inga tillgängliga leverantörer för AI-bearbetning.",
       "keyMissing": "Ingen nyckel sparad",
       "formality": {
         "veryCasual": "Mycket ledig",

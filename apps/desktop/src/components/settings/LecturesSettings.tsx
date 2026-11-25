@@ -104,7 +104,7 @@ export default function LecturesSettings() {
             defaultValue: "Record a lecture",
           })}
         </h2>
-        <p className="mt-2 text-sm text-text/70">
+        <p className="mt-2 max-w-[70ch] text-sm/normal text-text/70">
           {t("murmur.lectures.recordDescription", {
             defaultValue:
               "Capture from your microphone. The audio is saved as you record, then transcribed when you finish.",
@@ -162,7 +162,7 @@ export default function LecturesSettings() {
             defaultValue: "Transcribe an audio file",
           })}
         </h2>
-        <p className="mt-2 text-sm text-text/70">
+        <p className="mt-2 max-w-[70ch] text-sm/normal text-text/70">
           {t("murmur.lectures.importDescription", {
             defaultValue:
               "Choose a recording to add it to History. Murmur uses your selected speech and cleanup providers.",
@@ -178,7 +178,7 @@ export default function LecturesSettings() {
           {t("murmur.lectures.choose", { defaultValue: "Choose audio file" })}
         </Button>
       </div>
-      <p className="text-sm text-text/60">
+      <p className="max-w-[70ch] text-sm/normal text-text/60">
         {t("murmur.lectures.privacy", {
           defaultValue:
             "Raw audio and transcripts follow your History retention settings. Cloud providers receive audio only when you select an endpoint speech mode.",

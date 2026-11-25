@@ -147,7 +147,7 @@
     "loadingGeneric": "読み込み中…",
     "modelError": "モデルエラー",
     "modelUnloaded": "モデルがアンロードされました",
-    "noModelDownloadRequired": "モデルなし - ダウンロードが必要",
+    "noModelDownloadRequired": "モデルが未選択です。「モデル」で選んでください。",
     "deleteModel": "{{modelName}}を削除",
     "downloadSpeed": "{{speed}} MB/s",
     "capabilities": {
@@ -182,6 +182,7 @@
       "yourModels": "ダウンロード済みモデル",
       "availableModels": "ダウンロード可能",
       "searchPlaceholder": "モデルを名前で検索…",
+      "searchLabel": "モデルを名前で検索",
       "rescan": {
         "label": "再スキャン",
         "tooltip": "Murmur を使わずに models フォルダーまたは Hugging Face キャッシュに追加されたモデルを再スキャンします"
@@ -473,7 +474,7 @@
       "save": "文字起こしを保存",
       "unsave": "保存から削除",
       "delete": "エントリーを削除",
-      "deleteError": "エントリーの削除に失敗しました。もう一度お試しください。",
+      "deleteError": "この音声入力を削除できませんでした。データは保存されたままです。もう一度お試しください。",
       "retranscribe": "再文字起こし",
       "retranscribeError": "再文字起こしに失敗しました。もう一度お試しください。",
       "transcribing": "文字起こし中…",
@@ -744,6 +745,8 @@
       "removeKey": "キーを削除",
       "keyStatusUnknown": "システムの資格情報ストアを確認中…",
       "keyStored": "キーはシステムの資格情報ストアに保存されています",
+      "enableToConfigure": "AI による整形をオンにして、提供元を選んでください。",
+      "noProviders": "利用できる整形の提供元がありません。",
       "keyMissing": "キーが保存されていません",
       "formality": {
         "veryCasual": "とてもくだけた",

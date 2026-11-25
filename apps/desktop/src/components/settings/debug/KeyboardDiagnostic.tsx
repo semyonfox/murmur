@@ -90,7 +90,7 @@ export const KeyboardDiagnostic: React.FC = () => {
         </button>
       </div>
       {running && (
-        <p className="text-sm animate-pulse">
+        <p className="text-sm">
           {t("settings.debug.keyboardDiagnostic.running")}
         </p>
       )}

@@ -147,7 +147,7 @@
     "loadingGeneric": "Wird geladen...",
     "modelError": "Modellfehler",
     "modelUnloaded": "Modell entladen",
-    "noModelDownloadRequired": "Kein Modell - Download erforderlich",
+    "noModelDownloadRequired": "Noch kein Modell gewählt. Wähle eines unter „Modelle“.",
     "deleteModel": "{{modelName}} löschen",
     "downloadSpeed": "{{speed}} MB/s",
     "capabilities": {
@@ -182,6 +182,7 @@
       "yourModels": "Heruntergeladene Modelle",
       "availableModels": "Zum Download verfügbar",
       "searchPlaceholder": "Modelle nach Namen suchen…",
+      "searchLabel": "Modelle nach Namen suchen",
       "rescan": {
         "label": "Neu scannen",
         "tooltip": "Erneut nach Modellen scannen, die außerhalb von Murmur zum Modellordner oder Hugging-Face-Cache hinzugefügt wurden"
@@ -473,7 +474,7 @@
       "save": "Transkription speichern",
       "unsave": "Aus Gespeicherten entfernen",
       "delete": "Eintrag löschen",
-      "deleteError": "Eintrag konnte nicht gelöscht werden. Bitte versuche es erneut.",
+      "deleteError": "Dieses Diktat konnte nicht gelöscht werden. Es bleibt gespeichert. Versuche es erneut.",
       "retranscribe": "Erneut transkribieren",
       "retranscribeError": "Erneute Transkription fehlgeschlagen. Bitte versuche es erneut.",
       "transcribing": "Transkribiere...",
@@ -744,6 +745,8 @@
       "removeKey": "Schlüssel entfernen",
       "keyStatusUnknown": "Anmeldedatenspeicher des Systems wird geprüft…",
       "keyStored": "Schlüssel im Anmeldedatenspeicher des Systems gespeichert",
+      "enableToConfigure": "Aktiviere die KI-Nachbearbeitung und wähle einen Anbieter.",
+      "noProviders": "Es sind keine Anbieter für die Nachbearbeitung verfügbar.",
       "keyMissing": "Kein Schlüssel gespeichert",
       "formality": {
         "veryCasual": "Sehr locker",

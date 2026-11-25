@@ -21,10 +21,14 @@ type ModelStatus =
   | "none";
 
 interface ModelSelectorProps {
+  onOpenModels: () => void;
   onError?: (error: string) => void;
 }
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
+const ModelSelector: React.FC<ModelSelectorProps> = ({
+  onError,
+  onOpenModels,
+}) => {
   const { t } = useTranslation();
   const {
     models,
@@ -242,20 +246,36 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     return modelStatus;
   };
 
+  const openModels = modelStatus === "none";
+
   return (
     <>
       {/* Model Status and Switcher */}
-      <div className="relative" ref={dropdownRef}>
+      <div
+        className="relative"
+        ref={dropdownRef}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape" || !showModelDropdown) return;
+          event.stopPropagation();
+          setShowModelDropdown(false);
+          dropdownRef.current?.querySelector("button")?.focus();
+        }}
+      >
         <ModelStatusButton
           status={getDisplayStatus()}
           displayText={getModelDisplayText()}
-          isDropdownOpen={showModelDropdown}
-          onClick={() => setShowModelDropdown(!showModelDropdown)}
+          isDropdownOpen={openModels ? undefined : showModelDropdown}
+          onClick={
+            openModels
+              ? onOpenModels
+              : () => setShowModelDropdown(!showModelDropdown)
+          }
         />
 
         {/* Model Dropdown */}
-        {showModelDropdown && (
+        {!openModels && (
           <ModelDropdown
+            open={showModelDropdown}
             models={models}
             currentModelId={displayModelId}
             onModelSelect={handleModelSelect}

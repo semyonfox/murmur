@@ -147,7 +147,7 @@
     "loadingGeneric": "Caricamento...",
     "modelError": "Errore del Modello",
     "modelUnloaded": "Modello Disattivato",
-    "noModelDownloadRequired": "Nessun Modello - Download Richiesto",
+    "noModelDownloadRequired": "Non c’è ancora un modello. Scegline uno in Modelli.",
     "deleteModel": "Elimina {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
     "capabilities": {
@@ -182,6 +182,7 @@
       "yourModels": "Modelli scaricati",
       "availableModels": "Disponibili per il Download",
       "searchPlaceholder": "Cerca modelli per nome…",
+      "searchLabel": "Cerca modelli per nome",
       "rescan": {
         "label": "Riscansiona",
         "tooltip": "Riscansiona per trovare modelli aggiunti alla cartella dei modelli o alla cache di Hugging Face al di fuori di Murmur"
@@ -473,7 +474,7 @@
       "save": "Salva la trascrizione",
       "unsave": "Rimuovi dai salvataggi",
       "delete": "Elimina elemento",
-      "deleteError": "Errore nell'eliminazione dell'elemento. Riprova.",
+      "deleteError": "Impossibile eliminare questo dettato. È ancora salvato. Riprova.",
       "retranscribe": "Ri-trascrivere",
       "retranscribeError": "Impossibile ri-trascrivere. Riprova.",
       "transcribing": "Trascrizione in corso...",
@@ -744,6 +745,8 @@
       "removeKey": "Rimuovi chiave",
       "keyStatusUnknown": "Controllo dell'archivio credenziali di sistema…",
       "keyStored": "Chiave salvata nell'archivio credenziali di sistema",
+      "enableToConfigure": "Attiva la correzione con IA, poi scegli un fornitore.",
+      "noProviders": "Nessun fornitore di correzione disponibile.",
       "keyMissing": "Nessuna chiave salvata",
       "formality": {
         "veryCasual": "Molto informale",

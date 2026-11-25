@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw } from "lucide-react";
+import { useDelayedFlag } from "@/hooks/useDelayedFlag";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { events, type HistoryStats } from "@/bindings";
@@ -67,6 +68,7 @@ export const StatsSettings: React.FC = () => {
   const [stats, setStats] = useState<HistoryStats | null>(null);
   const [error, setError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const longLoad = useDelayedFlag(isLoading && !stats, 3000);
   const statsRequestRef = useRef(0);
   const metricTrackRef = useRef<HTMLDivElement>(null);
   const metricDragRef = useRef<{
@@ -239,6 +241,9 @@ export const StatsSettings: React.FC = () => {
 
   return (
     <div className="w-full space-y-6">
+      <p role="status" className="sr-only">
+        {!stats && isLoading && t("murmur.history.stats.loading")}
+      </p>
       <section
         aria-busy={isLoading}
         aria-labelledby="stats-heading"
@@ -254,7 +259,7 @@ export const StatsSettings: React.FC = () => {
                 defaultValue: "Your dictation stats",
               })}
             </h2>
-            <p className="mt-1 text-xs leading-relaxed text-mid-gray">
+            <p className="mt-1 max-w-[70ch] text-xs/normal text-mid-gray">
               {t("murmur.history.stats.retainedOnly", {
                 defaultValue:
                   "Based on retained history. Deleted dictations are not counted.",
@@ -269,7 +274,7 @@ export const StatsSettings: React.FC = () => {
             className="inline-flex items-center gap-2"
           >
             <RefreshCw
-              className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`}
+              className={`h-3.5 w-3.5 ${isLoading ? "delayed-spin" : ""}`}
               aria-hidden="true"
             />
             {t("murmur.stats.refresh", { defaultValue: "Refresh" })}
@@ -289,18 +294,35 @@ export const StatsSettings: React.FC = () => {
         )}
 
         {!stats && isLoading && (
-          <div className="space-y-5 px-4 py-5 sm:px-5" role="status">
-            <p className="text-sm text-mid-gray">
-              {t("murmur.history.stats.loading", {
-                defaultValue: "Loading statistics…",
-              })}
-            </p>
-            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-mid-gray/15 sm:grid-cols-4">
-              {Array.from({ length: 4 }, (_, index) => (
-                <div key={index} className="bg-surface px-4 py-4">
-                  <div className="h-3 w-20 animate-pulse rounded bg-mid-gray/15" />
-                  <div className="mt-3 h-7 w-16 animate-pulse rounded bg-mid-gray/15" />
+          <div
+            aria-hidden="true"
+            className="border-b border-line/12 py-4"
+            data-loading-long={longLoad}
+          >
+            <div className="px-4 pb-3 sm:px-5">
+              {longLoad ? (
+                <p className="text-xs text-mid-gray">
+                  {t("murmur.history.stats.loading")}
+                </p>
+              ) : (
+                <div aria-hidden="true" className="skeleton h-4 w-28 rounded" />
+              )}
+            </div>
+            <div
+              aria-hidden="true"
+              className="flex gap-3 overflow-hidden px-4 pb-1 sm:px-5"
+            >
+              {[0, 1, 2, 3].map((index) => (
+                <div key={index} className={statCardClass}>
+                  <div className="skeleton h-4 w-20 rounded" />
+                  <div className="skeleton mt-3 h-8 w-16 rounded" />
+                  <div className="skeleton mt-2 h-4 w-32 max-w-full rounded" />
                 </div>
+              ))}
+            </div>
+            <div aria-hidden="true" className="mt-3 flex justify-center gap-2">
+              {[0, 1, 2, 3].map((index) => (
+                <div key={index} className="skeleton size-2 rounded-full" />
               ))}
             </div>
           </div>
@@ -378,7 +400,7 @@ export const StatsSettings: React.FC = () => {
                 aria-label={t("murmur.stats.metricCards", {
                   defaultValue: "Dictation stat cards",
                 })}
-                className={`edge-fade flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 select-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-logo-primary [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:scroll-px-5 sm:px-5 sm:[--edge-fade:1.25rem] ${isDraggingMetric ? "cursor-grabbing" : "cursor-grab"}`}
+                className={`edge-fade flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto overscroll-contain px-4 pb-1 select-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-logo-primary [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:scroll-px-5 sm:px-5 sm:[--edge-fade:1.25rem] ${isDraggingMetric ? "cursor-grabbing" : "cursor-grab"}`}
               >
                 {metricCards.map((metric) => (
                   <StatCard
@@ -399,7 +421,7 @@ export const StatsSettings: React.FC = () => {
                     key={metric.label}
                     data-stat-dot={index}
                     data-active={index === activeMetric}
-                    className={`size-2 rounded-full transition-colors ${index === activeMetric ? "bg-logo-primary" : "bg-mid-gray/45"}`}
+                    className={`size-2 rounded-full ${index === activeMetric ? "bg-logo-primary" : "bg-mid-gray/45"}`}
                   />
                 ))}
               </div>
@@ -505,7 +527,7 @@ export const StatsSettings: React.FC = () => {
                 </div>
               </div>
 
-              <p className="mt-4 text-[11px] leading-relaxed text-mid-gray">
+              <p className="mt-4 max-w-[70ch] text-[11px] leading-normal text-mid-gray">
                 {hasAudio
                   ? t("murmur.history.stats.method", {
                       covered: stats.recordings_with_duration,
@@ -536,6 +558,9 @@ interface StatCardProps {
   unavailableLabel?: string;
 }
 
+const statCardClass =
+  "flex min-h-36 w-[78%] shrink-0 snap-start md:w-[46%] xl:w-[31%] flex-col rounded-2xl border border-line/12 bg-mid-gray/5 px-5 py-4";
+
 const StatCard: React.FC<StatCardProps> = ({
   label,
   value,
@@ -543,7 +568,7 @@ const StatCard: React.FC<StatCardProps> = ({
   unavailable,
   unavailableLabel,
 }) => (
-  <div className="flex min-h-36 w-[78%] shrink-0 snap-start md:w-[46%] xl:w-[31%] flex-col rounded-2xl border border-line/12 bg-mid-gray/5 px-5 py-4">
+  <div className={statCardClass}>
     <p className="text-xs font-semibold text-logo-primary">{label}</p>
     <p className="mt-3 font-serif text-3xl tracking-tight tabular-nums text-text">
       {value}

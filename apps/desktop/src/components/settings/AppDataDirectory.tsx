@@ -50,9 +50,10 @@ export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
 
   if (loading) {
     return (
-      <div className="animate-pulse">
-        <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
-        <div className="h-8 bg-gray-100 rounded"></div>
+      <div role="status">
+        <p className="sr-only">{t("common.loading")}</p>
+        <div aria-hidden="true" className="skeleton mb-2 h-4 w-1/3 rounded" />
+        <div aria-hidden="true" className="skeleton h-8 rounded" />
       </div>
     );
   }

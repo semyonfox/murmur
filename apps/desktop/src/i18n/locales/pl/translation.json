@@ -147,7 +147,7 @@
     "loadingGeneric": "Wczytywanie...",
     "modelError": "Błąd modelu",
     "modelUnloaded": "Model wyładowany",
-    "noModelDownloadRequired": "Brak modelu – wymagane pobranie",
+    "noModelDownloadRequired": "Nie wybrano jeszcze modelu. Wybierz go w sekcji Modele.",
     "deleteModel": "Usuń {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
     "capabilities": {
@@ -182,6 +182,7 @@
       "yourModels": "Pobrane modele",
       "availableModels": "Dostępne do pobrania",
       "searchPlaceholder": "Szukaj modeli według nazwy…",
+      "searchLabel": "Szukaj modeli według nazwy",
       "rescan": {
         "label": "Skanuj ponownie",
         "tooltip": "Skanuj ponownie w poszukiwaniu modeli dodanych do folderu modeli lub pamięci podręcznej Hugging Face poza Murmur"
@@ -473,7 +474,7 @@
       "save": "Zapisz transkrypcję",
       "unsave": "Usuń z zapisanych",
       "delete": "Usuń wpis",
-      "deleteError": "Nie udało się usunąć wpisu. Spróbuj ponownie.",
+      "deleteError": "Nie udało się usunąć tego dyktowania. Wciąż jest zapisane. Spróbuj ponownie.",
       "retranscribe": "Transkrybuj ponownie",
       "retranscribeError": "Nie udało się ponownie transkrybować. Spróbuj ponownie.",
       "transcribing": "Transkrybuję...",
@@ -744,6 +745,8 @@
       "removeKey": "Usuń klucz",
       "keyStatusUnknown": "Sprawdzanie systemowego magazynu poświadczeń…",
       "keyStored": "Klucz zapisany w systemowym magazynie poświadczeń",
+      "enableToConfigure": "Włącz korektę z użyciem AI i wybierz dostawcę.",
+      "noProviders": "Brak dostępnych dostawców korekty.",
       "keyMissing": "Brak zapisanego klucza",
       "formality": {
         "veryCasual": "Bardzo swobodny",
